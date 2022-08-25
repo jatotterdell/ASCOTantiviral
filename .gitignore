@@ -1,0 +1,44 @@
+# Ignore all (so Stan binaries are ignored)
+*
+# Unignore all with extensions
+!*.*
+# Unignore all dirs
+!*/
+
+# R specific files
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+renv/*
+.Renviron
+!DESCRIPTION
+
+# Data files
+*.xlsx
+
+# Tex files
+*.toc
+*.log
+*.aux
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.xdv
+
+# Ignore PDFs and DOCX
+*.pdf
+!report/ascot_antiviral_clinical_study_report.pdf
+*.docx
+
+# RDS files
+.DS*
+._DS*
+._*
+.~*
+
+# Custom
+outputs/*
+/.quarto/
+docs
+scratch

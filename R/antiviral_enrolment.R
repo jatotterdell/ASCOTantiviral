@@ -1,7 +1,8 @@
-source("R/read_raw_data.R")
-library(lubridate)
+library(ASCOTr)
+library(tidyverse)
 
-read_raw_extracts("enrolled")
+ASCOTr::read_raw_extracts(ASCOT_DATA_RAW, "enrolled")
+
 enr <- enrolled %>%
   filter(BAssignment == "B0")
 enr <- enr |>

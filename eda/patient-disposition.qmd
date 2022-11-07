@@ -1,0 +1,214 @@
+---
+title: "Patient Disposition"
+description: |
+  Summarise patient disposition throughout the trial,
+  including eligibility, randomisation, and withdrawal.
+author: "James Totterdell"
+date: today
+execute: 
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: pkgs
+#| include: false
+library(tidyverse)
+library(kableExtra)
+library(ASCOTr)
+```
+
+```{r}
+#| label: load-data
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
+```
+
+# Eligibility
+
+## Platform Criteria
+
+```{r}
+#| label: tbl-platform-eligibility
+#| tbl-cap: Platform eligibility.
+all_data |>
+  count(ENR_rec, EL_OutcomeReason) |>
+  group_by(ENR_rec) |>
+  arrange(-n, .by_group = TRUE) |>
+  ungroup() |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+```{r}
+#| label: tbl-consent-domainA
+#| tbl-cap: Consent to domain A. One participant enrolled who did not consent.
+all_data |>
+  count(ENR_rec, EL_Con_DomainA) |>
+  spread(EL_Con_DomainA, n) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+```{r}
+#| label: tbl-consent-domainC
+#| tbl-cap: Consent to domain C.
+all_data |>
+  count(ENR_rec, EL_Con_DomainC) |>
+  spread(EL_Con_DomainC, n) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+## Antiviral Criteria
+
+For reference, the exclusion criteria for the anti-viral domain follows (note that since only two antiviral interventions were available, an intervention exclusion criteria becomes a domain exclusion criteria):
+
+- Known current decompensated liver disease (Child-Pugh B or C) (`EL_DecompensatedLiver`)
+- The treating clinician intends to continue or commence treatment with oral therapeutic anticoagulation agents such as warfarin/dabigatran/rivaroxaban for non COVID-19 related purposes. (`EL_OralTherapeuticAnticoagAgents`)
+- A current or recurrent condition with a high risk of major bleeding (e.g. bleeding disorder), or a baseline coagulation profile (within the previous 3 days) that indicates a high risk of bleeding, that would be considered a contraindication to receive therapeutic anticoagulation. (`EL_TherapeuticAnticoagBleeding`)
+- Serum Potassium >5.5 mmol/L (based on most recent blood test result collected as part of routine care within the previous 3 days) (`EL_SerumPotassium`)
+- Serum Sodium <120 mmol/L (based on most recent blood test result collected as part of routine care within the previous 3 days). (`EL_SerumSodium`)
+- Hypersensitivity to nafamostat (`EL_HyperNafamostat`)
+- Pregnancy or breastfeeding (`EL_PregnancyBreastfeedingStatus`)
+- Currently receiving or have received nafamostat in the past 7 days (`EL_ReceivedNafamostat`)
+- Decompensated heart failure or renal dialysis and clinician believes an extra 500mL fluid/day would be detrimental (`EL_HeartRenalDialysis`)
+
+```{r}
+#| label: tbl-antiviral-eligibility
+#| tbl-cap: Antiviral eligibility variables.
+all_data |>
+    filter(
+        ENR_rec == 1,
+        EL_Con_DomainA == "Yes",
+    ) |>
+    summarise(
+        EL_DecompensatedLiver = sum(EL_DecompensatedLiver == "Yes"),
+        EL_OralTherapeuticAnticoagAgents = sum(EL_OralTherapeuticAnticoagAgents == "Yes", na.rm = TRUE),
+        EL_TherapeuticAnticoagBleeding = sum(EL_TherapeuticAnticoagBleeding == "Yes"),
+        EL_SerumSodium = sum(EL_SerumSodium < 5.5, na.rm = TRUE),
+        EL_SerumPotassium = sum(EL_SerumPotassium >= 120, na.rm = TRUE),
+        EL_HyperNafamostat = sum(EL_HyperNafamostat == "Yes"),
+        EL_PregnancyBreastfeedingStatus = sum(EL_PregnancyBreastfeedingStatus == "Yes", na.rm = TRUE),
+        EL_ReceivedNafamostat = sum(EL_ReceivedNafamostat == "Yes"),
+        EL_HeartRenalDialysis = sum(EL_HeartRenalDialysis == "Yes")
+    ) |>
+    gather(Criteria, Count) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+```{r}
+#| label: tbl-antiviral-consent
+#| tbl-cap: Antiviral ineligibility. Note that one participant
+#|   was enrolled into the antiviral domain but did not actually consent.
+#|   Antiviral specific outcomes set to missing for this participant.
+all_data %>%
+  filter(ENR_rec == 1) %>%
+  dplyr::count(
+    AAssignment,
+    EL_Con_DomainA
+  ) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+```{r}
+#| label: tbl-antiviral-primary-outcome
+#| tbl-cap: Antiviral primary outcome.
+all_data |>
+  filter(ENR_rec == 1, AAssignment != "A0") |>
+  count(AAssignment, PO) |>
+  spread(PO, n) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+## Anticoagulation Criteria
+
+For reference, the exclusion criteria for the anti-coagulation domain follows (derived variable `EL_inelg_c`):
+
+-  Receiving dual antiplatelet therapy (`EL_DualAntiplateletTherapy`)
+-  The treating clinician intends to continue or commence therapeutic anticoagulation (`EL_TherapeuticAnticoag`)
+-  Contraindication to receiving low molecular weight heparin or unfractionated heparin (`EL_ContraHeparinReact`)
+-  Severe thrombocytopenia (platelet count less than 30 x $10^9$/L \[protocol version 3.0\] or less than 50 x $10^9$/L \[protocol version 5.0\] (`EL_BloodPlateletTestAs_x10_9_L`)
+-  History of intracranial haemorrhage in the previous 3 months (`EL_IntracranialHaemorrhage`)
+-  Severe renal impairment, defined as estimated glomerular filtration rate less than 15ml/min/1.73m$^2$ (`EL_eGFR`)
+-  A current or recurrent condition with a high risk of major bleeding (e.g. bleeding disorder), or a baseline coagulation profile (within the previous 3 days) that indicates a high risk of bleeding, that would be considered a contraindication to receive therapeutic anticoagulation (`EL_BleedingConditionThrombo`)
+
+```{r}
+#| label: tbl-anticoagulation-consent
+#| tbl-cap: Anticoagulation ineligibility.
+all_data %>%
+  filter(ENR_rec == 1) %>%
+  dplyr::count(
+    EL_inelg_c,
+    CAssignment,
+    EL_Con_DomainC
+  ) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+```{r}
+#| label: tbl-anticoagulation-primary-outcome
+#| tbl-cap: Anticoagulation primary outcome.
+all_data |>
+  filter(ENR_rec == 1, CAssignment != "C0") |>
+  count(CAssignment, PO) |>
+  spread(PO, n) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+# Withdrawals
+
+```{r}
+#| label: tbl-withdrawal-summaries
+#| tbl-cap: Withdrawals.
+all_data |>
+  count(
+    WTH_FU, 
+    CON_WithdrawnContact28, 
+    CON_WithdrawnDailyCollection
+) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+```{r}
+#| label: tbl-withdraw-reason
+#| tbl-cap: Reason for patient withdrawals.
+cntdat <- all_data |>
+  count(
+    WTH_FU, 
+    CON_WithdrawnDomainA,
+    CON_WithdrawnDomainC, 
+    CON_WithdrawalReason, 
+    CON_WithdrawalClincianReason
+)
+cntdat |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+```{r}
+#| label: tbl-withdraw-count-domainA
+#| tbl-cap: Withdrawals by domain A interventions.
+all_data |>
+  count(AAssignment, WTH_FU) |>
+  spread(WTH_FU, n, fill = 0) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+```{r}
+#| label: tbl-withdraw-count-domainC
+#| tbl-cap: Withdrawals by domain C interventions.
+all_data |>
+  count(WTH_FU, CAssignment) |>
+  spread(WTH_FU, n, fill = 0) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```

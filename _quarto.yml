@@ -1,0 +1,50 @@
+project:
+  type: website
+  output-dir: docs
+  execute-dir: project
+  render:
+    - "index.qmd"
+    - "analyses/*.qmd"
+    - "eda/*.qmd"
+
+website:
+  sidebar:
+    title: ASCOT Antiviral Analyses
+    style: "floating"
+    search: true
+    align: left
+    contents:
+      - text: "Summary"
+        file: index.qmd
+      - section: "Overview and Baseline"
+        contents:
+          - eda/data-explore.qmd
+          - eda/patient-disposition.qmd
+
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    fig-align: center
+    captions: true
+    cap-location: margin
+    table-captions: true
+    tbl-cap-location: margin
+    reference-location: margin
+    theme: journal
+    fontsize: 1em
+    max-width: "2000px"
+    self-contained: true
+    standalone: true
+    code-tools: true
+    code-fold: true
+    code-link: false
+
+execute:
+  warning: false
+  message: false
+  echo: true
+  freeze: auto
+
+engine: knitr

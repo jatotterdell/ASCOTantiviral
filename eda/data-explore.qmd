@@ -1,0 +1,94 @@
+---
+title: "Data Explore"
+description: |
+  Explore the data and run some checks
+author: "James Totterdell"
+date: today
+execute: 
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: pkgs
+#| include: false
+library(tidyverse)
+library(kableExtra)
+library(ASCOTr)
+```
+
+```{r}
+#| label: load-data
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
+```
+
+## Available Records
+
+```{r}
+#| label: tbl-available-records
+#| tbl-cap: Patterns of record availability for all screened participants.
+#| cap-location: margin
+#| tbl-column: page
+all_data %>%
+  count(EL_rec, ENR_rec, BAS_rec, DIS_rec, D28_rec, WTH_rec) %>%
+  kable("html") %>%
+  kable_styling("striped", font_size = 12, full_width = F)
+```
+
+## Completeness
+
+```{r}
+#| label: tbl-completeness
+#| tbl-cap: Completeness of participant data records.
+#| cap-location: margin
+completeness <- summarise_completeness_data(
+  generate_completeness_data(
+    all_daily_data %>% 
+      filter(ENR_rec == 1)
+  ))
+completeness$combined |>
+  kable("html", align = "lrrrrrrrrr") |>
+  kable_styling("striped", font_size = 12)
+```
+
+## Interventions
+
+```{r}
+#| label: tbl-interventions
+#| tbl-cap: Frequency of interventions assigned to particiipants.
+#| cap-location: margin
+all_data |>
+  filter(ENR_rec == 1) |>
+  count(AAssignment, CAssignment) |>
+  spread(AAssignment, n, fill = 0) |>
+  mutate(Total = rowSums(across(where(is.numeric)))) %>%
+  bind_rows(
+    summarise(
+      .data = ., 
+      across(where(is.numeric), sum),
+      across(where(is.character), ~ "Total"))
+  ) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+```{r}
+#| label: tbl-interventions-excl-wth
+#| tbl-cap: Frequency of interventions assigned to particiipants, excluding withdrawals.
+#| cap-location: margin
+all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  count(AAssignment, CAssignment) |>
+  spread(AAssignment, n, fill = 0) |>
+  mutate(Total = rowSums(across(where(is.numeric)))) %>%
+  bind_rows(
+    summarise(
+      .data = ., 
+      across(where(is.numeric), sum),
+      across(where(is.character), ~ "Total"))
+  ) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```

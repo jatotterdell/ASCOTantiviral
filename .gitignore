@@ -42,3 +42,4 @@ outputs/*
 /.quarto/
 docs
 scratch
+_freeze

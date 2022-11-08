@@ -20,6 +20,8 @@ website:
         contents:
           - eda/data-explore.qmd
           - eda/patient-disposition.qmd
+          - eda/baseline.qmd
+      - section: "Outcomes and Analyses"
 
 format:
   html:

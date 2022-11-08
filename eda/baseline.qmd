@@ -463,7 +463,7 @@ sout[[2]]
 #|   Baseline comorbidities for participants randomised into
 #|   the antiviral domain.
 save_tex_table(
-  sout_latex[[2]],
+  sout_latex[[1]],
   "baseline/comorbidities-antiviral"
 )
 sout[[1]]
@@ -505,7 +505,7 @@ sout[[2]]
 #|   Baseline prognostics for participants randomised into
 #|   the antiviral domain.
 save_tex_table(
-  sout_latex[[2]],
+  sout_latex[[1]],
   "baseline/prognostics-antiviral"
 )
 sout[[1]]
@@ -689,4 +689,44 @@ p <- (p1 | p2) / (p3 | p4)
 pth <- file.path("outputs", "figures", "baseline")
 ggsave(file.path(pth, "days-between-events-overall.pdf"), p, height = 3, width = 6)
 p
+```
+
+# Drugs Received During Hospital Stay
+
+```{r}
+#| label: drugs-table-setup
+sdat <- all_data |>
+    filter(ENR_rec == 1, WTH_FU == 0) |>
+  mutate(
+    AAssignment = factor(AAssignment, labels = c("A0", intervention_labels()$AAssignment[-1])),
+    CAssignment = factor(CAssignment, labels = c("C0", intervention_labels()$CAssignment[-1]))
+  )
+sout <- generate_discharge_drugs_table(sdat, format = "html")
+sout_latex <- generate_discharge_drugs_table(sdat, format = "latex")
+```
+
+```{r}
+#| label: tbl-drugs-table-anticoagulation
+#| code-summary: Drugs table
+#| tbl-cap: |
+#|   Drugs received during hospital stay for participants randomised into
+#|   the anticoagulation domain.
+save_tex_table(
+  sout_latex[[2]],
+  "baseline/drugs-anticoagulation"
+)
+sout[[2]]
+```
+
+```{r}
+#| label: tbl-drugs-table-antiviral
+#| code-summary: Drugs table
+#| tbl-cap: |
+#|   Drugs received during hospital stay for participants randomised into
+#|   the antiviral domain.
+save_tex_table(
+  sout_latex[[1]],
+  "baseline/drugs-antiviral"
+)
+sout[[1]]
 ```

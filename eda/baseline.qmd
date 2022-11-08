@@ -17,6 +17,7 @@ library(tidyverse)
 library(kableExtra)
 library(labelled)
 library(lubridate)
+library(patchwork)
 library(ASCOTr)
 
 theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
@@ -382,7 +383,7 @@ p
 
 # Baseline Factors
 
-The following provides an overview of the baseline covariates collected for individuals.
+The following provides an overview of the baseline covariates collected for individuals who were enrolled and did not withdraw from follow-up.
 
 ## Demographics
 
@@ -391,7 +392,7 @@ Baseline demographics are summarised by intervention in the following table.
 ```{r}
 #| label: demographics-table-setup
 sdat <- all_data |>
-    filter(ENR_rec == 1) |>
+    filter(ENR_rec == 1, WTH_FU == 0) |>
   mutate(
     AAssignment = factor(AAssignment, labels = c("A0", intervention_labels()$AAssignment[-1])),
     CAssignment = factor(CAssignment, labels = c("C0", intervention_labels()$CAssignment[-1]))
@@ -433,7 +434,7 @@ Baseline co-morbidities are summarised by anti-coagulation intervention in the f
 ```{r}
 #| label: comorbidities-table-setup
 sdat <- all_data |>
-    filter(ENR_rec == 1) |>
+    filter(ENR_rec == 1, WTH_FU == 0) |>
   mutate(
     AAssignment = factor(AAssignment, labels = c("A0", intervention_labels()$AAssignment[-1])),
     CAssignment = factor(CAssignment, labels = c("C0", intervention_labels()$CAssignment[-1]))
@@ -472,6 +473,44 @@ sout[[1]]
 
 Baseline prognostics are summarised by anti-coagulation intervention in the following table.
 
+```{r}
+#| label: prognostics-table-setup
+sdat <- all_data |>
+    filter(ENR_rec == 1, WTH_FU == 0) |>
+  mutate(
+    AAssignment = factor(AAssignment, labels = c("A0", intervention_labels()$AAssignment[-1])),
+    CAssignment = factor(CAssignment, labels = c("C0", intervention_labels()$CAssignment[-1]))
+  )
+sout <- generate_baseline_prognostics_table(sdat, format = "html")
+sout_latex <- generate_baseline_prognostics_table(sdat, format = "latex")
+```
+
+```{r}
+#| label: tbl-prognostics-table-anticoagulation
+#| code-summary: Prognostics table
+#| tbl-cap: |
+#|   Baseline prognostics for participants randomised into
+#|   the anticoagulation domain.
+save_tex_table(
+  sout_latex[[2]],
+  "baseline/prognostics-anticoagulation"
+)
+sout[[2]]
+```
+
+```{r}
+#| label: tbl-prognostics-table-antiviral
+#| code-summary: Prognostics table
+#| tbl-cap: |
+#|   Baseline prognostics for participants randomised into
+#|   the antiviral domain.
+save_tex_table(
+  sout_latex[[2]],
+  "baseline/prognostics-antiviral"
+)
+sout[[1]]
+```
+
 ## Age
 
 ```{r}
@@ -481,7 +520,7 @@ Baseline prognostics are summarised by anti-coagulation intervention in the foll
 #|   Distribution of age
 #| fig-height: 2
 p_age <- all_data |>
-  filter(ENR_rec == 1) |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
   ggplot(aes(AgeAtEntry)) + 
   geom_histogram(
     breaks = c(18, seq(20, 100, 5)), 
@@ -504,7 +543,7 @@ p_age
 #| fig-cap-location: bottom
 #| fig-height: 4
 p <- all_data |>
-  filter(ENR_rec == 1, CAssignment != "C0") |>
+  filter(ENR_rec == 1, WTH_FU == 0, CAssignment != "C0") |>
   mutate(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-1])) |>
   ggplot(aes(AgeAtEntry)) + 
   facet_wrap( ~ CAssignment, scales = "free_y", ncol = 2) +
@@ -527,7 +566,7 @@ p
 #| fig-cap-location: bottom
 #| fig-height: 3
 p <- all_data |>
-  filter(ENR_rec == 1, AAssignment != "A0") |>
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
   mutate(AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
   ggplot(aes(AgeAtEntry)) + 
   facet_wrap( ~ AAssignment, scales = "free_y", ncol = 2) +
@@ -539,5 +578,115 @@ p <- all_data |>
     x = "Age at randomisation (5-year bins, 30 to 34, 35 to 39, etc.)", 
     y = "Count") +
   scale_x_continuous(breaks = seq(20, 95, 5))
+p
+```
+
+## Weight
+
+```{r}
+#| label: fig-weight-hist
+#| code-summary: Histogram of weight
+#| fig-cap: |
+#|   Distribution of weight
+#| fig-height: 2
+p <- all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  # 2 with weight reported as 0, make NA
+  mutate(BAS_Weight = if_else(BAS_Weight == 0, NA_real_, BAS_Weight)) |>
+  filter(!is.na(BAS_Weight)) |>
+  ggplot(aes(BAS_Weight)) +
+  facet_wrap( ~ BAS_WeightMeasurement, scales = "free_y") +
+  geom_histogram(bins = 30) +
+  labs(x = "Baseline weight (kg)", y = "Frequency")
+p
+```
+
+```{r}
+#| label: fig-weight-by-cassignment
+#| code-summary: Histogram of weight by anti-coagulation intervention
+#| fig-cap: |
+#|   Distribution of weight by anti-coagulation intervention
+#| fig-cap-location: bottom
+#| fig-height: 3
+p <- all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0, CAssignment != "C0") |>
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-1])) |>
+  mutate(BAS_Weight = if_else(BAS_Weight == 0, NA_real_, BAS_Weight)) |>
+  filter(!is.na(BAS_Weight)) |>
+  ggplot(aes(BAS_Weight)) + 
+  facet_wrap( ~ CAssignment, scales = "free_y", ncol = 2) +
+  geom_histogram(
+    breaks = seq(40, 190, 5), 
+    colour = "white", 
+    closed="left") +
+  scale_x_continuous("Baseline weight (kg)", breaks = seq(40, 190, 5)) +
+  scale_y_continuous("Frequency",
+  breaks = function(x) 
+    unique(floor(pretty(seq(0, (max(x) + 1) * 1.1))))) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+p
+```
+
+```{r}
+#| label: fig-weight-by-aassignment
+#| code-summary: Histogram of weight by anti-viral intervention
+#| fig-cap: |
+#|   Distribution of weight by anti-viral intervention
+#| fig-cap-location: bottom
+#| fig-height: 2
+p <- all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
+  mutate(AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
+  mutate(BAS_Weight = if_else(BAS_Weight == 0, NA_real_, BAS_Weight)) |>
+  filter(!is.na(BAS_Weight)) |>
+  ggplot(aes(BAS_Weight)) + 
+  facet_wrap( ~ AAssignment, ncol = 2) +
+  geom_histogram(
+    breaks = seq(40, 190, 5), 
+    colour = "white", 
+    closed="left") +
+  scale_x_continuous("Baseline weight (kg)", breaks = seq(40, 190, 5)) +
+  scale_y_continuous("Frequency",
+  breaks = function(x) 
+    unique(floor(pretty(seq(0, (max(x) + 1) * 1.1))))) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+p
+```
+
+## Date since first symptoms
+
+```{r}
+#| fig-cap: |
+#|   Days between events for hospitalisation, randomisation,
+#|   symptom onset, and first positive test.
+#| fig-height: 4
+tsfs_dat <- all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  transmute(
+    CAssignment,
+    RandDate,
+    EL_AdmittedToHospital,
+    EL_FirstSymptoms,
+    EL_FirstPositiveTest,
+    fs_to_hosp = as.numeric(EL_AdmittedToHospital - EL_FirstSymptoms),
+    hosp_to_rand = as.numeric(RandDate - EL_AdmittedToHospital),
+    fs_to_rand = as.numeric(RandDate - EL_FirstSymptoms),
+    pt_to_rand = as.numeric(RandDate - EL_FirstPositiveTest))
+p1 <- ggplot(tsfs_dat, aes(fs_to_hosp)) +
+  geom_bar() +
+  labs(x = "First symptoms to hospitalisation", 
+       y = "Frequency")
+p2 <- ggplot(tsfs_dat, aes(fs_to_rand)) +
+  geom_bar() +
+  labs(x = "First symptoms to randomisation", y = "Frequency")
+p3 <- ggplot(tsfs_dat, aes(hosp_to_rand)) +
+  geom_bar() +
+  labs(x = "Hositalisation to randomisation", y = "Frequency")
+p4 <- ggplot(tsfs_dat, aes(pt_to_rand)) +
+  geom_bar() +
+  labs(x = "Positive test to randomisation", y = "Frequency")
+p <- (p1 | p2) / (p3 | p4)
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "days-between-events-overall.pdf"), p, height = 3, width = 6)
 p
 ```

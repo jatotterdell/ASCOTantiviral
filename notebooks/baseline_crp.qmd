@@ -1,0 +1,147 @@
+---
+title: "Baseline C-Reactive Protein Units"
+author: "James Totterdell"
+date: today
+date-format: long
+format:
+  pdf:
+    documentclass: scrartcl
+    linestretch: "1.2"
+    mainfont: TeX Gyre Pagella
+    mathfont: TeX Gyre Pagella Math
+    monofont: TeX Gyre Cursor
+    sansfont: TeX Gyre Heros
+execute: 
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: pkgs
+#| include: false
+library(tidyverse)
+library(kableExtra)
+library(labelled)
+library(lubridate)
+library(patchwork)
+library(ASCOTr)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+```
+
+```{r}
+#| label: load-data
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
+```
+
+## Data
+
+In the trial database there are three variables which relate to baseline CRP:
+
+- `BAS_CRPEntered`: Highest CRP last 24 hours entered
+- `BAS_CRPUnits`: Highest CRP last 24 hours units
+- `BAS_CRPResult`: Highest CRP last 24 hours mg/L
+
+The variable `BAS_CRPEntered` is what was entered in the reported units `BAS_CRPUnits` and `BAS_CRPResult` applies a conversion where necessary so all CRP's are in mg/L.
+The available options for `BAS_CRPUnits` are:
+
+- mg/dL in which case `BAS_CRPResult` = 10 $\times$ `BAS_CRPEntered`
+- mg/L or $\mu$g/mL in which case `BAS_CRPResult` = `BAS_CRPEntered`
+
+Below is some example data.
+
+```{r}
+#| label: fig-example-data
+#| fig-cap: Example data
+all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  filter(!is.na(BAS_CRPResult)) |>
+  select(BAS_CRPEntered, BAS_CRPUnits, BAS_CRPResult) |>
+  head(5)
+```
+
+## Issue with Reported Units
+
+It looks like there may be an issue with mis-specification of the reported units.
+In many sites, it appears that results for `BAS_CRPResult` are inflated by a factor of 10 when `BAS_CRPEntered` is reported in mg/dL, suggesting that the units may have been mis-reported as mg/dL rather than mg/L.
+However, this is not always completely clear and may only have occurred at specific sites or for a subset of individuals.
+
+For example (@tbl-summaries), at Australian sites, for participants where the reported unit of entry was *mg/dL* the entered resuts had median 56 whereas for participants where the reported unit of entry was *mg/L* the median was similar at 56. Therefore, after transforming the *mg/dL* units to *mg/L* the median for `BAS_CRPResult` is 560 vs 56.
+A similar issue is observed for data from New Zealand and Nepal.
+The issue is less clear for sites in India, however, given the difference between the two groups, it looks as though some sites may have mis-reported units or that units may have been reported for some subset of participants.
+
+See also @fig-crp-hist, @fig-ecdf-country, and @fig-ecdf-india-sites.
+
+```{r}
+#| label: tbl-summaries
+#| tbl-cap: Sample summaries for CRP by country and reported units. Type "entered" corresponds to `BAS_CRPEntered` and "result" to `BAS_CRPResult`.
+all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  filter(!is.na(BAS_CRPResult)) |>
+  group_by(Country, BAS_CRPUnits) |>
+  summarise(
+    n = n(),
+    median_result = median(BAS_CRPResult),
+    min_result = min(BAS_CRPResult),
+    max_result = max(BAS_CRPResult),
+    median_entered = median(BAS_CRPEntered),
+    min_entered = min(BAS_CRPEntered),
+    max_entered = max(BAS_CRPEntered),
+  ) |>
+  ungroup() |>
+  pivot_longer(median_result:max_entered, names_sep = "_", names_to = c("summary", "Type")) |>
+  pivot_wider(names_from = summary, values_from = value) |>
+  arrange(Country, Type, BAS_CRPUnits) |>
+  kable(
+    "latex",
+    booktabs = TRUE,
+    linesep = c("", "", "", "\\\\")
+  ) |>
+  kable_styling(latex_options = "HOLD_position")
+```
+
+```{r}
+#| label: fig-crp-hist
+#| code-summary: Histogram of CRP by reported units.
+#| fig-cap: |
+#|   Distribution of CRP (mg/L) by reported units (mg/L vs mg/dL).
+#| fig-height: 2
+p <- all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  filter(!is.na(BAS_CRPResult)) |>
+  ggplot(aes(BAS_CRPResult)) +
+  facet_wrap( ~ BAS_CRPUnits , scales = "free_y") +
+  geom_histogram(bins = 30) +
+  labs(x = "CRP result (mg/L)", y = "Frequency")
+p
+```
+
+```{r}
+#| label: fig-ecdf-country
+#| fig-cap: Empirical Cumulative Distribution Function by country and reported units of CRP.
+all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  filter(!is.na(BAS_CRPResult)) |>
+  ggplot(aes(BAS_CRPResult)) +
+  stat_ecdf(aes(colour = BAS_CRPUnits)) + 
+  facet_wrap( ~ Country) +
+  labs(x = "BAS_CRPResult (mg/L)", y = "eCDF") + 
+  scale_x_log10()
+```
+
+```{r}
+#| label: fig-ecdf-india-sites
+#| fig-cap: Empirical Cumulative Distribution Function by sites in India and reported units of CRP.
+all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  filter(!is.na(BAS_CRPResult), Country == "IN") |>
+  ggplot(aes(BAS_CRPResult)) +
+  stat_ecdf(aes(colour = BAS_CRPUnits)) + 
+  facet_wrap( ~ Location) +
+  labs(x = "BAS_CRPResult (mg/L)", y = "eCDF") + 
+  scale_x_log10()
+```

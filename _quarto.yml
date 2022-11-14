@@ -22,6 +22,9 @@ website:
           - eda/patient-disposition.qmd
           - eda/baseline.qmd
       - section: "Outcomes and Analyses"
+        contents:
+          - "analyses/6-0_primary_outcome.qmd"
+          - "analyses/8_antiviral_specific.qmd"
 
 format:
   html:

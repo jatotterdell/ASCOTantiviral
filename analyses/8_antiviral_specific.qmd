@@ -1,0 +1,350 @@
+---
+title: "8 - Antiviral Specific Outcomes"
+description: |
+  - Derive antiviral specific outcomes
+  - Exploratory analyses
+  - Pre-specified analyses
+author: "James Totterdell"
+date: today
+execute:
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: pkgs
+#| include: false
+library(tidyverse)
+library(kableExtra)
+library(ASCOTr)
+```
+
+```{r}
+#| label: load-data
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
+```
+
+
+## Antiviral Outcomes
+
+A number of domain specific outcomes were of interest for the antiviral interventions:
+
+- viral clearance
+- viral load
+- Elevation of Alanine Transaminase (ALT) or Aspartate Transaminase (AST)
+- Serum Potassium
+- Serum Sodium
+
+## Derivations
+
+What follows runs through the derivation of these outcomes from the available data.
+
+### Viral Clearance
+
+*Viral clearance (negative SARS-CoV-2 RT-PCR) at days 3 and 7 will be represented as a binary indicator variable.*
+
+The relevant fields are:
+
+- `DD_RespiratoryPCR_TestDone`: was a PCR test done on this day
+- `DD_RespiratorySampleResult`: result of test
+
+There is inconsistent timing of when tests are done (most do not have a test on day 3 or day 7).
+Many participants have no tests.
+Will need to consider how best to summarise the comparison of interest (e.g. day 3 take closest test day 1 to 5?).
+Is lack of testing related to patient status (too well/ill to bother with/perform testing)?
+
+Check how many participants had any tests done:
+
+```{r}
+all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |> 
+  select(StudyPatientID, DD_StudyDay, AAssignment, DD_RespiratoryPCR_TestDone) |>
+  group_by(StudyPatientID, AAssignment) |>
+  summarise(
+    any_tests = any(DD_RespiratoryPCR_TestDone == "Yes"),
+    num_tests = sum(DD_RespiratoryPCR_TestDone == "Yes", na.rm = TRUE)) |>
+  group_by(AAssignment) |>
+  summarise(
+    Randomised = n(),
+    `Any tests` = sum(any_tests),
+    Proportion = mean(any_tests),
+    `Total tests` = sum(num_tests),
+    `Mean number of tests` = mean(num_tests),
+    `Max number of tests` = max(num_tests)
+  )
+```
+
+Check how many participants had a test done on each study day:
+
+```{r}
+all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |> 
+  select(StudyPatientID, DD_StudyDay, AAssignment, DD_RespiratoryPCR_TestDone, DD_RespiratorySampleResult) |>
+  group_by(DD_StudyDay) |>
+  summarise(
+    n = n(),
+    tests = sum(DD_RespiratoryPCR_TestDone == "Yes"),
+    prop_test = tests / n,
+    positive = sum(DD_RespiratorySampleResult == "Positive", na.rm = TRUE),
+    negative = sum(DD_RespiratorySampleResult == "Negative", na.rm = TRUE),
+    prop_positive = positive / tests
+  ) |> 
+  kable("html", digits = 2) |>
+  kable_styling("striped", font_size = 12)
+```
+
+Check sequence of test results across participants (note `NA` means no test done):
+
+```{r}
+all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0", DD_StudyDay %in% 1:8) |> 
+  select(StudyPatientID, DD_StudyDay, DD_RespiratorySampleResult) |> 
+  pivot_wider(names_from = DD_StudyDay, values_from = DD_RespiratorySampleResult) |> 
+  kable("html", digits = 2) |>
+  kable_styling("striped", font_size = 11)
+```
+
+### Viral Load
+
+*Viral load is based on the cycle threshold (Ct) value in reverse transcription polymerase chain reaction (RT-PCR).*
+*Viral load at day 3 and day 7 will be reported as the median number (and IQR) of process cycles it takes for the fluorescent signal to exceed the background level.*
+*Change in viral load from baseline to day 3 and to day 7 will be summarised similarly.*
+
+Note that the cycle threshold refers to the number of process cycles it takes for the fluorescent signal to exceed the background level.
+Low cycle numbers imply high levels of viral load. Multiple assays were used and therefore any interpretation will be limited.
+
+The relevant fields are:
+
+- `BAS_CycleThresholdValue`: baseline cycle threshold value
+- `DD_RespiratorySampleResult`: result of test
+- `DD_CycleThreshold`: cycle threshold value (only if `DD_RespiratorySampleResult = "Positive"`)
+- `DD_PCRMethod`: type of test
+
+Very few participants (24 of 156) had baseline cycle threshold recorded so there will be very little data for looking at change in viral load from baseline.
+
+```{r}
+all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
+  count(BAS_CycleThresholdKnown)
+```
+
+```{r}
+all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0", DD_StudyDay %in% 1:8) |> 
+  select(StudyPatientID, DD_StudyDay, DD_CycleThreshold) |> 
+  pivot_wider(names_from = DD_StudyDay, values_from = DD_CycleThreshold) |> 
+  kable("html", digits = 2) |>
+  kable_styling("striped", font_size = 11)
+```
+
+### Elevation of Alanine Transaminase (ALT) or Aspartate Transaminase (AST)
+
+Elevation of Alanine Transaminase (ALT) or Aspartate Transaminase (AST) to more than 5 times the upper limit of normal will be represented as a binary indicator variable.
+
+The relevant fields are:
+
+- `DD_ALTLabs`: ALT
+- `DD_ASTLabs`: AST
+
+These are lab values reported in IU/L.
+However there is no indication as to what the "upper limit of normal" is.
+In the dictionary it states "If ALT > 150 IU/L show alert: Clinician to evaluate whether this is an SAR and consider discontinuation of nafamostat."
+Not sure if this 150 value relates to the "5 times upper limit of normal".
+Will need advice from the antiviral group.
+
+```{r}
+#| label: tbl-daily-alt-ast-individual
+#| tbl-cap: Summary of individual daily ALT and AST tests (IU/L).
+tt <- all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
+  select(StudyPatientID, DD_StudyDay, AAssignment, DD_ALTLabs, DD_ASTLabs) |>
+  group_by(StudyPatientID, AAssignment) |>
+  summarise(
+    days = n(),
+    any_alt_tests = any(!is.na(DD_ALTLabs)),
+    any_ast_tests = any(!is.na(DD_ASTLabs)),
+    n_alt_tests = sum(!is.na(DD_ALTLabs)),
+    n_ast_tests = sum(!is.na(DD_ASTLabs))
+  )
+tt |> group_by(AAssignment) |>
+  summarise(
+    participants = n(),
+    days = sum(days),
+    n_any_alt_tests = sum(any_alt_tests),
+    n_any_ast_tests = sum(any_ast_tests),
+    n_alt_tests = sum(n_alt_tests),
+    n_ast_tests = sum(n_ast_tests)
+  ) |>
+  kable("html", digits = 2) |>
+  kable_styling("striped", font_size = 12)
+```
+
+### Elevation of serum potassium
+
+Elevation of serum potassium to more than 5.5 mmol/L will be represented as a binary indicator variable.
+
+- `DD_Potassium`
+
+Some potential challenges with this outcome: 
+
+- not all participants are tested as often as each other, some have no tests. Missing test may be NAR: worse appearing patients may be more/less likely to have had a test and may have higher/lower potassium levels
+- participants who stay in hospital longer may be more severe and so have higher potassium levels, so any summary looking at averages or counts over variable follow-up time may have issues if this is not accounted for.
+
+Check baseline potassium (should be zero who exceed 5.5 as it was eligibility requirement):
+
+```{r}
+#| label: tbl-baseline-potassium
+#| tbl-cap: Baseline serum potassium (mmol/L).
+all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
+  select(StudyPatientID, AAssignment, EL_SerumPotassium) |>
+  group_by(AAssignment) |>
+  summarise(
+    n = n(),
+    mean = mean(EL_SerumPotassium),
+    n_gt55 = sum(EL_SerumPotassium > 5.5)
+  ) |>
+  kable("html", digits = 2) |>
+  kable_styling("striped", font_size = 12)
+```
+
+Check participant summaries:
+
+```{r}
+#| label: tbl-daily-potassium-individual
+#| tbl-cap: Summary of individual daily serum potassium (mmol/L) levels.
+tt <- all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
+  select(StudyPatientID, DD_StudyDay, AAssignment, DD_Potassium) |>
+  group_by(StudyPatientID, AAssignment) |>
+  summarise(
+    days = n(),
+    any_tests = any(!is.na(DD_Potassium)),
+    tests = sum(!is.na(DD_Potassium)),
+    any_gt55 = as.numeric(any(DD_Potassium > 5.5, na.rm = TRUE)),
+    n_gt55 = sum(DD_Potassium > 5.5, na.rm = TRUE)
+  )
+tt |> group_by(AAssignment) |>
+  summarise(
+    participants = n(),
+    n_any_tests = sum(any_tests),
+    n_any_gt55 = sum(any_gt55),
+    days = sum(days),
+    tests = sum(tests),
+    days_gt55 = sum(n_gt55)
+  ) |>
+  kable("html", digits = 2) |>
+  kable_styling("striped", font_size = 12)
+```
+
+Check daily potassium tests:
+
+```{r}
+#| label: tbl-daily-potassium
+#| tbl-cap: Summary of daily potassium levels.
+all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
+  select(StudyPatientID, DD_StudyDay, AAssignment, DD_Potassium) |>
+  group_by(AAssignment, DD_StudyDay) |>
+  summarise(
+    n = n(),
+    tests = sum(!is.na(DD_Potassium)),
+    proportion = tests / n,
+    mean = mean(DD_Potassium, na.rm = TRUE),
+    gt55 = sprintf("%i (%.2f)", sum(DD_Potassium > 5.5, na.rm = TRUE), sum(DD_Potassium > 5.5, na.rm = TRUE) / tests),
+  ) |>
+  ungroup() |>
+  pivot_wider(names_from = AAssignment, values_from = n:gt55) |>
+  select(DD_StudyDay, ends_with("A1"), ends_with("A2")) |>
+  kable(
+    "html", 
+    digits = 2,
+    col.names = c("Study Day", rep(c("n", "tests", "proportion", "mean", "> 5.5"), times = 2))) |>
+  kable_styling("striped", font_size = 11) |>
+  add_header_above(c(" " = 1, "A1" = 5, "A2" = 5))
+```
+
+### Elevation of serum sodium
+
+Decrease of serum sodium to less than 125 mmol/L will be represented as a binary indicator variable.
+
+- `DD_Sodium`
+
+Only one participant had elevated serum sodium.
+This was on two consecutive days (study day 26 and 27).
+
+Check baseline sodium (should be zero who less than 125 as it was eligibility requirement):
+
+```{r}
+#| label: tbl-baseline-sodium
+#| tbl-cap: Baseline serum sodium (mmol/L).
+all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
+  select(StudyPatientID, AAssignment, EL_SerumSodium) |>
+  group_by(AAssignment) |>
+  summarise(
+    n = n(),
+    mean = mean(EL_SerumSodium),
+    n_lt125 = sum(EL_SerumSodium < 125)
+  ) |>
+  kable("html", digits = 2) |>
+  kable_styling("striped", font_size = 12)
+```
+
+Check participant summaries:
+
+```{r}
+#| label: tbl-daily-sodium-individual
+#| tbl-cap: Summary of individual daily serum sodium (mmol/L) levels.
+tt <- all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
+  select(StudyPatientID, DD_StudyDay, AAssignment, DD_Sodium) |>
+  group_by(StudyPatientID, AAssignment) |>
+  summarise(
+    days = n(),
+    any_tests = any(!is.na(DD_Sodium)),
+    tests = sum(!is.na(DD_Sodium)),
+    any_lt125 = as.numeric(any(DD_Sodium < 125, na.rm = TRUE)),
+    n_lt125 = sum(DD_Sodium < 125, na.rm = TRUE)
+  )
+tt |> group_by(AAssignment) |>
+  summarise(
+    participants = n(),
+    n_any_tests = sum(any_tests),
+    n_any_lt125 = sum(any_lt125),
+    days = sum(days),
+    tests = sum(tests),
+    days_lt125 = sum(n_lt125)
+  ) |>
+  kable("html", digits = 2) |>
+  kable_styling("striped", font_size = 12)
+```
+
+Check daily sodium tests:
+
+```{r}
+#| label: tbl-daily-sodium
+#| tbl-cap: Summary of daily sodium levels.
+all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
+  select(StudyPatientID, DD_StudyDay, AAssignment, DD_Sodium) |>
+  group_by(AAssignment, DD_StudyDay) |>
+  summarise(
+    n = n(),
+    tests = sum(!is.na(DD_Sodium)),
+    proportion = tests / n,
+    mean = mean(DD_Sodium, na.rm = TRUE),
+    lt125 = sprintf("%i (%.2f)", sum(DD_Sodium < 125, na.rm = TRUE), sum(DD_Sodium < 125, na.rm = TRUE) / tests),
+  ) |>
+  ungroup() |>
+  pivot_wider(names_from = AAssignment, values_from = n:lt125) |>
+  select(DD_StudyDay, ends_with("A1"), ends_with("A2")) |>
+  kable(
+    "html", 
+    digits = 2,
+    col.names = c("Study Day", rep(c("n", "tests", "proportion", "mean", "< 125"), times = 2))) |>
+  kable_styling("striped", font_size = 11) |>
+  add_header_above(c(" " = 1, "A1" = 5, "A2" = 5))
+```

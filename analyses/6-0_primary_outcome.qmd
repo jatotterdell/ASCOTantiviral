@@ -1,0 +1,624 @@
+---
+title: Primary Outcome
+subtitle: |
+  Death from any cause or requirement of new intensive respiratory 
+  support (invasive or non-invasive ventilation) or vasopressor/inotropic 
+  support in the 28 days after randomisation.
+description: |
+  *This document reports on the analysis of the primary outcome for ASCOT.*
+author: "James Totterdell"
+date: today
+execute: 
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(ASCOTr)
+library(tidyverse)
+library(lubridate)
+library(kableExtra)
+library(patchwork)
+library(cmdstanr)
+library(posterior)
+library(bayesplot)
+library(broom)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+
+color_scheme_set("red")
+options(digits = 4)
+```
+
+```{r}
+#| label: analysis-sets
+#| code-summary: Prepare datasets
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+
+# FAS-ITT
+fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data)
+fas_itt_nona_dat <- fas_itt_dat |>
+  filter(!is.na(PO))
+
+# ACS-ITT
+acs_itt_dat <- ASCOTr:::make_acs_itt_set(all_data)
+acs_itt_nona_dat <- acs_itt_dat |>
+  filter(!is.na(PO))
+
+# AVS-ITT
+avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_data)
+avs_itt_nona_dat <- avs_itt_dat |>
+  filter(!is.na(PO))
+```
+
+```{r}
+#| label: stan-models
+#| code-summary: Load models
+logistic_mod <- ASCOTr:::compile_cmdstanr_mod("logistic")
+```
+
+# Primary Outcome Definition
+
+The primary outcome is a composite of death, need for new respiratory support, or vasopressor/inotropic support. From the protocol:
+
+> Death from any cause or requirement of new intensive respiratory support (invasive or non-invasive ventilation) or vasopressor/inotropic support in the 28 days after randomisation. This includes any participant who receives non-invasive mechanical ventilation (either CPAP or BIPAP, apart from the below considerations) any time after enrolment even if not transferred to ICU. It does NOT include the use of humidified high-flow nasal prong oxygen.
+>
+> Participants on pre-existing home BiPAP or CPAP will not be considered to have met the primary outcome unless they have either:
+>
+> -   required invasive mechanical ventilation (i.e. intubation), or
+> -   graduated from CPAP only whilst asleep to BiPAP at any time, or
+> -   graduated from BiPAP only whilst asleep to BiPAP for \>12 hours/day, or
+> -   died by day 28
+>
+> There may be cases where a patient has been assessed as requiring intensive respiratory support (invasive or non-invasive ventilation) or vasopressor/inotropic support, but the patient or family declined treatment and the patient was discharged home. If attempts to obtain 28-day data are unsuccessful or not possible, and the investigator had deemed at the time of discharge that the patient would be highly likely to die within 28 days from randomisation, these participants will be deemed to have met the primary outcome.
+
+# Derivation of the Outcome
+
+Derivation of the outcome requires checking of the daily, discharge, and day 28 data extracts. On the daily data, there is a variable `DD_PrimaryEndpointReachedToday` however this was coded incorrectly in the original database and therefore fails to capture some participants. Additionally, given the composite nature of the outcome it is useful to check all components individually as well as the composite outcome. Therefore, this variable is not used in the derivation, but is included as a cross-check.
+
+Below, each component is summarised in aggregate for the FAS-ITT set.
+
+## Day 28 mortality
+
+```{r}
+#| label: tbl-po-component-death
+#| code-summary: Summarise the death component
+#| tbl-cap: 28-day mortality by domain intervention and overall.
+mort_table_A <- all_data |>
+  filter_fas_itt() |>
+  group_by(AAssignment) |>
+  summarise(
+    `Mortality_Alive at day 28_` = sum(1 - D28_death, na.rm = TRUE),
+    `Mortality_Death within 28 days_Total` = sum(D28_death, na.rm = TRUE),
+    `Mortality_Death within 28 days_Prior to discharge` = sum(DIS_death & DIS_day <= 28, na.rm = TRUE),
+    `Mortality_Death within 28 days_Post-discharge` = sum(D28_death == 1 & DIS_death == 0, na.rm = TRUE),
+    `Mortality_Unknown_` = sum(is.na(D28_death))
+  ) |>
+  gather(key, Frequency, -AAssignment, factor_key = T) |>
+  spread(AAssignment, Frequency) |>
+  separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_")
+mort_table_A <- 
+  bind_rows(
+    mort_table_A,
+    summarise(
+      .data = mort_table_A,
+      across(where(is.numeric), ~ sum(.x[c(1, 2, 5)])),
+      "Outcome" = "Total",
+      "Breakdown" = ""
+    )
+  ) |>
+  mutate(
+    across(4:6, ~ sprintf("%i (%.1f)", .x, 100 * .x / sum(.x[c(1, 2, 5)])))
+  )
+mort_table_C <- all_data |>
+  filter_fas_itt() |>
+  group_by(CAssignment) |>
+  summarise(
+    `Mortality_Alive at day 28_` = sum(1 - D28_death, na.rm = TRUE),
+    `Mortality_Death within 28 days_Total` = sum(D28_death, na.rm = TRUE),
+    `Mortality_Death within 28 days_Prior to discharge` = sum(DIS_death & DIS_day <= 28, na.rm = TRUE),
+    `Mortality_Death within 28 days_Post-discharge` = sum(D28_death == 1 & DIS_death == 0, na.rm = TRUE),
+    `Mortality_Unknown_` = sum(is.na(D28_death))
+  ) |>
+  gather(key, Frequency, -CAssignment, factor_key = T) |>
+  spread(CAssignment, Frequency) |>
+  separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") |>
+  mutate(Overall = C0 + C1 + C2 + C3 + C4)
+mort_table_C <- 
+  bind_rows(
+    mort_table_C,
+    summarise(
+      .data = mort_table_C,
+      across(where(is.numeric), ~ sum(.x[c(1, 2, 5)])),
+      "Outcome" = "Total",
+      "Breakdown" = ""
+    )
+  ) |>
+  mutate(
+    across(4:9, ~ sprintf("%i (%.1f)", .x, 100 * .x / sum(.x[c(1, 2, 5)])))
+  )
+mort_table <- left_join(mort_table_A, mort_table_C, by = c("Measure", "Outcome", "Breakdown"))
+kable(
+  mort_table %>% select(-1),
+  caption = "Composite primary endpoint breakdown - mortality.",
+  align = "llrrrrrrrrr") %>%
+  kable_styling("striped", font_size = 10) %>%
+  collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) |>
+  pack_rows("Mortality", 1, nrow(mort_table)) |>
+  add_header_above(c(" " = 2, "Antiviral" = 3, "Anticoagulation" = 5, " " = 1)) |>
+  row_spec(0, align = "c") |>
+  column_spec(3, border_left = TRUE) |>
+  column_spec(6, border_left = TRUE) |>
+  column_spec(11, border_left = TRUE)
+```
+
+## Vasopressor/inotropic requirement
+
+```{r}
+#| label: tbl-po-component-vasopressor
+#| code-summary: Summarise the vasopressor/inotropes component
+#| tbl-cap: 28-day vasopressor/inotrope use by domain intervention and overall.
+vaso_table_A <- all_data |>
+  filter_fas_itt() |>
+  group_by(AAssignment) |>
+  summarise(
+    `Vasopressor/inotropes_Not required_` = sum(1 - ANY_vasop, na.rm = TRUE),
+    `Vasopressor/inotropes_Use within 28 days_Total` = sum(ANY_vasop, na.rm = TRUE),
+    `Vasopressor/inotropes_Use within 28 days_Prior to discharge` = sum(DD_vasop, na.rm = TRUE),
+    `Vasopressor/inotropes_Use within 28 days_Post-discharge` = sum(D28_vasop, na.rm = TRUE),
+    `Vasopressor/inotropes_Unknown_` = sum(is.na(ANY_vasop))
+  ) |>
+  gather(key, Frequency, -AAssignment, factor_key = T) |>
+  spread(AAssignment, Frequency) |>
+  separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_")
+vaso_table_A <- 
+  bind_rows(
+    vaso_table_A,
+    summarise(
+      .data = vaso_table_A,
+      across(where(is.numeric), ~ sum(.x[c(1, 2, 5)])),
+      "Outcome" = "Total",
+      "Breakdown" = ""
+    )
+  ) |>
+  mutate(
+    across(4:6, ~ sprintf("%i (%.1f)", .x, 100 * .x / sum(.x[c(1, 2, 5)])))
+  )
+vaso_table_C <- all_data |>
+  filter_fas_itt() |>
+  group_by(CAssignment) |>
+  summarise(
+    `Vasopressor/inotropes_Not required_` = sum(1 - ANY_vasop, na.rm = TRUE),
+    `Vasopressor/inotropes_Use within 28 days_Total` = sum(ANY_vasop, na.rm = TRUE),
+    `Vasopressor/inotropes_Use within 28 days_Prior to discharge` = sum(DD_vasop, na.rm = TRUE),
+    `Vasopressor/inotropes_Use within 28 days_Post-discharge` = sum(D28_vasop, na.rm = TRUE),
+    `Vasopressor/inotropes_Unknown_` = sum(is.na(ANY_vasop))
+  ) |>
+  gather(key, Frequency, -CAssignment, factor_key = T) |>
+  spread(CAssignment, Frequency) |>
+  separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") |>
+  mutate(Overall = C0 + C1 + C2 + C3 + C4)
+vaso_table_C <- 
+  bind_rows(
+    vaso_table_C,
+    summarise(
+      .data = vaso_table_C,
+      across(where(is.numeric), ~ sum(.x[c(1, 2, 5)])),
+      "Outcome" = "Total",
+      "Breakdown" = ""
+    )
+  ) |>
+  mutate(
+    across(4:9, ~ sprintf("%i (%.1f)", .x, 100 * .x / sum(.x[c(1, 2, 5)])))
+  )
+vaso_table <- left_join(vaso_table_A, vaso_table_C, by = c("Measure", "Outcome", "Breakdown"))
+kable(
+  vaso_table %>% select(-1),
+  align = "llrrrrrrrrr") %>%
+  kable_styling("striped", font_size = 10) %>%
+  collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) |>
+  pack_rows("Vasopressor/inotropes", 1, nrow(mort_table)) |>
+  add_header_above(c(" " = 2, "Antiviral" = 3, "Anticoagulation" = 5, " " = 1)) |>
+  row_spec(0, align = "c") |>
+  column_spec(3, border_left = TRUE) |>
+  column_spec(6, border_left = TRUE) |>
+  column_spec(11, border_left = TRUE)
+```
+
+## New intensive respiratory support
+
+```{r}
+#| label: tbl-po-component-respiratory
+#| code-summary: Summarise the ventilation component
+#| tbl-cap: 28-day new intensive respiratory support by domain intervention and overall.
+vent_table_A <- all_data |>
+  filter_fas_itt() |>
+  group_by(AAssignment) |>
+  summarise(
+    `Ventilation_Not required_` = sum(1 - ANY_vent, na.rm = TRUE),
+    `Ventilation_Use within 28 days_Total` = sum(ANY_vent, na.rm = TRUE),
+    `Ventilation_Use within 28 days_Prior to discharge` = sum(ANY_DD_vent, na.rm = TRUE),
+    `Ventilation_Use within 28 days_Post-discharge` = sum(ANY_vent & ANY_DD_vent == 0, na.rm = TRUE),
+    `Ventilation_Unknown_` = sum(is.na(ANY_vent))
+  ) |>
+  gather(key, Frequency, -AAssignment, factor_key = T) |>
+  spread(AAssignment, Frequency) |>
+  separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_")
+vent_table_A <- 
+  bind_rows(
+    vent_table_A,
+    summarise(
+      .data = vent_table_A,
+      across(where(is.numeric), ~ sum(.x[c(1, 2, 5)])),
+      "Outcome" = "Total",
+      "Breakdown" = ""
+    )
+  ) |>
+  mutate(
+    across(4:6, ~ sprintf("%i (%.1f)", .x, 100 * .x / sum(.x[c(1, 2, 5)])))
+  )
+vent_table_C <- all_data |>
+  filter_fas_itt() |>
+  group_by(CAssignment) |>
+  summarise(
+    `Ventilation_Not required_` = sum(1 - ANY_vent, na.rm = TRUE),
+    `Ventilation_Use within 28 days_Total` = sum(ANY_vent, na.rm = TRUE),
+    `Ventilation_Use within 28 days_Prior to discharge` = sum(ANY_DD_vent, na.rm = TRUE),
+    `Ventilation_Use within 28 days_Post-discharge` = sum(ANY_vent & ANY_DD_vent == 0, na.rm = TRUE),
+    `Ventilation_Unknown_` = sum(is.na(ANY_vent))
+  ) |>
+  gather(key, Frequency, -CAssignment, factor_key = T) |>
+  spread(CAssignment, Frequency) |>
+  separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") |>
+  mutate(Overall = C0 + C1 + C2 + C3 + C4)
+vent_table_C <- 
+  bind_rows(
+    vent_table_C,
+    summarise(
+      .data = vent_table_C,
+      across(where(is.numeric), ~ sum(.x[c(1, 2, 5)])),
+      "Outcome" = "Total",
+      "Breakdown" = ""
+    )
+  ) |>
+  mutate(
+    across(4:9, ~ sprintf("%i (%.1f)", .x, 100 * .x / sum(.x[c(1, 2, 5)])))
+  )
+vent_table <- left_join(vent_table_A, vent_table_C, by = c("Measure", "Outcome", "Breakdown"))
+kable(
+  vent_table %>% select(-1),
+  align = "llrrrrrrrrr") %>%
+  kable_styling("striped", font_size = 10) %>%
+  collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) |>
+  pack_rows("Ventilation", 1, nrow(mort_table)) |>
+  add_header_above(c(" " = 2, "Antiviral" = 3, "Anticoagulation" = 5, " " = 1)) |>
+  row_spec(0, align = "c") |>
+  column_spec(3, border_left = TRUE) |>
+  column_spec(6, border_left = TRUE) |>
+  column_spec(11, border_left = TRUE)
+```
+
+## Primary Outcome Composite
+
+```{r}
+#| label: tbl-po-composite
+#| code-summary: Summarise the composite
+#| tbl-cap: |
+#|   Composite primary endpoint breakdown - overall.
+#| tbl-column: page
+comp_table_A <- all_data |>
+  filter_fas_itt() |>
+  group_by(AAssignment) |>
+  summarise(
+    `Primary Outcome_No_`  = sum(1 - PO, na.rm = TRUE),
+    `Primary Outcome_Yes_` = sum(PO, na.rm = TRUE),
+    `Primary Outcome_Unknown_Total` = sum(is.na(PO)),
+    `Primary Outcome_Unknown_Day 28 status` = sum(is.na(PO) & is.na(D28_death)),
+    `Primary Outcome_Unknown_Vasopressor/inotropes` = 
+      sum(is.na(PO) & !is.na(D28_death) & is.na(ANY_vasop))
+  ) |>
+  gather(key, Frequency, -AAssignment, factor_key = T) |>
+  spread(AAssignment, Frequency) |>
+  separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_")
+comp_table_A <- 
+  bind_rows(
+    comp_table_A,
+    summarise(
+      .data = comp_table_A,
+      across(where(is.numeric), ~ sum(.x[c(1, 2, 3)])),
+      "Outcome" = "Total",
+      "Breakdown" = ""
+    )
+  ) |>
+  mutate(
+    across(4:6, ~ sprintf("%i (%.1f)", .x, 100 * .x / sum(.x[c(1, 2, 3)])))
+  )
+comp_table_C <- all_data |>
+  filter_fas_itt() |>
+  group_by(CAssignment) |>
+  summarise(
+    `Primary Outcome_No_`  = sum(1 - PO, na.rm = TRUE),
+    `Primary Outcome_Yes_` = sum(PO, na.rm = TRUE),
+    `Primary Outcome_Unknown_Total` = sum(is.na(PO)),
+    `Primary Outcome_Unknown_Day 28 status` = sum(is.na(PO) & is.na(D28_death)),
+    `Primary Outcome_Unknown_Vasopressor/inotropes` = 
+      sum(is.na(PO) & !is.na(D28_death) & is.na(ANY_vasop))
+  ) |>
+  gather(key, Frequency, -CAssignment, factor_key = T) |>
+  spread(CAssignment, Frequency) |>
+  separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") |>
+  mutate(Overall = C0 + C1 + C2 + C3 + C4)
+comp_table_C <- 
+  bind_rows(
+    comp_table_C,
+    summarise(
+      .data = comp_table_C,
+      across(where(is.numeric), ~ sum(.x[c(1, 2, 3)])),
+      "Outcome" = "Total",
+      "Breakdown" = ""
+    )
+  ) |>
+  mutate(
+    across(4:9, ~ sprintf("%i (%.1f)", .x, 100 * .x / sum(.x[c(1, 2, 3)])))
+  )
+comp_table <- left_join(comp_table_A, comp_table_C, by = c("Measure", "Outcome", "Breakdown"))
+out <- kable(
+  comp_table %>% select(-1),
+  align = "llrrrrrrrrr") %>%
+  kable_styling("striped", font_size = 10, htmltable_class = "table table-striped", full_width = FALSE) %>%
+  collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) |>
+  pack_rows("Primary outcome", 1, nrow(mort_table)) |>
+  add_header_above(c(" " = 2, "Antiviral" = 3, "Anticoagulation" = 5, " " = 1)) |>
+  row_spec(0, align = "c") |>
+  column_spec(3, border_left = TRUE) |>
+  column_spec(6, border_left = TRUE) |>
+  column_spec(11, border_left = TRUE)
+out
+```
+
+# Descriptive Analyses
+
+## By Interim Analysis
+
+## Age
+
+The following presents the primary outcome rate by age in years.
+
+```{r}
+#| label: fig-age-po
+#| code-summary: Relationship age to outcome
+#| fig-cap: |
+#|   Relationship (logistic regression linear in age) 
+#|   between age at entry and the primary outcome.
+#| fig-height: 2
+agedat <- fas_itt_dat %>%
+  dplyr::count(PO, AgeAtEntry) %>% 
+  spread(PO, n, fill = 0) %>% 
+  mutate(
+    n = `0` + `1` + `<NA>`,
+    p = `1` / (`1` + `0`))
+agemod <- glm(
+  cbind(`1`, `0`) ~ AgeAtEntry, 
+  data = agedat, 
+  family = binomial())
+agedat <- agedat %>%
+  mutate(
+    ypred = predict(agemod, newdata = agedat, type = "response")
+  )
+p1 <- ggplot(agedat, aes(AgeAtEntry, n)) +
+  geom_col(colour = "grey40", fill = "grey40") +
+  geom_vline(xintercept = 60, linetype = 2) +
+  labs(y = "Number of\nparticipants",
+       x = "Age at entry")
+p2 <- ggplot(agedat, aes(AgeAtEntry, p)) +
+    geom_point() +
+    geom_vline(xintercept = 60, linetype = 2) +
+    geom_line(aes(y = ypred)) +
+    labs(y = "Proportion\nwith outcome", x = "Age at entry")
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-age.pdf"), p, height = 2, width = 6)
+p
+```
+
+## Country
+
+The following presents the primary outcome rate by country.
+
+```{r}
+#| label: fig-country-po
+#| code-summary: Relationship country to outcome
+#| fig-cap: Primary outcome by country.
+#| fig-height: 2
+tdat <- all_data %>%
+  filter_fas_itt() %>%
+  count(Country = factor(PT_CountryName, levels = c("India", "Australia", "Nepal", "New Zealand")), PO) %>%
+  group_by(Country) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0` + `<NA>`,
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  )
+p1 <- ggplot(tdat, aes(Country, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Country of enrolment")
+p2 <- ggplot(tdat, aes(Country, p_1)) +
+  geom_point() +
+    labs(
+      y = "Proportion meeting\nprimary outcome", 
+      x = "Country of enrolment")  +
+  ylim(0, NA)
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-country.pdf"), p, height = 2, width = 6)
+p
+```
+
+## Site
+
+The following presents the primary outcome rate by study site.
+
+```{r}
+#| label: fig-site-po
+#| code-summary: Relationship site to outcome
+#| fig-cap: Primary outcome by site within country.
+#| fig-height: 4
+tdat <- all_data %>%
+  filter_fas_itt() %>%
+  dplyr::count(
+    Country_lab = Country,
+    Site_lab = fct_infreq(Location),
+    Country = factor(PT_CountryName, levels = c("India", "Australia", "Nepal", "New Zealand")),
+    Site = PT_LocationName,
+    PO) %>%
+  group_by(Country, Site) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0` + `<NA>`,
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  ungroup()
+p1 <- ggplot(tdat, aes(Site_lab, n)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+p2 <- ggplot(tdat, aes(Site_lab, p_1)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_point() +
+    labs(
+      y = "Proportion meeting\nprimary outcome", 
+      x = "Site of enrolment") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+p <- p1 / p2
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-country-site.pdf"), p, height = 4, width = 6.25)
+p
+```
+
+## Calendar Time
+
+```{r}
+#| label: fig-cal-po
+#| code-summary: Relationship calendar date to outcome
+#| fig-cap: |
+#|   Relationship between calendar date and the primary outcome.
+#| fig-height: 2
+caldat <- fas_itt_dat %>%
+  dplyr::count(PO, yr = year(RandDate), mth = month(RandDate)) %>% 
+  spread(PO, n, fill = 0) %>% 
+  mutate(p = `1` / (`1` + `0`),
+         n = `1` + `0`)
+p1 <- ggplot(caldat, aes(mth, p)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+    geom_point() +
+    labs(
+      y = "Proportion meeting\nprimary outcome", 
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12) +
+  ylim(0, 0.25)
+p2 <- ggplot(caldat, aes(mth, n)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+    geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12)
+p <- p2 | p1
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-calendar-time.pdf"), p, height = 2, width = 6)
+p
+```
+
+## Days since symptom onset
+
+```{r}
+#| label: fig-dsfs-po
+#| code-summary: Relationship days since sympton onset to outcome
+#| fig-cap: |
+#|   Relationship (logistic regression linear) 
+#|   between days since symptom onset at entry and the primary outcome.
+#| fig-height: 2
+dsfsdat <- fas_itt_dat %>%
+  dplyr::count(PO, dsfs) %>% 
+  spread(PO, n, fill = 0) %>% 
+  mutate(n = `1` + `0`,
+         p = `1` / (`1` + `0`))
+dsfsmod <- glm(
+  cbind(`1`, `0`) ~ dsfs, 
+  data = dsfsdat, 
+  family = binomial())
+dsfsdat <- dsfsdat %>%
+  mutate(
+    ypred = predict(dsfsmod, newdata = dsfsdat, type = "response")
+  )
+p1 <- ggplot(dsfsdat, aes(dsfs, n)) +
+  geom_col(colour = "grey40", fill = "grey40") +
+  geom_vline(xintercept = 7.5, linetype = 2) +
+  labs(y = "Number of\nparticipants",
+       x = "Days since first symptoms")
+p2 <- ggplot(dsfsdat, aes(dsfs, p)) +
+    geom_point() +
+    geom_vline(xintercept = 7.5, linetype = 2) +
+    geom_line(aes(y = ypred)) +
+    labs(y = "Proportion\nwith outcome", 
+         x = "Days since first symptoms")
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-dsfs.pdf"), p, height = 2, width = 6)
+p
+```
+
+# MLE Estimates
+
+As a point of reference, treatment only logistic regression models are estimated using maximum likelihood for each of the 3 analysis sets.
+
+## FAS-ITT
+
+```{r}
+#| label: tbl-fas-itt-trt-only-mle
+#| tbl-cap: Maximum likelihood odds ratio estimates for FAS-ITT set.
+fas_itt_mle <- glm(PO ~ facA + facC + inelgc3, data = fas_itt_nona_dat, family = binomial())
+tidy(fas_itt_mle, conf.int = TRUE, exponentiate = TRUE) |>
+  kable(digits = 2) |>
+  kable_styling("striped", font_size = 12)
+```
+
+## AVS-ITT
+
+```{r}
+#| label: tbl-avs-itt-trt-only-mle
+#| tbl-cap: Maximum likelihood odds ratio estimates for AVS-ITT set.
+avs_itt_mle <- glm(PO ~ AAssignment, data = avs_itt_nona_dat, family = binomial())
+tidy(avs_itt_mle, conf.int = TRUE, exponentiate = TRUE) |>
+  kable(digits = 2) |>
+  kable_styling("striped", font_size = 12)
+```
+
+## ACS-ITT
+
+```{r}
+#| label: tbl-acs-itt-trt-only-mle
+#| tbl-cap: Maximum likelihood odds ratio estimates for ACS-ITT set.
+acs_itt_mle <- glm(PO ~ CAssignment + inelgc3, data = acs_itt_nona_dat, family = binomial())
+tidy(acs_itt_mle, conf.int = TRUE, exponentiate = TRUE) |>
+  kable(digits = 2) |>
+  kable_styling("striped", font_size = 12)
+```

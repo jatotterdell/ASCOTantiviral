@@ -348,3 +348,9 @@ all_daily_data |>
   kable_styling("striped", font_size = 11) |>
   add_header_above(c(" " = 1, "A1" = 5, "A2" = 5))
 ```
+
+### Major Bleeding per ISTH
+
+The relevant fields are:
+
+- `DD_AE_C_MajorBleedingISTH`

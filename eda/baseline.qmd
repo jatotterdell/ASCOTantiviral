@@ -691,6 +691,48 @@ ggsave(file.path(pth, "days-between-events-overall.pdf"), p, height = 3, width =
 p
 ```
 
+## C-Reactive Protein
+
+```{r}
+#| label: fig-weight-hist
+#| code-summary: Histogram of weight
+#| fig-cap: |
+#|   Distribution of weight
+#| fig-height: 2
+p <- all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  filter(!is.na(BAS_CRPResult)) |>
+  ggplot(aes(BAS_CRPResult)) +
+  facet_wrap( ~ BAS_CRPUnits , scales = "free_y") +
+  geom_histogram(bins = 30) +
+  labs(x = "CRP result (mg/L)", y = "Frequency")
+p
+```
+
+It looks like there may be an issue with the conversion of CRP units or an issue with mis-specification of the reported units.
+
+```{r}
+all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  filter(!is.na(BAS_CRPResult)) |>
+  ggplot(aes(BAS_CRPResult)) +
+  stat_ecdf(aes(colour = BAS_CRPUnits)) + 
+  facet_wrap( ~ Country) +
+  labs(x = "CRP result (mg/L)", y = "Frequency") + 
+  scale_x_log10()
+```
+
+```{r}
+all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  filter(!is.na(BAS_CRPResult)) |>
+  ggplot(aes(BAS_CRPEntered)) +
+  stat_ecdf(aes(colour = BAS_CRPUnits)) + 
+  facet_wrap( ~ Country) +
+  labs(x = "CRP result (mg/L)", y = "Frequency") + 
+  scale_x_log10()
+```
+
 # Drugs Received During Hospital Stay
 
 ```{r}

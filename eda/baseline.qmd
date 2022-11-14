@@ -694,10 +694,10 @@ p
 ## C-Reactive Protein
 
 ```{r}
-#| label: fig-weight-hist
-#| code-summary: Histogram of weight
+#| label: fig-crp-hist
+#| code-summary: Histogram of CRP
 #| fig-cap: |
-#|   Distribution of weight
+#|   Distribution of CRP
 #| fig-height: 2
 p <- all_data |>
   filter(ENR_rec == 1, WTH_FU == 0) |>

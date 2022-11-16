@@ -43,14 +43,12 @@ all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
 #| fig-height: 7
 md <- get_interim_dates()
 id <- get_intervention_dates()
+dt_rng <- range(all_data$RandDate, na.rm = TRUE)
 
 p1 <- all_data %>%
   filter(ENR_rec == 1) %>%
   dplyr::count(RandDate) %>%
-  complete(RandDate = 
-             seq.Date(min(RandDate, na.rm = TRUE), 
-                      max(RandDate, na.rm = TRUE), 
-                      by = "1 day"),
+  complete(RandDate = seq.Date(dt_rng[1], dt_rng[2], by = "1 day"),
            fill = list(n = 0)) %>%
   mutate(`Cumulative enrolments` = cumsum(n)) %>%
   rename(`Randomisation date` = RandDate) %>%
@@ -59,15 +57,13 @@ p1 <- all_data %>%
   geom_vline(data = md,
              aes(xintercept = as.numeric(meet_date)),
              linetype = 2) +
-  labs(x = "", subtitle = "Cumulative enrolments", y = "")
+  labs(x = "", subtitle = "Cumulative enrolments", y = "") +
+  scale_x_date(date_breaks = "3 months", date_labels = "%b %Y")
 
 pA <- all_data %>%
   filter(ENR_rec == 1, AAssignment != "A0") %>%
   count(RandDate) %>%
-  complete(RandDate = 
-             seq.Date(min(RandDate, na.rm = TRUE), 
-                      max(RandDate, na.rm = TRUE), 
-                      by = "1 day"),
+  complete(RandDate = seq.Date(dt_rng[1], dt_rng[2], by = "1 day"),
            fill = list(n = 0)) %>%
   mutate(`Cumulative enrolments` = cumsum(n)) %>%
   rename(`Randomisation date` = RandDate) %>%
@@ -76,15 +72,13 @@ pA <- all_data %>%
   geom_vline(data = md,
              aes(xintercept = as.numeric(meet_date)),
              linetype = 2) +
-  labs(x = "", subtitle = "Cumulative enrolments", y = "")
+  labs(x = "", subtitle = "Cumulative enrolments in antiviral domain", y = "") +
+  scale_x_date(date_breaks = "3 months", date_labels = "%b %Y")
 
 pC <- all_data %>%
   filter(ENR_rec == 1, CAssignment != "C0") %>%
   count(RandDate) %>%
-  complete(RandDate = 
-             seq.Date(min(RandDate, na.rm = TRUE), 
-                      max(RandDate, na.rm = TRUE), 
-                      by = "1 day"),
+  complete(RandDate = seq.Date(dt_rng[1], dt_rng[2], by = "1 day"),
            fill = list(n = 0)) %>%
   mutate(`Cumulative enrolments` = cumsum(n)) %>%
   rename(`Randomisation date` = RandDate) %>%
@@ -93,16 +87,16 @@ pC <- all_data %>%
   geom_vline(data = md,
              aes(xintercept = as.numeric(meet_date)),
              linetype = 2) +
-  labs(x = "", subtitle = "Cumulative enrolments", y = "")
+  labs(x = "", subtitle = "Cumulative enrolments in anticoagulation domain", y = "") +
+  scale_x_date(date_breaks = "3 months", date_labels = "%b %Y")
 
 p2 <- id %>%
   mutate(
-    Intervention = fct_inorder(val_labels(Intervention))
+    Intervention = factor(Intervention, labels = unlist(intervention_labels2())[-c(1, 4)])
   ) %>%
   ggplot(.) +
   facet_grid(Domain ~ ., drop = TRUE, scales = "free_y", space = "free_y") +
-  geom_point(data = . %>% filter(Domain != "Antiviral"),
-             aes(x = Intervention, y = endate), shape = 4) +
+  geom_point(aes(x = Intervention, y = endate), shape = 4) +
   geom_segment(
     aes(x = Intervention, xend = Intervention, 
         y = stdate, yend = endate))  +
@@ -110,8 +104,13 @@ p2 <- id %>%
              aes(yintercept = as.numeric(meet_date)),
              linetype = 2) +
   coord_flip() +
-  labs(x = "", y = "Calendar date", subtitle = "Available interventions")
+  labs(x = "", y = "Calendar date", subtitle = "Available interventions") +
+  scale_y_date(date_breaks = "3 months", date_labels = "%b %Y")
 
+p <- pA / pC / p2
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "enrolment-domain.pdf"), p, height = 6, width = 6)
+p
 ```
 
 # Intervention Assignments
@@ -136,6 +135,63 @@ all_data |>
   dplyr::count(FAS_ITT, AVS_ITT, AAssignment) |>
   kable() |>
   kable_styling("striped", font_size = 12)
+```
+
+```{r}
+#| label: tbl-interventions-fas-itt
+#| tbl-cap: Distribution of interventions assigned to participants, FAS-ITT.
+#| cap-location: margin
+tab <- make_intervention_table(all_data |> filter(ENR_rec == 1, FAS_ITT == 1))
+savetab <- tab |>
+  kable("latex", align = "lrrrr", booktabs = TRUE, linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 10) |>
+  add_header_above(c(" " = 1, "Antiviral" = 3, " " = 1))
+save_tex_table(
+  savetab, 
+  fn = file.path("baseline", "fas-itt-interventions")
+)
+tab |>
+  kable("html", align = "lrrrr") |>
+  kable_styling("striped", font_size = 12) |>
+  add_header_above(c(" " = 1, "Antiviral" = 3, " " = 1))
+```
+
+```{r}
+#| label: tbl-interventions-acs-itt
+#| tbl-cap: Distribution of interventions assigned to participants, ACS-ITT.
+#| cap-location: margin
+tab <- make_intervention_table(all_data |> filter(ENR_rec == 1, ACS_ITT == 1))
+savetab <- tab |>
+  kable("latex", align = "lrrrr", booktabs = TRUE, linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 10) |>
+  add_header_above(c(" " = 1, "Antiviral" = 3, " " = 1))
+save_tex_table(
+  savetab, 
+  fn = file.path("baseline", "acs-itt-interventions")
+)
+tab |>
+  kable("html", align = "lrrrr") |>
+  kable_styling("striped", font_size = 12) |>
+  add_header_above(c(" " = 1, "Antiviral" = 3, " " = 1))
+```
+
+```{r}
+#| label: tbl-interventions-avs-itt
+#| tbl-cap: Distribution of interventions assigned to participants, AVS-ITT.
+#| cap-location: margin
+tab <- make_intervention_table(all_data |> filter(ENR_rec == 1, AVS_ITT == 1))
+savetab <- tab |>
+  kable("latex", align = "lrrrr", booktabs = TRUE, linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 10) |>
+  add_header_above(c(" " = 1, "Antiviral" = 2, " " = 1))
+save_tex_table(
+  savetab, 
+  fn = file.path("baseline", "avs-itt-interventions")
+)
+tab |>
+  kable("html", align = "lrrrr") |>
+  kable_styling("striped", font_size = 12) |>
+  add_header_above(c(" " = 1, "Antiviral" = 2, " " = 1))
 ```
 
 ## Country
@@ -555,6 +611,8 @@ p <- all_data |>
     x = "Age at randomisation (5-year bins, 30 to 34, 35 to 39, etc.)", 
     y = "Count") +
   scale_x_continuous(breaks = seq(20, 95, 5))
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "age-domainc.pdf"), p, height = 4, width = 6)
 p
 ```
 
@@ -578,6 +636,8 @@ p <- all_data |>
     x = "Age at randomisation (5-year bins, 30 to 34, 35 to 39, etc.)", 
     y = "Count") +
   scale_x_continuous(breaks = seq(20, 95, 5))
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "age-domaina.pdf"), p, height = 2, width = 6)
 p
 ```
 

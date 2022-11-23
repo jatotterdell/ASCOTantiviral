@@ -152,11 +152,17 @@ naf_data |>
 
 ```{r}
 tt <- pp_data |>
-  right_join(all_data |> filter_avs_itt() |> select(StudyPatientID, AAssignment) |> distinct()) |>
-  count(
-    Antiviral = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1]), 
-    `Per Protocol?`, 
-    Reason = reason) |>
+  right_join(
+    all_data |> 
+      filter_avs_itt() |> 
+      select(StudyPatientID, AAssignment) |> 
+      distinct()) |>
+  group_by(
+    Antiviral = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1]),
+    `Per Protocol?`
+  ) |>
+  count(Reason = reason) |>
+  arrange(Antiviral, `Per Protocol?`, desc(n)) |>
   rename(Count = n)
 tt |> 
   kable("html") |>

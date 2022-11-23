@@ -352,16 +352,16 @@ knitr::include_graphics(
 
 ### Compliance
 
-@fig-naf-duration presents the distribution of Nafamostat infusion duration for each study day amongst participants assigned to receive Nafamostat.
-
-@tbl-compliance presents summaries of treatment compliance for participants assigned to Nafamostat.
-
-There were two participants who received the wrong dosage on at least one day given their baseline weight.
+There were two participants who received the wrong dosage (according to the antiviral domain specific appendix) on at least one day given their baseline weight:
 
 - One participant reportedly had 3 days of 500 mg/day instead of 350 mg/day (baseline weight of 65 kg). 
 This participant was determined to not be per-protocol.
 - Another participant reportedly had 2 days of 350 mg/day instead of 250 mg/day (baseline weight of 60 kg).
 This participant was determined to be per-protocol.
+
+@fig-naf-duration presents the distribution of Nafamostat infusion duration for each study day amongst participants assigned to receive Nafamostat. 
+@tbl-compliance presents summaries of treatment compliance for participants assigned to Nafamostat.
+@tbl-per-protocol-naf outlines the number of participants who were not per-protocol and the associated reason by their assigned antiviral intervention.
 
 ```{r}
 #| label: fig-naf-duration

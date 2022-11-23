@@ -1,0 +1,282 @@
+---
+title: "Adherence to Interventions"
+description: |
+  Exploratory summaries of intervention adherence.
+author: "James Totterdell"
+date: today
+execute: 
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: pkgs
+#| include: false
+library(tidyverse)
+library(kableExtra)
+library(labelled)
+library(lubridate)
+library(patchwork)
+library(ASCOTr)
+library(readxl)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+```
+
+```{r}
+#| label: load-data
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
+
+pp_data <- read_excel(file.path(ASCOT_DATA, "explanation", "ASCOT_ADAPT_PerProtocolList.xlsx"))
+pp_data <- pp_data |>
+  mutate(pp = if_else(`Per Protocol?` == "Per Protocol", 1, 0)) |>
+  rename(StudyPatientID = StudyID, reason = `Reason Why Not`)
+```
+
+# Nafamostat
+
+## Dosage
+
+Per the protocol:
+
+> Nafamostat is administered by constant intravenous infusion at a fixed dose based on total body weight as per Table below, for 7 days, or until hospital discharge, whichever is sooner. This dosing table is based on a dose of 0.2mg/kg/hr.
+
+| Body Weight (kg) | Daily Dose (mg/day) |
+|------------------|---------------------|
+| \< 40            | 200                 |
+| 40 - 60          | 250                 |
+| 61 - 80          | 350                 |
+| 81 - 100         | 450                 |
+| \> 100           | 500                 |
+
+```{r}
+naf_dose_map <- tribble(
+  ~ weight_min, ~ weight_max, ~ dose,
+  0, 39, 200,
+  40, 60, 250,
+  61, 80, 350,
+  81, 100, 450,
+  101, Inf, 500
+)
+```
+
+## Fields
+
+The relevant fields are:
+
+-   `DD_NafamostatAdministered` - Was nafamostat administered
+-   `DD_NafamostatDailyDose` - Total daily dose prescribed per 24 hours (mg/day)
+-   `DD_NafamostatDuration` - Total cumulative duration of nafamostat infusion on this calendar day (hours)
+
+So, per the protocol we expect that:
+
+- `DD_NafamostatDailyDose` as per the table given the participants baseline weight.
+- `DD_NafamostatAdministered` to be yes for study days 1 to 8 or until discharge (maybe no on final day hospitalised?)
+- `DD_NafamostatDuration` to be 24 hours on study days 2 to 6 and perhaps less on days 1 and 8
+
+A list of per protocol participants was provided
+
+```{r}
+pp_data |>
+  count(`Per Protocol?`)
+pp_data |>
+  count(`Per Protocol?`, reason)
+```
+
+Of particular note
+
+```{r}
+pp_data |>
+  filter(grepl("excluded", reason))
+```
+
+> BLK00001 – Previously available data recorded in Baseline and Daily CRFs were deleted from the database and no longer appear in data exports, due to a serious breach related to consent. This patient was ineligible for the trial. For the purpose of analysis, please do not include the clinical data collected during screening for this patient.
+> MMC00081 – This participant was enrolled in the anticoagulation domain and data collected for that domain was included in the anticoagulation domain analysis. They were enrolled but did not consent to participate in the Antiviral Domain (serious breach). The participant was randomised to the Standard Of Care arm in the Antiviral domain therefore they did not receive any interventions. All data specific to the antiviral domain must be redacted for this participant when analysing the datasets.
+
+We note that BLK00001 is excluded from all analysis sets and MMC00081 antiviral data was set to missing.
+
+```{r}
+#| label: example-data-nafamostat
+naf_data <- all_daily_data |> 
+  filter_avs_itt() |>
+  select(
+    StudyPatientID, 
+    RandomisedLocal,
+    AAssignment,
+    BAS_Weight, 
+    DIS_day, 
+    DD_StudyDay, 
+    DD_NafamostatDailyDose, 
+    DD_NafamostatAdministered, 
+    DD_NafamostatDuration) |>
+  left_join(pp_data) |>
+  mutate(
+    DD_NafamostatDuration = if_else(DD_NafamostatAdministered == "No", 0, DD_NafamostatDuration),
+    expect_dose = case_when(
+      BAS_Weight < 40 ~ 200,
+      BAS_Weight < 61 ~ 250,
+      BAS_Weight < 81 ~ 350,
+      BAS_Weight < 101 ~ 450,
+      BAS_Weight > 100 ~ 500,
+      TRUE ~ NA_real_
+    ))
+naf_data |> 
+  select(StudyPatientID, AAssignment, pp) |>
+  distinct() |>
+  count(AAssignment, pp)
+```
+
+## Not Per-Protocol
+
+```{r}
+naf_data |>
+  filter(pp == 0, DD_StudyDay %in% 1:8) |>
+  select(-DD_NafamostatAdministered, -DD_NafamostatDailyDose, -`Per Protocol?`) |>
+  spread(DD_StudyDay, DD_NafamostatDuration) |>
+  print(n = Inf)
+```
+
+## Per Protocol
+
+```{r}
+naf_data |>
+  filter(pp == 1, DD_StudyDay %in% 1:8, AAssignment == "A2") |>
+  select(-DD_NafamostatAdministered, -DD_NafamostatDailyDose, -`Per Protocol?`, -reason) |>
+  spread(DD_StudyDay, DD_NafamostatDuration) |>
+  print(n = Inf)
+```
+
+```{r}
+tt <- pp_data |>
+  right_join(all_data |> filter_avs_itt() |> select(StudyPatientID, AAssignment) |> distinct()) |>
+  count(
+    Antiviral = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1]), 
+    `Per Protocol?`, 
+    Reason = reason) |>
+  rename(Count = n)
+tt |> 
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+tt |> 
+  kable("latex", booktabs = TRUE) |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  column_spec(3, width = "3in") |>
+  save_tex_table("per-protocol-naf")
+```
+
+## Study Day Summaries
+
+```{r}
+naf_data |>
+  filter(AAssignment == "A2", DD_StudyDay < 9) |>
+  group_by(DD_StudyDay) |>
+  summarise(
+    n = n(),
+    n_administered = sum(DD_NafamostatAdministered == "Yes"),
+    p_administered = n_administered / n,
+    mean_duration = mean(DD_NafamostatDuration, na.rm = TRUE),
+    median_duration = median(DD_NafamostatDuration)
+  )
+```
+
+```{r}
+p <- naf_data |>
+  filter(AAssignment == "A2", DD_StudyDay < 9) |>
+  ggplot(aes(DD_NafamostatDuration)) +
+  facet_wrap( ~ DD_StudyDay, ncol = 2, scales = "free_y") +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous("Nafamostat duration (hours)", breaks = seq(0, 24, 2)) +
+  labs(y = "Frequency")
+ggsave(file.path("outputs", "figures", "followup", "naf-day-duration.pdf"), p, width = 6, height = 4, dpi = 244)
+p
+```
+
+## Patient Summaries
+
+```{r}
+naf_data |> 
+  filter(AAssignment == "A2") |> 
+  select(StudyPatientID, DD_NafamostatDailyDose, expect_dose) |> 
+  distinct() |>
+  filter(DD_NafamostatDailyDose != expect_dose) |>
+  left_join(naf_data, by = "StudyPatientID")
+```
+
+```{r}
+naf_id_sum <- naf_data |>
+  filter(AAssignment == "A2")  |>
+  group_by(StudyPatientID) |>
+  summarise(
+    days = n(),
+    days_on_naf = sum(DD_NafamostatAdministered[DD_StudyDay < 9] == "Yes"),
+    days_off_naf = sum(DD_NafamostatAdministered[DD_StudyDay < 9] == "No"),
+    total_hours = sum(DD_NafamostatDuration[DD_StudyDay < 9]),
+    hours_per_day = total_hours / min(8, days),
+    days_comply = sum(DD_NafamostatDuration >= 21 & DD_StudyDay <= 8, na.rm = TRUE),
+    p_days_comply = days_comply / min(8, days)
+  )
+
+naf_tab <- naf_id_sum |>
+  summarise(
+    `days_Median (IQR)` = sprintf("%i (%i - %i)", median(days_on_naf), quantile(days_on_naf, 0.25), quantile(days_on_naf, 0.75)),
+    `days_Min, Max` = sprintf("%i, %i", min(days_on_naf), max(days_on_naf)),
+    `days_Missing` = sprintf("%i", sum(is.na(days_on_naf))),
+    `offdays_Median (IQR)` = sprintf("%i (%i - %i)", median(days_off_naf), quantile(days_off_naf, 0.25), quantile(days_off_naf, 0.75)),
+    `offdays_Min, Max` = sprintf("%i, %i", min(days_off_naf), max(days_off_naf)),
+    `offdays_Missing` = sprintf("%i", sum(is.na(days_off_naf))),
+    `totalhours_Median (IQR)` = sprintf("%.1f (%.1f - %.1f)", median(total_hours), quantile(total_hours, 0.25), quantile(total_hours, 0.75)),
+    `totalhours_Min, Max` = sprintf("%.1f, %.1f", min(total_hours), max(total_hours)),
+    `totalhours_Missing` = sprintf("%i", sum(is.na(total_hours))),
+    `hoursperday_Median (IQR)` = sprintf("%.1f (%.1f - %.1f)", median(hours_per_day), quantile(hours_per_day, 0.25), quantile(hours_per_day, 0.75)),
+    `hoursperday_Min, Max` = sprintf("%.1f, %.1f", min(hours_per_day), max(hours_per_day)),
+    `hoursperday_Missing` = sprintf("%i", sum(is.na(hours_per_day))),
+    `pdayscomply_Median (IQR)` = sprintf("%.2f (%.2f - %.2f)", median(p_days_comply), quantile(p_days_comply, 0.25), quantile(p_days_comply, 0.75)),
+    `pdayscomply_Min, Max` = sprintf("%.2f, %.2f", min(p_days_comply), max(p_days_comply)),
+    `pdayscomply_Missing` = sprintf("%i", sum(is.na(p_days_comply))),
+    `dayscomply_Median (IQR)` = sprintf("%i (%i - %i)", median(days_comply), quantile(days_comply, 0.25), quantile(days_comply, 0.75)),
+    `dayscomply_Min, Max` = sprintf("%i, %i", min(days_comply), max(days_comply)),
+    `dayscomply_Missing` = sprintf("%i", sum(is.na(days_comply)))
+  ) |>
+  pivot_longer(everything(), names_to = c("Variable", "Summary"), names_sep = "_", values_to = "Value")
+
+naf_tab |>
+  select(-1) |>
+  kable("html", align = "lr") |>
+  kable_styling("striped", font_size = 12) |>
+  pack_rows("Days on study treatment", 1, 3) |>
+  pack_rows("Days off study treatment", 4, 6) |>
+  pack_rows("Total hours receiving infusion", 7, 9) |>
+  pack_rows("Hours per day on infusion", 10, 12) |>
+  pack_rows("Proportion of days admitted to hospital with infusion $\\geq$ 21/24 hours$^1$", 13, 15) |>
+  pack_rows("Days with 21/24 hours infusion", 16, 18) |>
+  footnote(
+    general = c(
+      "Days on study treatment is any part day on drug.",
+      "Days off treatment is any day when no Nafamostat was administered."
+    ),
+    number = "up to 7 days while hospitalised",
+    general_title = "")
+
+naf_tab |>
+  select(-1) |>
+  kable("latex", align = "lr", booktabs = TRUE) |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  pack_rows("Days on study treatment", 1, 3) |>
+  pack_rows("Days off study treatment", 4, 6) |>
+  pack_rows("Total hours receiving infusion", 7, 9) |>
+  pack_rows("Hours per day on infusion", 10, 12) |>
+  pack_rows("Proportion of days admitted to hospital with infusion $\\geq$ 21/24 hours$^1$", 13, 15, escape = FALSE) |>
+  pack_rows("Days with 21/24 hours infusion", 16, 18) |>
+  footnote(
+    general = c(
+      "Days on study treatment is any part day on drug.",
+      "Days off treatment is any day when no Nafamostat was administered."
+    ),
+    number = "up to 7 days while hospitalised",
+    general_title = "") |>
+  save_tex_table(file.path("compliance-nafamostat"))
+```

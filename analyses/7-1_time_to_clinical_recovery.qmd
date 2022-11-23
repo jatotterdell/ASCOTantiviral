@@ -1,0 +1,333 @@
+---
+title: "7-1 Time to clinical recovery during the first 28 days"
+description: |
+  The first day, during the 28 days after enrolment, on which a patient satisfies categories 1, 2, or 3 on the WHO eight-point ordinal outcome scale (it will be assumed that the participant is not hospitalised on the first day following discharge and that on the day of discharge the participant is still considered hospitalised but not requiring supplemental oxygen nor ongoing medical care if the site has mistakenly indicated the patient was not hospitalised).
+author:
+  - name: James Totterdell
+    affiliation: University of Sydney
+  - name: Rob Mahar
+    affiliation: University of Melbourne
+date: today
+---
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(ASCOTr)
+library(tidyverse)
+library(labelled)
+library(kableExtra)
+library(cmdstanr)
+library(posterior)
+library(bayestestR)
+library(bayesplot)
+library(matrixStats)
+library(plotly)
+library(lubridate)
+library(ggdist)
+library(patchwork)
+library(VGAM)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+
+color_scheme_set("red")
+options(digits = 4)
+```
+
+```{r}
+#| label: analysis-sets
+#| code-summary: Prepare datasets
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+
+# FAS-ITT
+fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data)
+fas_itt_nona_dat <- fas_itt_dat |>
+  filter(!is.na(out_ttr))
+
+# ACS-ITT
+acs_itt_dat <- ASCOTr:::make_acs_itt_set(all_data)
+acs_itt_nona_dat <- acs_itt_dat |>
+  filter(!is.na(out_ttr))
+
+# AVS-ITT
+avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_data)
+avs_itt_nona_dat <- avs_itt_dat |>
+  filter(!is.na(out_ttr))
+```
+
+```{r}
+#| label: data-aggregation
+ttr_seq <- expand_grid(
+  StudyPatientID = unique(fas_itt_nona_dat$StudyPatientID),
+  time = 1:28)
+fas_itt_outdat <- fas_itt_nona_dat %>%
+  left_join(ttr_seq, by = "StudyPatientID") %>%
+  filter(time <= out_ttr) %>%
+  mutate(
+    y = if_else(out_ttr == time, out_rec, 0),
+    y0 = if_else(out_ttr > time | out_ttr == time & out_rec == 0, 1, 0), # Not recovered or died
+    y1 = if_else(out_ttr == time & out_rec == 1, 1, 0), # Recovered
+    y2 = if_else(out_ttr == time & out_rec == 2, 1, 0)  # Died
+  )
+fas_itt_outdat_agg <- fas_itt_outdat %>%
+  complete(CAssignment, time, fill = list(y = 0)) %>%
+  group_by(CAssignment, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(CAssignment) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  mutate(CAssignment = factor(
+    CAssignment, labels = str_replace(intervention_labels()$CAssignment, "<br>", " ")))
+
+```
+
+# Derivation
+
+Time to clinical recovery is taken as the first day from the index admission at which the patient had a WHO outcome score of 3 or less. If a participant died before recovery, then they are treated as censored at the day of death. No allowance is made for participants who recovered but then subsequently died (i.e. they are just counted as recovered on the relevant day). If recovery and death reportedly occurred on the same day (e.g. daily status WHO scale < 4 but discharge outcome of death on same day), then the patient is considered to have not recovered. For participants whose WHO outcome score was greater than 3 on the day of discharge, their day of recovery was counted as the first day after discharge.
+
+# Descriptive
+
+## Time to recovery
+
+
+## Age
+
+```{r}
+#| label: fig-7-1-age
+#| fig-cap: |
+#|   Progression to recovery by age group.
+tmp_agg <- fas_itt_outdat %>%
+  complete(agegte60, time, fill = list(y = 0)) %>%
+  group_by(agegte60, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(agegte60) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cy0 = (n[1] - cy1 - cy2),
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  mutate(agegte60 = factor(agegte60, levels = c(0, 1), labels = c("Age < 60", "Age \u2265 60")))
+p <- tmp_agg %>% 
+  select(-y1, -y2, -cp1, -cp2, -cpn) %>% 
+  pivot_longer(cy1:cy0) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cy1", "cy2", "cy0"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, fill = name, colour = name)) + 
+  facet_wrap(~agegte60, scales = "free_y") + 
+  geom_col(width = 1) +
+  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative proportion", fill = "Status", colour = "Status") +
+  theme(panel.grid.minor = element_blank())
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-1-age.pdf"), p, height = 2, width = 6, device = cairo_pdf)
+p
+```
+
+## Oxygen
+
+```{r}
+#| label: fig-7-1-oxygen
+#| fig-cap: |
+#|   Progression to recovery by oxygen requirement.
+tmp_agg <- fas_itt_outdat %>%
+  complete(supp_oxy, time, fill = list(y = 0)) %>%
+  group_by(supp_oxy, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(supp_oxy) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cy0 = (n[1] - cy1 - cy2),
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  mutate(supp_oxy = fct_explicit_na(factor(supp_oxy, levels = c(0, 1), labels = c("No oxygen", "Required oxygen"))))
+p <- tmp_agg %>% 
+  select(-y1, -y2, -cp1, -cp2, -cpn) %>% 
+  pivot_longer(cy1:cy0) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cy1", "cy2", "cy0"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, fill = name, colour = name)) + 
+  facet_wrap(~supp_oxy, scales = "free_y") + 
+  geom_col(width = 1) +
+  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative proportion", fill = "Status", colour = "Status") +
+  theme(panel.grid.minor = element_blank())
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-1-oxygen"), p, height = 2, width = 6, device = cairo_pdf)
+p
+```
+
+## Country
+
+```{r}
+#| label: fig-7-1-country
+#| fig-cap: |
+#|   Progression to recovery by country.
+tmp_agg <- fas_itt_outdat %>%
+  complete(Country, time, fill = list(y = 0)) %>%
+  group_by(Country, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(Country) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cy0 = (n[1] - cy1 - cy2),
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  mutate(country = factor(Country, levels = c("IN", "AU", "NP", "NZ"),
+                          labels = c("India", "Australia", "Nepal", "New Zealand")))
+p <- tmp_agg %>% 
+  select(-y1, -y2, -cp1, -cp2, -cpn) %>% 
+  pivot_longer(cy1:cy0) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cy1", "cy2", "cy0"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, fill = name, colour = name)) + 
+  facet_wrap(~country, scales = "free_y") + 
+  geom_col(width = 1) +
+  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative count", fill = "Status", colour = "Status") +
+  theme(panel.grid.minor = element_blank())
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-1-country.pdf"), p, height = 2.5, width = 6)
+p
+```
+
+## Calender Time
+
+```{r}
+#| label: fig-7-1-calender-tiime
+#| fig-cap: |
+#|   Progression to recovery by calendar time
+tmp_agg <- fas_itt_outdat %>%
+  mutate(yr = year(RandDate), mth = month(RandDate)) %>%
+  complete(nesting(yr, mth), time, fill = list(y = 0)) %>%
+  group_by(yr, mth, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(yr, mth) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cy0 = (n[1] - cy1 - cy2),
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  mutate(label = fct_inorder(paste(yr, mth, sep = "-")))
+p <- tmp_agg %>% 
+  select(-y1, -y2, -cp1, -cp2, -cpn) %>% 
+  pivot_longer(cy1:cy0) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cy1", "cy2", "cy0"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, fill = name, colour = name)) + 
+  facet_wrap(~label, scales = "free_y", ncol = 5) + 
+  geom_col(width = 1) +
+  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative count", fill = "Status", colour = "Status") +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = "bottom")
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-1-calendar-time.pdf"), p, height = 4, width = 6)
+p
+```
+
+## Site
+
+```{r}
+#| label: fig-7-1-site
+#| fig-cap: |
+#|   Progression to recovery by site.
+tmp_agg <- fas_itt_outdat %>%
+  complete(nesting(Country, site), time, fill = list(y = 0)) %>%
+  mutate(site_raw = fct_infreq(site)) %>%
+  group_by(Country, site_raw, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(Country, site_raw) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cy0 = (n[1] - cy1 - cy2),
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup()
+plot_country <- function(ctr, ncol = 2) {
+  tmp_agg %>% 
+    filter(Country == ctr) %>%
+    select(-y1, -y2, -cp1, -cp2, -cpn) %>% 
+    pivot_longer(cy1:cy0) %>% 
+    mutate(name = factor(
+      name, 
+      levels = c("cy1", "cy2", "cy0"), 
+      labels = c("Recovered", "Died", "Not recovered"))) %>%
+    ggplot(., aes(time, value, fill = name, colour = name)) + 
+    facet_wrap( ~ site_raw, scales = "free_y", ncol = ncol) + 
+    geom_col(width = 1) +
+    scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+    scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+    scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+    scale_y_continuous(breaks = function(x) unique(floor(pretty(seq(0, (max(x) + 1) * 1.1))))) +
+    labs(x = "Study day", y = "Cumulative\ncount", fill = "Status", colour = "Status") +
+    theme(panel.grid.minor = element_blank(),
+          legend.position = "bottom",
+          plot.title = element_text(size = rel(1), face = "bold"))
+}
+p_in <- plot_country("IN", 6) + labs(title = "Sites India")
+p_au <- plot_country("AU", 6) + labs(title = "Sites Australia")
+p_np <- plot_country("NP", 2) + labs(title = "Sites Nepal")
+p_nz <- plot_country("NZ", 4) + labs(title = "Sites New Zealand")
+p1 <- p_in / p_au
+p2 <- (p_np | p_nz) + plot_layout(widths = c(1, 2))
+p <- (p1 / p2) + 
+  plot_layout(guides = "collect", heights = c(2,3.5,1)) &
+  theme(legend.position='bottom')
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-1-country-site.pdf"), p, height = 7, width = 6)
+p
+```
+
+# Modelling
+
+Time to clinical recovery will be analysed using a multinomial logit model for the cause-specific hazard functions where the events considered are recovery ($r=1$) or death by day 28 ($r=2$),
+$$
+\lambda_r(t) = \frac{\exp(\alpha_{tr} + x^{\mathsf{T}}\beta_r)}{1 + \sum_{j=1}^2 \exp(\alpha_{tj} + x^{\mathsf{T}}\beta_j)}, 
+\quad r=1,2, \quad t=1,...,T
+$$
+Under this model, the coefficient $\exp(\beta_{rj})$ denotes the factor by which the cause-specific odds change for a one unit change in $x_j$ (assumed constant over all $t$), e.g.
+$$
+\ln\left(\frac{\lambda_r(t|x)}{\lambda_0(t|x)}\right) = \alpha_{tr} + x^\mathsf{T}\beta_r
+$$
+where
+$$
+\lambda_0(t|x) = 1 - \sum_{r=1}^R\lambda_r(t|x) = \frac{1}{1 + \sum_{j=1}^2 \exp(\alpha_{tj} + x^{\mathsf{T}}\beta_j)}
+$$
+denotes conditional survival (i.e not event).
+
+## Primary Model

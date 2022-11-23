@@ -28,7 +28,7 @@ renv/*
 
 # Ignore PDFs and DOCX
 *.pdf
-!report/ascot_antiviral_clinical_study_report.pdf
+!report/ascot_clinical_study_report.pdf
 *.docx
 
 # RDS files

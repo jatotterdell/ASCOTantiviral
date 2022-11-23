@@ -4,7 +4,7 @@ project:
   execute-dir: project
   render:
     - "index.qmd"
-    - "analyses/*.qmd"
+    - "analyses/*.qmd" # render these manually as time-consuming to run
     - "eda/*.qmd"
 
 website:
@@ -21,9 +21,12 @@ website:
           - eda/data-explore.qmd
           - eda/patient-disposition.qmd
           - eda/baseline.qmd
+          - eda/adherence.qmd
       - section: "Outcomes and Analyses"
         contents:
           - "analyses/6-0_primary_outcome.qmd"
+          - "analyses/7-1_time_to_clinical_recovery.qmd"
+          - "analyses/7-2_who_ordinal_scale.qmd"
           - "analyses/8_antiviral_specific.qmd"
 
 format:

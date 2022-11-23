@@ -387,6 +387,7 @@ pth <- file.path("outputs", "figures", "baseline")
 ggsave(file.path(pth, "anticoagulation-allocations-calendar2.pdf"), p, height = 2.5, width = 7)
 p
 ```
+
 ```{r}
 #| label: fig-allocation-epoch-antiviral
 #| code-summary: Allocations by epoch
@@ -394,7 +395,7 @@ p
 #|   Allocation to anti-viral interventions by country.
 #| fig-height: 4
 p <- all_data |>
-  filter(ENR_rec == 1) |>
+  filter(ENR_rec == 1, Country != "IN") |>
   dplyr::count(yr = year(RandDate), mth = month(RandDate),
         Intervention = factor(AAssignment, labels = c("Not randomised", intervention_labels_short()$AAssignment[-1]))) %>%
   group_by(yr, mth) |>
@@ -419,7 +420,7 @@ p
 #|   Allocation to anti-viral interventions by country.
 #| fig-height: 4
 p <- all_data |>
-  filter(ENR_rec == 1) |>
+  filter(ENR_rec == 1, Country != "IN") |>
   dplyr::count(yr = year(RandDate), mth = month(RandDate),
         Intervention = factor(AAssignment, labels = c("Not randomised", intervention_labels_short()$AAssignment[-1]))) %>%
   group_by(yr, mth) |>
@@ -749,6 +750,43 @@ p <- (p1 | p2) / (p3 | p4)
 pth <- file.path("outputs", "figures", "baseline")
 ggsave(file.path(pth, "days-between-events-overall.pdf"), p, height = 3, width = 6)
 p
+```
+
+## Oxygen Requirement
+
+For supplemental oxygen requirement at baseline the relevant fields are:
+
+- `BAS_OnRoomAir24hrs`
+- `BAS_OnRoomAir24hrsUnknown`
+- `BAS_PeripheralOxygen`
+
+The logic is:
+
+- if `BAS_OnRoomAir24hrs == "No"` then `supp_oxy = 1`
+- if `BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94` then `supp_oxy = 1`
+- if `BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94` then `supp_oxy = 0`
+
+There were 25 participants who had unknown supplemental oxygen status.
+For the purpose of analysis, when this covariate is included, it is assumed that these participants *did not* require supplemental oxygen at baseline.
+
+```{r}
+Atab <- all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  count(
+    Antiviral = factor(AAssignment, labels = intervention_labels()$AAssignment),
+    `Supplemental oxygen at baseline` = supp_oxy) |>
+  spread(Antiviral, n, fill = 0)
+kable(Atab) |>
+  kable_styling("striped", font_size = 12)
+
+all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  count(
+    Anticoagulation = factor(CAssignment, labels = intervention_labels()$CAssignment),
+    `Supplemental oxygen at baseline` = supp_oxy) |>
+  spread(Anticoagulation, n, fill = 0) |>
+  kable() |>
+  kable_styling("striped", font_size = 12)
 ```
 
 ## C-Reactive Protein

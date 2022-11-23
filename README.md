@@ -23,14 +23,14 @@ To render the notebooks, either use the `quarto` package in RStudio or use the C
 quarto render .
 ```
 
-to render all documents, or
+to render all documents.
+
+By default, the analysis `.qmd` files are note rendered by `quarto render .` because they may be time-consuming to run.
+Instead, these can be manually rendered individually via (for example)
 
 ```sh
-quarto render analyses/<filename>.qmd
-quarto preview analyses/<filename>.qmd
+quarto render analyses/<filename>.qmd --execute-dir .
 ```
-
-to render/preview a specific file only.
 
 Rendered documents are output to `docs/`.
 
@@ -41,6 +41,8 @@ quarto::quarto_preview()
 ```
 
 from RStudio.
+
+
 
 ### Directories
 

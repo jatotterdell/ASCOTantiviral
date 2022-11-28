@@ -562,30 +562,6 @@ ggsave(pth, p, width = 6, height = 4.5)
 p
 ```
 
-```{r}
-#| fig-cap: Posterior densities for treatment comparisons.
-p <- plot_or_densities(res$drws$compare)
-p
-```
-
-:::{.callout-caution collapse="true"}
-### Diagnostics
-```{r}
-res$fit$diagnostic_summary()
-```
-:::
-
-:::{.callout-caution collapse="true"}
-### Trace plots
-```{r}
-mcmc_trace(res$drws["beta"])
-mcmc_trace(res$drws["alpha"])
-mcmc_trace(res$drws["gamma_site"])
-mcmc_trace(res$drws["gamma_epoch"])
-```
-:::
-
-
 ### Posterior Predictive
 
 ```{r}

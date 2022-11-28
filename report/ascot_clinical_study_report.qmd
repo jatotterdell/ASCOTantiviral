@@ -1881,49 +1881,78 @@ This section reports on the analysis of the secondary outcome: all-cause mortali
 
 This section reports on the analysis of the secondary outcome: days alive and free of hospital (DAFH) to day 28. For this outcome, participants who died within 28 days were coded to have 0 DAFH. The model is coded so that an odds ratio greater than 1 implies a benefit (increased odds of more days alive and free of hospital).
 
-<!-- - **Model**: cumulative logistic (ordinal) regression assuming proportional odds -->
-<!-- - **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch. -->
-<!-- - **Set**: ACS-ITT -->
+@tbl-7-4-summary-anticoagulation presents the number of participants where the outcome was observed by the allocated anticoagulation arm. Similarly, @tbl-7-4-summary-antiviral for the antiviral domain. The observed distribution of DAFH by arm is shown in @fig-7-4-dist-overall, @fig-7-4-descriptive, and @fig-7-4-descriptive2. The model parameters (odds ratios) are summarised in @tbl-7-4-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-4-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms.
 
-<!-- @tbl-7-4-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The observed distribution of DAFH by arm is shown in @fig-7-4-dist-overall, @fig-7-4-descriptive, and @fig-7-4-descriptive2. The model parameters (odds ratios) are summarised in @tbl-7-4-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-4-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms. -->
+```{r}
+#| label: fig-7-4-dist-overall
+#| fig-cap: |
+#|   Observed overall distribution of days alive and free of hospital at day 28, FAS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-dist-overall.pdf"
+)
+```
 
+```{r}
+#| label: tbl-7-4-summary-anticoagulation
+#| tbl-cap: |
+#|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-summary.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-7-4-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: fig-7-4-descriptive-anticoagulation
+#| fig-cap: |
+#|   Observed distribution of days alive and free of hospital at day 28 by anticoagulation treatment group, ACS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-anticoagulation.pdf"
+)
+```
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-4-dist-overall -->
-<!-- #| fig-cap: | -->
-<!-- #|   Observed overall distribution of days alive and free of hospital at day 28, ACS-ITT. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/secondary/outcome-7-4-dist-overall.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+```{r}
+#| label: fig-7-4-descriptive-anticoagulation2
+#| fig-cap: |
+#|   Observed cumulative distribution of days alive and free of hospital at day 28 by anticoagulation treatment group, ACS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-anticoagulation2.pdf"
+)
+```
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-4-descriptive -->
-<!-- #| fig-cap: | -->
-<!-- #|   Observed distribution of days alive and free of hospital at day 28 by treatment group, ACS-ITT. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-7-4-summary-antiviral
+#| tbl-cap: |
+#|   Summary of days alive and free of hospital to day 28 by treatment group, AVS-ITT.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-4-antiviral-summary.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-4-descriptive2 -->
-<!-- #| fig-cap: | -->
-<!-- #|   Observed cumulative distribution of days alive and free of hospital at day 28 by treatment group, ACS-ITT. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive2.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+```{r}
+#| label: fig-7-4-descriptive-antiviral
+#| fig-cap: |
+#|   Observed distribution of days alive and free of hospital at day 28 by antiviral treatment group, AVS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-antiviral.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-4-descriptive-antiviral2
+#| fig-cap: |
+#|   Observed cumulative distribution of days alive and free of hospital at day 28 by antiviral treatment group, AVS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-antiviral2.pdf"
+)
+```
+
+#### FAS-ITT
+
+- **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, site nested within region, and epoch.
+- **Set**: FAS-ITT
 
 <!-- ```{r} -->
 <!-- #| label: tbl-7-4-primary-model-acs-itt-summary -->
@@ -2692,45 +2721,45 @@ knitr::include_graphics(
 
 ### Days alive and free of hospital to day 28 by Model Covariates (FAS-ITT) {#sec-app-7-4-model-cov}
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-4-age -->
-<!-- #| fig-cap: | -->
-<!-- #|   Distribution of days alive and free of hospital to day 28 -->
-<!-- #|   by age groups, ACS-ITT. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/secondary/7-4-age.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+```{r}
+#| label: fig-7-4-age
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital to day 28
+#|   by age groups, ACS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-4-age.pdf"
+)
+```
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-4-country -->
-<!-- #| fig-cap: | -->
-<!-- #|   Distribution of days alive and free of hospital to day 28 -->
-<!-- #|   by country of randomisation, ACS-ITT. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/secondary/7-4-country.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+```{r}
+#| label: fig-7-4-country
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital to day 28
+#|   by country of randomisation, ACS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-4-country.pdf"
+)
+```
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-4-country-site -->
-<!-- #| fig-cap: | -->
-<!-- #|   Distribution of days alive and free of hospital to day 28 -->
-<!-- #|   by country and site of randomisation, ACS-ITT. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/secondary/7-4-country-site.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+```{r}
+#| label: fig-7-4-country-site
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital to day 28
+#|   by country and site of randomisation, ACS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-4-country-site.pdf"
+)
+```
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-4-calendar-time -->
-<!-- #| fig-cap: | -->
-<!-- #|   Distribution of days alive and free of hospital to day 28 -->
-<!-- #|   by calendar time (month) of randomisation, ACS-ITT. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/secondary/7-4-calendar-time.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+```{r}
+#| label: fig-7-4-calendar-time
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital to day 28
+#|   by calendar time (month) of randomisation, ACS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-4-calendar-time.pdf"
+)
+```
 
 \clearpage
 

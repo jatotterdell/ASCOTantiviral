@@ -237,6 +237,49 @@ save_tex_table(
 make_summary_table_anticoagulation(acs_itt_dat)
 ```
 
+```{r}
+#| label: fig-dafh-dist-anticoagulation
+#| code-summary: DAFH by intervention
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by anti-coagulation intervention.
+#| fig-height: 4
+pdat <- acs_itt_nona_dat %>%
+  dplyr::count(
+    CAssignment = factor(CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", "\n")),
+    dafh = ordered(out_dafh, levels = 0:27), 
+    .drop = F) %>%
+  group_by(CAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p <- ggplot(pdat, aes(CAssignment, p)) +
+  geom_col(aes(fill = fct_rev(dafh))) +
+  labs(x = "Anticoagulation intervention", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.75, "lines"))
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-4-descriptive-anticoagulation.pdf"), p, height = 3, width = 6)
+p
+```
+
+```{r}
+#| label: fig-dafh-dist-anticoagulation2
+#| code-summary: DAFH by intervention
+#| fig-cap: |
+#|   Cumulative distribution of days alive and free of hospital by anti-coagulation intervention.
+#| fig-height: 4
+p <- ggplot(pdat, aes(dafh, cp)) +
+  geom_step(aes(colour = CAssignment, group = CAssignment)) +
+  labs(x = "Days alive and free of hospital", y = "Cumulative proportion") +
+  scale_colour_viridis_d(
+    "Days alive and\nfree of hospital", option = "A", begin = 0, end = 0.8) +
+  guides(fill = guide_legend(reverse = TRUE))
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-4-descriptive-anticoagulation2.pdf"), p, height = 3, width = 6)
+p
+```
+
 ## Antiviral
 
 ```{r}
@@ -247,6 +290,49 @@ save_tex_table(
   make_summary_table_antiviral(avs_itt_dat, "latex"), 
   file.path("outcomes", "secondary", "7-4-antiviral-summary"))
 make_summary_table_antiviral(avs_itt_dat)
+```
+
+```{r}
+#| label: fig-dafh-dist-antiviral
+#| code-summary: DAFH by intervention
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by antiviral intervention.
+#| fig-height: 4
+pdat <- avs_itt_nona_dat %>%
+  dplyr::count(
+    AAssignment = factor(AAssignment, labels = str_replace(intervention_labels()$AAssignment[-1], "<br>", "\n")),
+    dafh = ordered(out_dafh, levels = 0:27), 
+    .drop = F) %>%
+  group_by(AAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p <- ggplot(pdat, aes(AAssignment, p)) +
+  geom_col(aes(fill = fct_rev(dafh))) +
+  labs(x = "Antiviral intervention", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.75, "lines"))
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-4-descriptive-antiviral.pdf"), p, height = 3, width = 6)
+p
+```
+
+```{r}
+#| label: fig-dafh-dist-antiviral2
+#| code-summary: DAFH by intervention
+#| fig-cap: |
+#|   Cumulative distribution of days alive and free of hospital by antiviral intervention.
+#| fig-height: 4
+p <- ggplot(pdat, aes(dafh, cp)) +
+  geom_step(aes(colour = AAssignment, group = AAssignment)) +
+  labs(x = "Days alive and free of hospital", y = "Cumulative proportion") +
+  scale_colour_viridis_d(
+    "Days alive and\nfree of hospital", option = "A", begin = 0, end = 0.8) +
+  guides(fill = guide_legend(reverse = TRUE))
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-4-descriptive-antiviral2.pdf"), p, height = 3, width = 6)
+p
 ```
 
 ## Age
@@ -298,7 +384,7 @@ p
 #| fig-height: 4
 pdat <- fas_itt_nona_dat %>%
   dplyr::count(
-    Country,
+    Country = fct_infreq(Country),
     dafh = ordered(out_dafh, levels = 0:27), 
     .drop = F) %>%
   group_by(Country) %>%

@@ -974,7 +974,7 @@ decision_quantity_summary_table(c("SoC" = rvar(1), res$drws$AOR)) |>
 #| fig-cap: Posterior densities for odds ratio contrasts.
 p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
-pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-fas-itt-odds-ratio-densities.pdf")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "7-4-primary-model-fas-itt-odds-ratio-densities.pdf")
 ggsave(pth, p, width = 6, height = 2.5)
 p
 ```

@@ -1881,7 +1881,8 @@ This section reports on the analysis of the secondary outcome: all-cause mortali
 
 This section reports on the analysis of the secondary outcome: days alive and free of hospital (DAFH) to day 28. For this outcome, participants who died within 28 days were coded to have 0 DAFH. The model is coded so that an odds ratio greater than 1 implies a benefit (increased odds of more days alive and free of hospital).
 
-@tbl-7-4-summary-anticoagulation presents the number of participants where the outcome was observed by the allocated anticoagulation arm. Similarly, @tbl-7-4-summary-antiviral for the antiviral domain. The observed distribution of DAFH by arm is shown in @fig-7-4-dist-overall, @fig-7-4-descriptive, and @fig-7-4-descriptive2. The model parameters (odds ratios) are summarised in @tbl-7-4-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-4-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms.
+@tbl-7-4-summary-anticoagulation presents the number of participants where the outcome was observed by the allocated anticoagulation arm. Similarly, @tbl-7-4-summary-antiviral for the antiviral domain. 
+The observed distribution of DAFH by domain treatment arm is shown in @fig-7-4-descriptive-anticoagulation, @fig-7-4-descriptive-anticoagulation2, @fig-7-4-descriptive-antiviral and @fig-7-4-descriptive-antiviral2. 
 
 ```{r}
 #| label: fig-7-4-dist-overall
@@ -1948,146 +1949,37 @@ knitr::include_graphics(
 )
 ```
 
+\clearpage
+
 #### FAS-ITT
 
 - **Model**: cumulative logistic (ordinal) regression assuming proportional odds
 - **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, site nested within region, and epoch.
 - **Set**: FAS-ITT
 
-<!-- ```{r} -->
-<!-- #| label: tbl-7-4-primary-model-acs-itt-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios)  -->
-<!-- #|   for days alive and free of hospital to day 28 outcome model  -->
-<!-- #|   fit to the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-4-primary-model-acs-itt-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-7-4-primary-model-acs-itt-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios)
+#|   for days alive and free of hospital to day 28 outcome model
+#|   fit to the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-4-primary-model-fas-itt-summary-table.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-4-primary-model-acs-itt-site-epoch-parameters -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI)  -->
-<!-- #|   of odds ratio for epoch and site effects on days alive and free of  -->
-<!-- #|   hospital to day 28 for the outcome model fit to the ACS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/secondary/7-4-primary-model-epoch-site-terms.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+```{r}
+#| label: fig-7-4-primary-model-acs-itt-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI)
+#|   of odds ratio for epoch and site effects on days alive and free of
+#|   hospital to day 28 for the outcome model fit to the ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-4-primary-model-epoch-site-terms-fas-itt.pdf"
+)
+```
 
-<!-- \clearpage -->
-
-<!-- #### Sensitivity: Concurrent Enrolments -->
-
-<!-- ##### Intermediate dose -->
-
-<!-- - **Model**: cumulative logistic (ordinal) regression assuming proportional odds -->
-<!-- - **Terms**: anticoagulation intervention, age group, region -->
-<!-- - **Set**: ACS-ITT-intermediate -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-7-4-concurrent-intermediate-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT-intermediate. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-concurrent-intermediate-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: fig-7-4-descriptive-concurrent-intermediate -->
-<!-- #| fig-cap: | -->
-<!-- #|   Observed distribution of days alive and free of hospital at day 28 by treatment group, -->
-<!-- #|   ACS-ITT-intermediate. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-concurrent-intermediate.pdf" -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-7-4-concurrent-intermediate-model-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT-intermediate. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", "7-4-primary-model-acs-itt-concurrent-intermediate-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ##### Standard dose plus aspirin -->
-
-<!-- - **Model**: cumulative logistic (ordinal) regression assuming proportional odds -->
-<!-- - **Terms**: anticoagulation intervention, age group, region -->
-<!-- - **Set**: ACS-ITT-aspirin -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-7-4-concurrent-stdaspirin-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT-aspirin. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-concurrent-stdaspirin-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: fig-7-4-descriptive-concurrent-stdaspirin -->
-<!-- #| fig-cap: | -->
-<!-- #|   Observed distribution of days alive and free of hospital at day 28 by treatment group,  -->
-<!-- #|   ACS-ITT-aspirin. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-concurrent-stdaspirin.pdf" -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-7-4-concurrent-stdaspirin-model-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT-aspirin. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", "7-4-primary-model-acs-itt-concurrent-stdaspirin-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ##### Therapeutic dose -->
-
-<!-- - **Model**: cumulative logistic (ordinal) regression assuming proportional odds -->
-<!-- - **Terms**: anticoagulation intervention, age group, region -->
-<!-- - **Set**: ACS-ITT-therapeutic -->
-
-<!-- *Note: the reference region was switched to Nepal for this model due to small numbers in India.* -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-7-4-concurrent-therapeutic-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT-therapeutic -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-concurrent-therapeutic-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: fig-7-4-descriptive-concurrent-therapeutic -->
-<!-- #| fig-cap: | -->
-<!-- #|   Observed distribution of days alive and free of hospital at day 28 by treatment group, ACS-ITT-therapeutic -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-concurrent-therapeutic.pdf" -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-7-4-concurrent-therapeutic-model-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT-therapeutic -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", "7-4-primary-model-acs-itt-concurrent-therapeutic-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+#### AVS-ITT
 
 \clearpage
 
@@ -2900,36 +2792,36 @@ knitr::include_graphics(pth)
 
 ### Days alive and free of hospital to day 28
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-4-primary-model-acs-itt-ppc1 -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior predictive distribution for days alive  -->
-<!-- #|   and free of hospital to day 28 by model covariates -->
-<!-- #|   (intervention, country, and epoch)  -->
-<!-- #|   for primary model using ACS-ITT. -->
-<!-- #|   Red diamond indicates observed proportions. -->
-<!-- pth <- file.path( -->
-<!--   "..", "outputs", "figures", "outcomes", "secondary", -->
-<!--   "7-4-primary-model-acs-itt-ppc1.pdf") -->
-<!-- knitr::include_graphics(pth) -->
-<!-- ``` -->
+```{r}
+#| label: fig-7-4-primary-model-acs-itt-ppc1
+#| fig-cap: |
+#|   Posterior predictive distribution for days alive
+#|   and free of hospital to day 28 by model covariates
+#|   (intervention, country, and epoch)
+#|   for primary model using ACS-ITT.
+#|   Red diamond indicates observed proportions.
+pth <- file.path(
+  "..", "outputs", "figures", "outcomes", "secondary",
+  "7-4-primary-model-acs-itt-ppc1.pdf")
+knitr::include_graphics(pth)
+```
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-4-primary-model-acs-itt-ppc2 -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior predictive distribution for days alive  -->
-<!-- #|   and free of hospital to day 28 by model covariates (site)  -->
-<!-- #|   for primary model using ACS-ITT. -->
-<!-- #|   Red diamond indicates observed proportions. -->
-<!-- pth <- file.path( -->
-<!--   "..", "outputs", "figures", "outcomes", "secondary", -->
-<!--   "7-4-primary-model-acs-itt-ppc2.pdf") -->
-<!-- knitr::include_graphics(pth) -->
-<!-- ``` -->
+```{r}
+#| label: fig-7-4-primary-model-acs-itt-ppc2
+#| fig-cap: |
+#|   Posterior predictive distribution for days alive
+#|   and free of hospital to day 28 by model covariates (site)
+#|   for primary model using ACS-ITT.
+#|   Red diamond indicates observed proportions.
+pth <- file.path(
+  "..", "outputs", "figures", "outcomes", "secondary",
+  "7-4-primary-model-acs-itt-ppc2.pdf")
+knitr::include_graphics(pth)
+```
 
-<!-- \clearpage -->
+\clearpage
 
-<!-- ### Days alive and free of ventilation to day 28 -->
+### Days alive and free of ventilation to day 28
 
 <!-- ```{r} -->
 <!-- #| label: fig-7-5-primary-model-acs-itt-ppc1 -->

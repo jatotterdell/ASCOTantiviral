@@ -1,0 +1,417 @@
+---
+title: "7-4 Days alive and free of hospital by day 28"
+description: |
+  This outcome was defined as the number of days alive and free of hospital 
+  from randomisation to 28 days, calculated as 28 minus the number of days 
+  spent in hospital.  All patients dying within 28 days will be assigned zero 
+  free days.
+author:
+  - name: James Totterdell
+    affiliation: University of Sydney
+  - name: Rob Mahar
+    affiliation: University of Melbourne
+date: today
+freeze: true
+---
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(ASCOTr)
+library(tidyverse)
+library(lubridate)
+library(kableExtra)
+library(patchwork)
+library(cmdstanr)
+library(posterior)
+library(bayesplot)
+library(ggdist)
+library(lme4)
+library(broom)
+library(broom.mixed)
+library(bayestestR)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+
+color_scheme_set("red")
+options(digits = 4)
+```
+
+```{r}
+#| label: analysis-sets
+#| code-summary: Prepare datasets
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+
+# FAS-ITT
+fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data)
+fas_itt_nona_dat <- fas_itt_dat |>
+  filter(!is.na(out_dafh))
+
+# ACS-ITT
+acs_itt_dat <- ASCOTr:::make_acs_itt_set(all_data)
+acs_itt_nona_dat <- acs_itt_dat |>
+  filter(!is.na(out_dafh))
+
+# AVS-ITT
+avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_data)
+avs_itt_nona_dat <- avs_itt_dat |>
+  filter(!is.na(out_dafh))
+```
+
+```{r}
+#| label: models
+#| code-summary: Load models
+ordmod0 <- compile_cmdstanr_mod(
+  file.path("ordinal", "logistic_cumulative"), dir = "stan")
+ordmod <- compile_cmdstanr_mod(
+  file.path("ordinal", "logistic_cumulative_epoch_site"), dir = "stan")
+logistic <- compile_cmdstanr_mod(
+  file.path("binary", "logistic_site_epoch"), dir = "stan")
+```
+
+```{r}
+#| label: helper-functions
+#| code-summary: Functions
+make_summary_table_anticoagulation <- function(dat, format = "html") {
+  tdat <- dat %>%
+  group_by(CAssignment = factor(CAssignment, 
+                                levels = c("C1", "C2", "C3", "C4"),
+                                labels = intervention_labels2()$CAssignment[-1])) %>%
+  summarise(
+    Patients = n(),
+    Known = sum(!is.na(out_dafh)),
+    Deaths = sprintf(
+      "%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+    `DAFH, Median (Q1, Q3)` = sprintf(
+      "%.0f (%.0f, %.0f)", 
+      median(out_dafh, na.rm = T), 
+      quantile(out_dafh, 0.25, na.rm = TRUE), 
+      quantile(out_dafh, 0.75, na.rm = TRUE))
+  ) %>%
+  bind_rows(
+    dat %>%
+  group_by(CAssignment = "Overall") %>%
+  summarise(
+    Patients = n(),
+    Known = sum(!is.na(out_dafh)),
+    Deaths = sprintf(
+      "%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+    `DAFH, Median (Q1, Q3)` = sprintf(
+      "%.0f (%.0f, %.0f)", 
+      median(out_dafh, na.rm = T), 
+      quantile(out_dafh, 0.25, na.rm = TRUE), 
+      quantile(out_dafh, 0.75, na.rm = TRUE))
+  )
+  ) %>%
+  rename(`Anticoagulation\nintervention` = CAssignment)
+  kable(
+    tdat,
+    format = format,
+    align = "lrrrr",
+    booktabs = TRUE,
+    linesep = ""
+  ) %>%
+    kable_styling(
+      font_size = 9,
+      latex_options = "HOLD_position"
+    ) %>%
+    row_spec(nrow(tdat), bold = T)
+}
+
+make_summary_table_antiviral <- function(dat, format = "html") {
+  tdat <- dat %>%
+  group_by(AAssignment = factor(AAssignment, 
+                                levels = c("A1", "A2"),
+                                labels = intervention_labels2()$AAssignment[-1])) %>%
+  summarise(
+    Patients = n(),
+    Known = sum(!is.na(out_dafh)),
+    Deaths = sprintf(
+      "%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+    `DAFH, Median (Q1, Q3)` = sprintf(
+      "%.0f (%.0f, %.0f)", 
+      median(out_dafh, na.rm = T), 
+      quantile(out_dafh, 0.25, na.rm = TRUE), 
+      quantile(out_dafh, 0.75, na.rm = TRUE))
+  ) %>%
+  bind_rows(
+    dat %>%
+  group_by(AAssignment = "Overall") %>%
+  summarise(
+    Patients = n(),
+    Known = sum(!is.na(out_dafh)),
+    Deaths = sprintf(
+      "%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+    `DAFH, Median (Q1, Q3)` = sprintf(
+      "%.0f (%.0f, %.0f)", 
+      median(out_dafh, na.rm = T), 
+      quantile(out_dafh, 0.25, na.rm = TRUE), 
+      quantile(out_dafh, 0.75, na.rm = TRUE))
+  )
+  ) %>%
+  rename(`Antiviral\nintervention` = AAssignment)
+  kable(
+    tdat,
+    format = format,
+    align = "lrrrr",
+    booktabs = TRUE,
+    linesep = ""
+  ) %>%
+    kable_styling(
+      font_size = 9,
+      latex_options = "HOLD_position"
+    ) %>%
+    row_spec(nrow(tdat), bold = T)
+}
+```
+
+# Outcome Derivation
+
+The outcome is calculated for a patient as:
+
+-   missing, if day 28 mortality is unknown (`D28_PatientStatus`) or if the patient was known to have been alive at day 28 but number of days in hospital (`D28_OutcomeTotalDaysHospitalised`) is unknown
+-   0 if they died by day 28 (`D28_PatientStatus`)
+-   28 - min(28, `D28_OutcomeTotalDaysHospitalised`) otherwise
+
+As a cross check, @fig-dis-day-vs-days-hospitalised plots the number of days hospitalised (as reported in `D28_OutcomeTotalDaysHospitalised`) against the day of discharge from the index admission.
+
+```{r}
+#| label: fig-dis-day-vs-days-hospitalised
+#| code-summary: Compare D28_OutcomeTotalDaysHospitalised to days hospitalised per dischage date.
+#| fig-cap: |
+#|   Number of days hospitalised against day of discharge from index admission.
+#| fig-height: 4
+pdat <- fas_itt_dat %>%
+  filter(D28_death != 1) %>%
+  dplyr::count(D28_day = pmin(28, D28_OutcomeTotalDaysHospitalised), DIS_day = pmin(28, DIS_day))
+ggplot(pdat, aes(D28_day, DIS_day)) +
+  geom_point(aes(size = n), shape = 21) +
+  geom_abline() +
+  scale_x_continuous("Number of days hospitalised (D28_OutcomeTotalDaysHospitalised)",
+                     breaks = seq(0, 30, 2)) +
+  scale_y_continuous("Day of discharge from index admission",
+                     breaks = seq(0, 30, 2)) +
+  labs(size = "Count")
+```
+
+# Descriptive {#descriptive}
+
+The overall distribution of days alive and free of hospital (DAFH) are reported in @fig-dafh-dist for all participants in the ACS-ITT set.
+
+```{r}
+#| label: fig-dafh-dist
+#| code-summary: Overall distribution of DAFH
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital, FAS-ITT.
+#| fig-subcap: FAS-ITT
+#| fig-height: 4
+pdat <- fas_itt_nona_dat %>%
+  dplyr::count(dafh = ordered(out_dafh, levels = 0:27), .drop = F) %>%
+  mutate(p = n / sum(n))
+p <- ggplot(pdat, aes(dafh, p)) +
+  geom_col() +
+  labs(
+    x = "Days alive and free of hospital", 
+    y = "Proportion"
+  )
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "outcome-7-4-dist-overall.pdf"), p, height = 2.5, width = 6)
+p
+```
+
+## Anticoagulation
+
+```{r}
+#| label: tbl-7-4-summary-anticoagulation
+#| code-summary: Summary of DAFH outcome by arm
+#| tbl-cap: Summary of days alive and free of hospital to day 28 by anticoagulation treatment group, ACS-ITT.
+save_tex_table(
+  make_summary_table_anticoagulation(acs_itt_dat, "latex"), 
+  file.path("outcomes", "secondary", "7-4-anticoagulation-summary"))
+make_summary_table_anticoagulation(acs_itt_dat)
+```
+
+## Antiviral
+
+```{r}
+#| label: tbl-7-4-summary-antiviral
+#| code-summary: Summary of DAFH outcome by arm
+#| tbl-cap: Summary of days alive and free of hospital to day 28 by antiviral treatment group, AVS-ITT.
+save_tex_table(
+  make_summary_table_antiviral(avs_itt_dat, "latex"), 
+  file.path("outcomes", "secondary", "7-4-antiviral-summary"))
+make_summary_table_antiviral(avs_itt_dat)
+```
+
+## Age
+
+```{r}
+#| label: fig-dafh-dist-age
+#| code-summary: DAFH by age
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by age group, FAS-ITT.
+#| fig-height: 4
+pdat <- fas_itt_nona_dat %>%
+  dplyr::count(
+    agegrp = cut(AgeAtEntry, c(18, seq(25, 75, 5), 100), include.lowest = T, right = F),
+    dafh = fct_rev(ordered(out_dafh, levels = 0:27)), 
+    .drop = F) %>%
+  group_by(agegrp) %>%
+  mutate(p = n / sum(n))
+pdat2 <- pdat %>%
+  group_by(agegrp) %>%
+  summarise(n = sum(n))
+p1 <- ggplot(pdat2, aes(agegrp, n)) +
+  geom_col(colour = "grey40", fill = "grey40") +
+  geom_vline(xintercept = 60, linetype = 2) +
+  labs(y = "Number of\nparticipants",
+       x = "Age at entry") +
+  geom_vline(xintercept = 8.5, linetype = 2) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45))
+p2 <- ggplot(pdat, aes(agegrp, p)) +
+  geom_col(aes(fill = dafh)) +
+  labs(x = "Age", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFH", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  geom_vline(xintercept = 8.5, linetype = 2) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45)) +
+  theme(legend.key.size = unit(0.25, "lines"))
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-4-age.pdf"), p, height = 2.5, width = 6)
+p
+```
+
+## Country
+
+```{r}
+#| label: fig-dafh-dist-country
+#| code-summary: DAFH by country
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by country, FAS-ITT.
+#| fig-height: 4
+pdat <- fas_itt_nona_dat %>%
+  dplyr::count(
+    Country,
+    dafh = ordered(out_dafh, levels = 0:27), 
+    .drop = F) %>%
+  group_by(Country) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+pdat2 <- pdat %>%
+  group_by(Country) %>%
+  summarise(n = sum(n))
+p1 <- ggplot(pdat2, aes(Country, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Country of enrolment")
+p2 <- ggplot(pdat, aes(Country, p)) +
+  geom_col(aes(fill = fct_rev(dafh))) +
+  labs(x = "Country", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFH", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.25, "lines"))
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-4-country.pdf"), p, height = 2.5, width = 6)
+p
+```
+
+## Site
+
+```{r}
+#| label: fig-dafh-dist-site
+#| code-summary: DAFH by site
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by study site, FAS-ITT.
+#| fig-height: 4
+pdat <- fas_itt_nona_dat %>%
+  dplyr::count(
+    Country = factor(PT_CountryName, levels = c("India", "Australia", "Nepal", "New Zealand"),
+                     labels = c("India", "Australia", "Nepal", "New\nZealand")),
+    Site = fct_infreq(site),
+    dafh = ordered(out_dafh, levels = 0:27)) %>%
+  complete(dafh = ordered(0:27), nesting(Country, Site), fill = list(n = 0)) %>%
+  group_by(Country, Site) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup() %>%
+  mutate(
+    Country = droplevels(Country),
+    Site = droplevels(Site)
+  )
+pdat2 <- pdat %>%
+  group_by(Country, Site) %>%
+  summarise(n = sum(n)) %>%
+  ungroup()
+p1 <- ggplot(pdat2, aes(Site, n)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+p2 <- ggplot(pdat, aes(Site, p)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_col(aes(fill = fct_rev(dafh))) +
+  labs(x = "Study Site", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFH", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE, ncol = 1)) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45)) +
+  theme(legend.key.size = unit(0.25, "lines"))
+p <- p1 / p2 +
+  plot_layout(guides = 'collect')
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-4-country-site.pdf"), p, height = 4, width = 6.25)
+p
+```
+
+## Calendar Time
+
+```{r}
+#| label: fig-dafh-dist-calendar
+#| code-summary: DAFH by calendar date
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by calendar time, FAS-ITT.
+#| fig-height: 4
+pdat <- fas_itt_nona_dat %>%
+  dplyr::count(
+    yr = year(RandDate), mth = month(RandDate),
+    dafh = ordered(out_dafh, levels = 0:27), 
+    .drop = F) %>%
+  group_by(yr, mth) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p1 <- pdat %>%
+  group_by(yr, mth) %>%
+  summarise(n = sum(n)) %>%
+  ggplot(., aes(mth, n))  +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+    geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12)
+p2 <- ggplot(pdat, aes(mth, p)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+  geom_col(aes(fill = fct_rev(dafh))) +
+  labs(x = "Calendar date (month of year)", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFH", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.25, "lines")) +
+  scale_x_continuous(breaks = 1:12)
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-4-calendar-time.pdf"), p, height = 2, width = 6)
+p
+```

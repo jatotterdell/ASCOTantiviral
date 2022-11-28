@@ -1,0 +1,292 @@
+---
+title: "7-5 Days alive and free of invasive or non-invasive ventilation"
+description: |
+  This outcome was defined as the number of days alive and free of 
+  invasive or non-invasive ventilation from randomisation to 28 days. 
+  All patients dying within 28 days will be assigned zero free days.
+author:
+  - name: James Totterdell
+    affiliation: University of Sydney
+  - name: Rob Mahar
+    affiliation: University of Melbourne
+date: today
+toc-depth: 5
+freeze: true
+---
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(ASCOTr)
+library(tidyverse)
+library(lubridate)
+library(kableExtra)
+library(patchwork)
+library(cmdstanr)
+library(posterior)
+library(bayesplot)
+library(ggdist)
+library(lme4)
+library(broom)
+library(broom.mixed)
+library(bayestestR)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+
+color_scheme_set("red")
+options(digits = 4)
+```
+
+```{r}
+#| label: analysis-sets
+#| code-summary: Prepare datasets
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+
+# FAS-ITT
+fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data)
+fas_itt_nona_dat <- fas_itt_dat |>
+  filter(!is.na(out_dafv))
+
+# ACS-ITT
+acs_itt_dat <- ASCOTr:::make_acs_itt_set(all_data)
+acs_itt_nona_dat <- acs_itt_dat |>
+  filter(!is.na(out_dafv))
+
+# AVS-ITT
+avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_data)
+avs_itt_nona_dat <- avs_itt_dat |>
+  filter(!is.na(out_dafv))
+```
+
+```{r}
+#| label: models
+#| code-summary: Load models
+ordmod0 <- compile_cmdstanr_mod(
+  file.path("ordinal", "logistic_cumulative"), dir = "stan")
+ordmod <- compile_cmdstanr_mod(
+  file.path("ordinal", "logistic_cumulative_epoch_site"), dir = "stan")
+logistic <- compile_cmdstanr_mod(
+  file.path("binary", "logistic_site_epoch"), dir = "stan")
+```
+
+```{r}
+make_summary_table_anticoagulation <- function(dat, format = "html") {
+  tdat <- dat %>%
+    group_by(CAssignment = factor(
+      CAssignment, 
+      levels = c("C1", "C2", "C3", "C4"),
+      labels = intervention_labels2()$CAssignment[-1])) %>%
+    summarise(
+      Patients = n(),
+      Known = sum(!is.na(out_dafv)),
+      Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+      `Any ventilation` = sprintf("%i (%.0f%%)", 
+                                  sum(D28_OutcomeDaysFreeOfVentilation < 28, na.rm = TRUE),
+                                  100 * mean(D28_OutcomeDaysFreeOfVentilation < 28, na.rm = TRUE)),
+      `DAFV, Median (Q1, Q3)` = sprintf(
+        "%.0f (%.0f, %.0f)", 
+        median(out_dafv, na.rm = T), 
+        quantile(out_dafv, 0.25, na.rm = TRUE), 
+        quantile(out_dafv, 0.75, na.rm = TRUE))
+    ) %>%
+    bind_rows(
+      dat %>%
+    group_by(CAssignment = "Overall") %>%
+    summarise(
+      Patients = n(),
+      Known = sum(!is.na(out_dafv)),
+      Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+      `Any ventilation` = sprintf("%i (%.0f%%)", 
+                              sum(D28_OutcomeDaysFreeOfVentilation < 28, na.rm = TRUE),
+                              100 * mean(D28_OutcomeDaysFreeOfVentilation < 28, na.rm = TRUE)),
+      `DAFV, Median (Q1, Q3)` = sprintf(
+        "%.0f (%.0f, %.0f)", 
+        median(out_dafv, na.rm = T), 
+        quantile(out_dafv, 0.25, na.rm = TRUE), 
+        quantile(out_dafv, 0.75, na.rm = TRUE))
+    )
+    ) %>%
+    rename(`Anticoagulation\nintervention` = CAssignment)
+  kable(
+    tdat,
+    format = format,
+    align = "lrrrrr",
+    booktabs = TRUE,
+    linesep = ""
+  ) %>%
+    kable_styling(
+      font_size = 9,
+      latex_options = "HOLD_position"
+    ) %>%
+    row_spec(nrow(tdat), bold = T)
+}
+
+make_summary_table_antiviral <- function(dat, format = "html") {
+  tdat <- dat %>%
+    group_by(AAssignment = factor(
+      AAssignment, 
+      levels = c("A1", "A2"),
+      labels = intervention_labels2()$AAssignment[-1])) %>%
+    summarise(
+      Patients = n(),
+      Known = sum(!is.na(out_dafv)),
+      Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+      `Any ventilation` = sprintf("%i (%.0f%%)", 
+                                  sum(D28_OutcomeDaysFreeOfVentilation < 28, na.rm = TRUE),
+                                  100 * mean(D28_OutcomeDaysFreeOfVentilation < 28, na.rm = TRUE)),
+      `DAFV, Median (Q1, Q3)` = sprintf(
+        "%.0f (%.0f, %.0f)", 
+        median(out_dafv, na.rm = T), 
+        quantile(out_dafv, 0.25, na.rm = TRUE), 
+        quantile(out_dafv, 0.75, na.rm = TRUE))
+    ) %>%
+    bind_rows(
+      dat %>%
+    group_by(AAssignment = "Overall") %>%
+    summarise(
+      Patients = n(),
+      Known = sum(!is.na(out_dafv)),
+      Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+      `Any ventilation` = sprintf("%i (%.0f%%)", 
+                              sum(D28_OutcomeDaysFreeOfVentilation < 28, na.rm = TRUE),
+                              100 * mean(D28_OutcomeDaysFreeOfVentilation < 28, na.rm = TRUE)),
+      `DAFV, Median (Q1, Q3)` = sprintf(
+        "%.0f (%.0f, %.0f)", 
+        median(out_dafv, na.rm = T), 
+        quantile(out_dafv, 0.25, na.rm = TRUE), 
+        quantile(out_dafv, 0.75, na.rm = TRUE))
+    )
+    ) %>%
+    rename(`Antiviral\nintervention` = AAssignment)
+  kable(
+    tdat,
+    format = format,
+    align = "lrrrrr",
+    booktabs = TRUE,
+    linesep = ""
+  ) %>%
+    kable_styling(
+      font_size = 9,
+      latex_options = "HOLD_position"
+    ) %>%
+    row_spec(nrow(tdat), bold = T)
+}
+```
+
+## Outcome Derivation
+
+This outcome was defined as the number of days alive and free of positive pressure ventilation
+(invasive or non-invasive) to 28 days. All patients dying within 28 days will be assigned zero free days.
+
+The outcome is calculated for a patient as:
+
+- missing, if day 28 mortality is unknown (`D28_PatientStatus`) or if the patient was known to have been alive
+  at day 28 but number of days requiring ventilation (`D28_OutcomeDaysFreeOfVentilation`) is unknown
+- 0 if they died by day 28 (`D28_PatientStatus`)
+- `min(28, D28_OutcomeDaysFreeOfVentilation)` otherwise
+
+# Descriptive {#descriptive}
+
+
+The overall distribution of days alive and free of ventilation (DAFV) are reported in @fig-dafv-dist for all participants in the ACS-ITT set.
+
+There were few participants who required any ventilation during hospital who did not die (DAFV of 0),
+
+```{r}
+#| label: fig-dafv-dist
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital.
+#| fig-subcap: ACS-ITT
+#| fig-height: 4
+pdat <- fas_itt_dat %>%
+  dplyr::count(dafv = addNA(ordered(out_dafv, levels = 0:28)), .drop = F) %>%
+  mutate(p = n / sum(n))
+ggplot(pdat, aes(dafv, p)) +
+  geom_col() +
+  labs(
+    x = "Days alive and free of ventilation", 
+    y = "Proportion"
+  )
+```
+
+
+## Anticoagulation
+
+```{r}
+#| label: tbl-7-5-summary-anticoagulation
+#| code-summary: Summary of DAFH outcome by arm
+#| tbl-cap: Summary of days alive and free of ventilation to day 28 by anticoagulation treatment group, ACS-ITT.
+save_tex_table(
+  make_summary_table_anticoagulation(acs_itt_dat, "latex"), 
+  file.path("outcomes", "secondary", "7-5-anticoagulation-summary"))
+make_summary_table_anticoagulation(acs_itt_dat)
+```
+
+```{r}
+#| label: fig-dafh-dist-anticoagulation
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by anti-coagulation intervention.
+#| fig-height: 4
+pdat <- acs_itt_nona_dat %>%
+  dplyr::count(
+    CAssignment = factor(CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", "\n")),
+    dafv = ordered(out_dafv, levels = 0:28), 
+    .drop = F) %>%
+  group_by(CAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p <- ggplot(pdat, aes(CAssignment, p)) +
+  geom_col(aes(fill = fct_rev(dafv))) +
+  labs(x = "Anticoagulation intervention", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of ventilation", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.75, "lines"))
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-5-descriptive-anticoagulation.pdf"), p, height = 3, width = 6)
+p
+```
+
+## Antiviral
+
+```{r}
+#| label: tbl-7-5-summary-antiviral
+#| code-summary: Summary of DAFH outcome by arm
+#| tbl-cap: Summary of days alive and free of ventilation to day 28 by antiviral treatment group, AVS-ITT.
+save_tex_table(
+  make_summary_table_antiviral(avs_itt_dat, "latex"), 
+  file.path("outcomes", "secondary", "7-5-antiviral-summary"))
+make_summary_table_antiviral(avs_itt_dat)
+```
+
+
+```{r}
+#| label: fig-dafh-dist-antiviral
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by antiviral intervention.
+#| fig-height: 4
+pdat <- avs_itt_nona_dat %>%
+  dplyr::count(
+    AAssignment = factor(AAssignment, labels = str_replace(intervention_labels()$AAssignment[-1], "<br>", "\n")),
+    dafv = ordered(out_dafv, levels = 0:28), 
+    .drop = F) %>%
+  group_by(AAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p <- ggplot(pdat, aes(AAssignment, p)) +
+  geom_col(aes(fill = fct_rev(dafv))) +
+  labs(x = "Antiviral intervention", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of ventilation", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.75, "lines"))
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-5-descriptive-antiviral.pdf"), p, height = 3, width = 6)
+p
+```

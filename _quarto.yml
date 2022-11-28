@@ -42,7 +42,7 @@ format:
     table-captions: true
     tbl-cap-location: margin
     reference-location: margin
-    theme: journal
+    theme: litera
     fontsize: 1em
     max-width: "2000px"
     self-contained: true

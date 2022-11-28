@@ -1253,7 +1253,7 @@ p
 
 ## AVS-ITT
 
-### Pre-specified
+### Treatment Only
 
 The SAP suggests that the primary analysis be based on the AVS-ITT set, but that adjustment should still be made for all the covariates.
 This is somewhat problematic as there is no longer sufficient data to inform all of the covariates (e.g. little information available on the effect of anticoagulation interventions, country, age etc.).
@@ -1293,6 +1293,11 @@ pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-avs
 ggsave(pth, p, width = 6, height = 2.5)
 p
 ```
+
+### Pre-specified
+
+In this section the pre-specified model with covariates is fit.
+However, again with no region, epoch or site specific terms.
 
 ```{r}
 res <- fit_primary_model(

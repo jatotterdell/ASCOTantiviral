@@ -20,16 +20,16 @@ Interactive notebooks are written using [Quarto](https://quarto.org/docs/get-sta
 To render the notebooks, either use the `quarto` package in RStudio or use the CLI by running
 
 ```sh
-quarto render .
+quarto render
 ```
 
 to render all documents.
 
-By default, the analysis `.qmd` files are note rendered by `quarto render .` because they may be time-consuming to run.
-Instead, these can be manually rendered individually via (for example)
+However, the analyses documents may take a long time to run due to model computations.
+To render a single document can run:
 
 ```sh
-quarto render analyses/<filename>.qmd --execute-dir .
+quarto render analyses/<filename>.qmd
 ```
 
 Rendered documents are output to `docs/`.
@@ -41,8 +41,6 @@ quarto::quarto_preview()
 ```
 
 from RStudio.
-
-
 
 ### Directories
 

@@ -223,6 +223,7 @@ naf_id_sum <- naf_data |>
     total_hours = sum(DD_NafamostatDuration[DD_StudyDay < 9]),
     hours_per_day = total_hours / min(8, days),
     days_comply = sum(DD_NafamostatDuration >= 21 & DD_StudyDay <= 8, na.rm = TRUE),
+    days_nocomply = sum(DD_NafamostatDuration < 21 & DD_StudyDay > 1 & DD_StudyDay < min(9, DIS_day)),
     p_days_comply = days_comply / min(8, days)
   )
 
@@ -245,7 +246,10 @@ naf_tab <- naf_id_sum |>
     `pdayscomply_Missing` = sprintf("%i", sum(is.na(p_days_comply))),
     `dayscomply_Median (IQR)` = sprintf("%i (%i - %i)", median(days_comply), quantile(days_comply, 0.25), quantile(days_comply, 0.75)),
     `dayscomply_Min, Max` = sprintf("%i, %i", min(days_comply), max(days_comply)),
-    `dayscomply_Missing` = sprintf("%i", sum(is.na(days_comply)))
+    `dayscomply_Missing` = sprintf("%i", sum(is.na(days_comply))),
+    `daysnocomply_Median (IQR)` = sprintf("%i (%i - %i)", median(days_nocomply), quantile(days_nocomply, 0.25), quantile(days_nocomply, 0.75)),
+    `daysnocomply_Min, Max` = sprintf("%i, %i", min(days_nocomply), max(days_nocomply)),
+    `daysnocomply_Missing` = sprintf("%i", sum(is.na(days_nocomply)))
   ) |>
   pivot_longer(everything(), names_to = c("Variable", "Summary"), names_sep = "_", values_to = "Value")
 
@@ -259,10 +263,12 @@ naf_tab |>
   pack_rows("Hours per day on infusion", 10, 12) |>
   pack_rows("Proportion of days admitted to hospital with infusion $\\geq$ 21/24 hours$^1$", 13, 15) |>
   pack_rows("Days with 21/24 hours infusion", 16, 18) |>
+  pack_rows("Days without 21/24 hours infusion", 19, 21) |>
   footnote(
     general = c(
       "Days on study treatment is any part day on drug.",
-      "Days off treatment is any day when no Nafamostat was administered."
+      "Days off treatment is any day when no Nafamostat was administered.",
+      "Days without 21/24 excludes day 1 and day of discharge."
     ),
     number = "up to 7 days while hospitalised",
     general_title = "")
@@ -277,10 +283,12 @@ naf_tab |>
   pack_rows("Hours per day on infusion", 10, 12) |>
   pack_rows("Proportion of days admitted to hospital with infusion $\\geq$ 21/24 hours$^1$", 13, 15, escape = FALSE) |>
   pack_rows("Days with 21/24 hours infusion", 16, 18) |>
+  pack_rows("Days without 21/24 hours infusion", 19, 21) |>
   footnote(
     general = c(
       "Days on study treatment is any part day on drug.",
-      "Days off treatment is any day when no Nafamostat was administered."
+      "Days off treatment is any day when no Nafamostat was administered.",
+      "Days without 21/24 excludes day 1 and day of discharge."
     ),
     number = "up to 7 days while hospitalised",
     general_title = "") |>

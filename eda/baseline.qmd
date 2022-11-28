@@ -827,7 +827,20 @@ all_data |>
   ggplot(aes(BAS_CRPEntered)) +
   stat_ecdf(aes(colour = BAS_CRPUnits)) + 
   facet_wrap( ~ Country) +
-  labs(x = "CRP result (mg/L)", y = "Frequency") + 
+  labs(x = "CRP entered (mg/L or mg/dL)", y = "Frequency") + 
+  scale_x_log10()
+```
+
+This was investigated with sites and corrections made to the reported units.
+
+```{r}
+all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  filter(!is.na(BAS_CRPResult_fixed)) |>
+  ggplot(aes(BAS_CRPResult_fixed)) +
+  stat_ecdf(aes(colour = BAS_CRPUnits)) + 
+  facet_wrap( ~ Country) +
+  labs(x = "Fixed CRP result (mg/L)", y = "Frequency") + 
   scale_x_log10()
 ```
 

@@ -51,9 +51,9 @@ The relevant fields are:
 - `DD_RespiratorySampleResult`: result of test
 
 There is inconsistent timing of when tests are done (most do not have a test on day 3 or day 7).
-Many participants have no tests.
-Will need to consider how best to summarise the comparison of interest (e.g. day 3 take closest test day 1 to 5?).
-Is lack of testing related to patient status (too well/ill to bother with/perform testing)?
+Many participants have no tests at all.
+Need to consider whether lack of testing related to patient status (too well/ill to bother with/perform testing)?
+Will only provide descriptive summaries of available data.
 
 Check how many participants had any tests done:
 
@@ -128,6 +128,25 @@ Very few participants (24 of 156) had baseline cycle threshold recorded so there
 all_data |>
   filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
   count(BAS_CycleThresholdKnown)
+```
+
+```{r}
+all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |> 
+  select(StudyPatientID, DD_StudyDay, AAssignment, DD_CycleThreshold) |>
+  group_by(StudyPatientID, AAssignment) |>
+  summarise(
+    any_tests = any(!is.na(DD_CycleThreshold)),
+    num_tests = sum(!is.na(DD_CycleThreshold))
+  ) |>
+  group_by(AAssignment) |>
+  summarise(
+    Randomised = n(),
+    `Any values` = sum(any_tests),
+    Proportion = mean(any_tests),
+    `Total values` = sum(num_tests),
+    `Max number of values` = max(num_tests)
+  )
 ```
 
 ```{r}

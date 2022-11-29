@@ -76,6 +76,8 @@ logistic <- compile_cmdstanr_mod(
 ```
 
 ```{r}
+#| label: functions
+#| code-summary: Functions
 make_summary_table_anticoagulation <- function(dat, format = "html") {
   tdat <- dat %>%
     group_by(CAssignment = factor(
@@ -179,7 +181,7 @@ make_summary_table_antiviral <- function(dat, format = "html") {
 }
 ```
 
-## Outcome Derivation
+# Outcome Derivation
 
 This outcome was defined as the number of days alive and free of positive pressure ventilation
 (invasive or non-invasive) to 28 days. All patients dying within 28 days will be assigned zero free days.
@@ -201,20 +203,22 @@ There were few participants who required any ventilation during hospital who did
 ```{r}
 #| label: fig-dafv-dist
 #| fig-cap: |
-#|   Distribution of days alive and free of hospital.
-#| fig-subcap: ACS-ITT
+#|   Distribution of days alive and free of ventilation
+#| fig-subcap: FAS-ITT
 #| fig-height: 4
-pdat <- fas_itt_dat %>%
-  dplyr::count(dafv = addNA(ordered(out_dafv, levels = 0:28)), .drop = F) %>%
+pdat <- fas_itt_nona_dat %>%
+  dplyr::count(dafv = ordered(out_dafv, levels = 0:28), .drop = F) %>%
   mutate(p = n / sum(n))
-ggplot(pdat, aes(dafv, p)) +
+p <- ggplot(pdat, aes(dafv, p)) +
   geom_col() +
   labs(
     x = "Days alive and free of ventilation", 
     y = "Proportion"
   )
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "outcome-7-5-dist-overall.pdf"), p, height = 2.5, width = 6)
+p
 ```
-
 
 ## Anticoagulation
 
@@ -291,7 +295,7 @@ ggsave(file.path(pth, "outcome-7-5-descriptive-antiviral.pdf"), p, height = 3, w
 p
 ```
 
-### Age
+## Age
 
 ```{r}
 #| label: fig-dafv-dist-age
@@ -330,7 +334,7 @@ ggsave(file.path(path, "7-5-age.pdf"), p, height = 2.5, width = 6)
 p
 ```
 
-### Country
+## Country
 
 ```{r}
 #| label: fig-dafv-dist-country
@@ -340,7 +344,7 @@ p
 #| fig-height: 4
 pdat <- fas_itt_nona_dat %>%
   dplyr::count(
-    Country,
+    Country = fct_infreq(Country),
     dafv = ordered(out_dafv, levels = 0:28), 
     .drop = F) %>%
   group_by(Country) %>%
@@ -367,7 +371,7 @@ ggsave(file.path(path, "7-5-country.pdf"), p, height = 2.5, width = 6)
 p
 ```
 
-### Site
+## Site
 
 ```{r}
 #| label: fig-dafv-dist-site
@@ -417,7 +421,7 @@ ggsave(file.path(path, "7-5-country-site.pdf"), p, height = 4, width = 6.25)
 p
 ```
 
-### Calendar Time
+## Calendar Time
 
 ```{r}
 #| label: fig-dafv-dist-calendar
@@ -458,7 +462,7 @@ ggsave(file.path(path, "7-5-calendar-time.pdf"), p, height = 2, width = 6)
 p
 ```
 
-### Sample Cumulative Logits
+## Sample Cumulative Logits
 
 ```{r}
 #| code-summary: Plot sample cumulative logits
@@ -531,9 +535,9 @@ names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requireme
 #| code-summary: Odds ratio summary table
 #| tbl-cap: Posterior summaries for model parameters (fixed-effects).
 save_tex_table(
-  odds_ratio_summary_table_rev(res$drws$OR, "latex"),
+  odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
   "outcomes/secondary/7-5-primary-model-fas-itt-summary-table")
-odds_ratio_summary_table_rev(res$drws$OR)
+odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR))
 ```
 
 ```{r}
@@ -550,8 +554,8 @@ p
 #| code-summary: Odds ratio summary for epoch and site
 #| fig-cap: Summary of epoch and site posterior odds ratios.
 p <- plot_epoch_site_terms(
-  exp(res$drws$gamma_epoch),
-  exp(res$drws$gamma_site),
+  res$drws$gamma_epoch,
+  res$drws$gamma_site,
   factor(res$dat$region_by_site, 
          labels = c("India", "Australia\nNew Zealand", "Nepal"))
 )
@@ -579,6 +583,84 @@ mcmc_trace(res$drws["gamma_epoch"])
 ```
 :::
 
+### Posterior Predictive
+
+```{r}
+y_raw <- as.integer(levels(res$dat$y_raw))
+y_ppc <- res$drws$y_ppc
+y_ppc_raw <- rfun(\(x) y_raw[x])(y_ppc)
+ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc_raw))
+grp_ppc <- function(grp, d = 0:27) {
+  ppc_dat %>%
+    group_by(grp = {{grp}}) %>%
+    summarise(
+      y_lteq = map_dbl(d, ~ mean(out_dafv <= .x)),
+      ypp_lteq = map(d, ~ rvar_mean(y_ppc <= .x)),
+      y_eq = map_dbl(d, ~ mean(out_dafv == .x)),
+      ypp_eq = map(d, ~ rvar_mean(y_ppc == .x))
+    ) %>%
+    unnest(c(ypp_lteq, ypp_eq)) %>%
+    mutate(days = d) %>%
+    ungroup() %>%
+    pivot_longer(
+      y_lteq:ypp_eq, 
+      names_to = c("response", "event"),
+      names_sep = "_",
+      values_to = "posterior")
+}
+plot_grp_ppc <- function(dat, lab = "", xlab = "Probability") {
+  ggplot(dat %>% 
+           filter(response == "ypp", event == "eq"), 
+         aes(y = days)) +
+    facet_wrap( ~ grp, nrow = 1, scales = "free_x") +
+    stat_slabinterval(aes(xdist = posterior), fatten_point = 1)  +
+    geom_point(data = dat %>% filter(response == "y", event == "eq"), 
+               aes(y = days, x = mean(posterior)),
+               colour = "red",
+               shape = 23) +
+    scale_x_continuous(
+      xlab, breaks = c(0, 0.3, 0.6),
+      sec.axis = sec_axis(
+        ~ . , name = lab, breaks = NULL, labels = NULL)) +
+    scale_y_continuous("Days") +
+    theme(strip.text = element_text(size = rel(0.7)),
+          axis.title.x = element_text(size = rel(0.7)),
+          axis.text.x = element_text(size = rel(0.65)),
+          axis.title.y = element_text(size = rel(0.75)),
+          axis.title.x.bottom = element_blank())
+}
+pp_A <- grp_ppc(AAssignment)
+pp_C <- grp_ppc(CAssignment)
+pp_ctry <- grp_ppc(Country)
+pp_epoch <- grp_ppc(epoch)
+pp_site <- grp_ppc(site) %>%
+  left_join(ppc_dat %>% dplyr::count(site, Country), 
+            by = c("grp" = "site"))
+p0 <- plot_grp_ppc(pp_A, "Antiviral", "")
+p1 <- plot_grp_ppc(pp_C, "Anticoagulation", "")
+p2 <- plot_grp_ppc(pp_ctry, "Country", "") 
+p3 <- plot_grp_ppc(pp_epoch, "Epoch", "")
+p4 <- plot_grp_ppc(
+  pp_site %>% filter(Country == "IN"), "Sites India", "")
+p5 <- plot_grp_ppc(
+  pp_site %>% filter(Country == "AU"), "Sites Australia", "")
+p6 <- plot_grp_ppc(
+  pp_site %>% filter(Country == "NP"), "Sites Nepal", "")
+p7 <- plot_grp_ppc(
+  pp_site %>% filter(Country == "NZ"), "Sites New Zealand", "")
+g1 <- (p0 | p1 | p2) / p3
+g2 <- p4 / p5 / (p6 | p7)
+pth1 <- file.path(
+  "outputs", "figures", "outcomes", "secondary",
+  "7-5-primary-model-fas-itt-ppc1.pdf")
+pth2 <- file.path(
+  "outputs", "figures", "outcomes", "secondary",
+  "7-5-primary-model-fas-itt-ppc2.pdf")
+ggsave(pth1, g1, width = 6, height = 5, device = cairo_pdf)
+ggsave(pth2, g2, width = 6, height = 6, device = cairo_pdf)
+g1
+g2
+```
 
 ## ACS-ITT
 
@@ -586,7 +668,7 @@ mcmc_trace(res$drws["gamma_epoch"])
 #| label: fit-model-acs-itt
 #| code-summary: Fit primary model
 res <- fit_primary_model(
-  fas_itt_nona_dat,
+  acs_itt_nona_dat,
   ordmod,
   outcome = "out_dafv",
   intercept = FALSE
@@ -601,9 +683,9 @@ names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requireme
 #| code-summary: Odds ratio summary table
 #| tbl-cap: Posterior summaries for model parameters (fixed-effects).
 save_tex_table(
-  odds_ratio_summary_table_rev(res$drws$OR, "latex"),
+  odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
   "outcomes/secondary/7-5-primary-model-acs-itt-summary-table")
-odds_ratio_summary_table_rev(res$drws$OR)
+odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR))
 ```
 
 ```{r}
@@ -632,6 +714,46 @@ p
 
 ## AVS-ITT
 
+### Pre-specified
+
+```{r}
+#| label: fit-model-avs-itt
+#| code-summary: Fit primary model
+res <- fit_primary_model(
+  fas_itt_nona_dat,
+  ordmod,
+  outcome = "out_dafv",
+  vars = c("agegte60", "supp_oxy2"),
+  beta_sd_var = c(2.5, 2.5),
+  intercept = FALSE
+)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR) <- c("Age \u2265 60", "Oxygen requirement")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-save-avs-itt
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects), AVS-ITT.
+save_tex_table(
+  odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  "outcomes/secondary/7-5-primary-model-avs-itt-summary-table")
+odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+```
+
+```{r}
+#| label: fig-or-densities-avs-itt-model
+#| fig-cap: Posterior densities for odds ratio contrasts, AVS-ITT.
+p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "7-5-primary-model-avs-itt-odds-ratio-densities.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+### Treatment Only
+
 ```{r}
 res <- fit_primary_model(
   avs_itt_nona_dat,
@@ -645,11 +767,21 @@ names(res$drws$AOR) <- "Nafamostat"
 ```
 
 ```{r}
-#| label: odds-ratio-summary-table-avs-itt
+#| label: odds-ratio-summary-table-avs-itt-trt-only
 #| code-summary: Odds ratio summary table
 #| tbl-cap: Posterior summaries for model parameters (fixed-effects), AVS-ITT.
 save_tex_table(
-  odds_ratio_summary_table(c(res$drws$AOR), "latex"),
+  odds_ratio_summary_table_rev(c(res$drws$AOR), "latex"),
   "outcomes/secondary/7-5-primary-model-avs-itt-summary-table-trt-only")
-odds_ratio_summary_table(c(res$drws$AOR))
+odds_ratio_summary_table_rev(c(res$drws$AOR))
+```
+
+```{r}
+#| label: fig-or-densities-avs-itt-model-trt-only
+#| fig-cap: Posterior densities for odds ratio contrasts.
+p <- plot_or_densities(c(res$drws$AOR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "7-5-primary-model-avs-itt-odds-ratio-densities-trt-only.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
 ```

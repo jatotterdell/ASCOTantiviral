@@ -569,9 +569,9 @@ names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requireme
 #| code-summary: Odds ratio summary table
 #| tbl-cap: Posterior summaries for model parameters (fixed-effects), FAS-ITT.
 save_tex_table(
-  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
   "outcomes/secondary/7-4-primary-model-fas-itt-summary-table")
-odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR))
 ```
 
 ```{r}
@@ -687,10 +687,10 @@ g1 <- (p0 | p1 | p2) / p3
 g2 <- p4 / p5 / (p6 | p7)
 pth1 <- file.path(
   "outputs", "figures", "outcomes", "secondary",
-  "7-4-primary-model-acs-itt-ppc1.pdf")
+  "7-4-primary-model-fas-itt-ppc1.pdf")
 pth2 <- file.path(
   "outputs", "figures", "outcomes", "secondary",
-  "7-4-primary-model-acs-itt-ppc2.pdf")
+  "7-4-primary-model-fas-itt-ppc2.pdf")
 ggsave(pth1, g1, width = 6, height = 5, device = cairo_pdf)
 ggsave(pth2, g2, width = 6, height = 6, device = cairo_pdf)
 g1
@@ -702,7 +702,6 @@ g2
 ```{r}
 #| label: fit-model-acs-itt
 #| code-summary: Fit primary model
-
 res <- fit_primary_model(
   acs_itt_nona_dat,
   ordmod,
@@ -719,9 +718,19 @@ names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requireme
 #| code-summary: Odds ratio summary table
 #| tbl-cap: Posterior summaries for model parameters (fixed-effects), ACS-ITT.
 save_tex_table(
-  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
   "outcomes/secondary/7-4-primary-model-acs-itt-summary-table")
-odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+```
+
+```{r}
+#| label: fig-or-densities-acs-itt-model
+#| fig-cap: Posterior densities for odds ratio contrasts, ACS-ITT.
+p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "7-4-primary-model-acs-itt-odds-ratio-densities.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
 ```
 
 ## AVS-ITT
@@ -769,8 +778,18 @@ names(res$drws$OR) <- c("Age \u2265 60", "Oxygen requirement")
 #| code-summary: Odds ratio summary table
 #| tbl-cap: Posterior summaries for model parameters (fixed-effects), AVS-ITT.
 save_tex_table(
-  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
   "outcomes/secondary/7-4-primary-model-avs-itt-summary-table")
-odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+```
+
+```{r}
+#| label: fig-or-densities-avs-itt-model
+#| fig-cap: Posterior densities for odds ratio contrasts, AVS-ITT.
+p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "7-4-primary-model-avs-itt-odds-ratio-densities.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
 ```
 

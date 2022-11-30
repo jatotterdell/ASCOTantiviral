@@ -1756,6 +1756,38 @@ knitr::include_graphics(
 - **Terms**: antiviral intervention
 - **Set**: AVS-ITT
 
+```{r}
+#| label: fig-7-1-descriptive-antiviral-alt-avs-itt
+#| fig-cap: |
+#|   Observed progression of patients with respect to death and recovery, anticoagulation domain, AVS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-1-descriptive-anticoagulation-alt-avs-itt.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-1-avs-itt-summary
+#| tbl-cap: |
+#|   Posterior summary of cause-specific odds ratios for recovery or death to day 28,
+#|   AVS-ITT.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-1-primary-model-avs-itt-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-1-avs-itt-baseline-haz
+#| fig-cap: |
+#|   Cause-specific baseline hazard posterior summaries, AVS-ITT.
+knitr::include_graphics(
+  file.path(
+    "..", "outputs", "figures", "outcomes", "secondary",
+    "7-1-avs-itt-baseline-haz.pdf"
+))
+```
+
 \clearpage
 
 #### ACS-ITT
@@ -1763,6 +1795,15 @@ knitr::include_graphics(
 - **Model**: multinomial logistic regression
 - **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, epoch
 - **Set**: ACS-ITT
+
+```{r}
+#| label: fig-7-1-descriptive-antiviral-alt-acs-itt
+#| fig-cap: |
+#|   Observed progression of patients with respect to death and recovery, antiviral domain, ACS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-1-descriptive-antiviral-alt-acs-itt.pdf"
+)
+```
 
 ```{r}
 #| label: tbl-7-1-acs-itt-summary

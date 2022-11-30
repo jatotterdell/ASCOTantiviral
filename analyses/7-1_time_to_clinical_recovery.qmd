@@ -259,6 +259,34 @@ fas_itt_outdat_agg_antiviral <- fas_itt_outdat %>%
   mutate(AAssignment = factor(
     AAssignment, labels = str_replace(intervention_labels()$AAssignment, "<br>", " ")))
 
+acs_itt_outdat_agg_antiviral <- acs_itt_outdat %>%
+  complete(AAssignment, time, fill = list(y = 0)) %>%
+  group_by(AAssignment, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(AAssignment) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  mutate(AAssignment = factor(
+    AAssignment, labels = str_replace(intervention_labels()$AAssignment, "<br>", " ")))
+
+avs_itt_outdat_agg_anticoagulation <- avs_itt_outdat %>%
+  complete(CAssignment, time, fill = list(y = 0)) %>%
+  group_by(CAssignment, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(CAssignment) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  mutate(CAssignment = factor(
+    CAssignment, labels = str_replace(intervention_labels()$CAssignment, "<br>", " ")))
+
 ```
 
 # Derivation
@@ -342,6 +370,31 @@ ggsave(file.path(path, "outcome-7-1-descriptive-anticoagulation-alt.pdf"), p, he
 p
 ```
 
+```{r}
+#| label: fig-7-1-anticoagulation-alt-avs-itt
+#| fig-cap: |
+#|   Progression to recovery by anticoagulation intervention.
+p <- avs_itt_outdat_agg_anticoagulation %>% 
+  select(-y1, -y2, -cy1, -cy2) %>% 
+  pivot_longer(cp1:cpn) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cp1", "cp2", "cpn"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, colour = CAssignment)) + 
+  facet_wrap(~ name, scales = "free_y") + 
+  geom_step() +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative proportion", colour = "Intervention") +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = "bottom") +
+  guides(colour = guide_legend(title.position="top", title.hjust = 0.5))
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "outcome-7-1-descriptive-anticoagulation-alt-avs-itt.pdf"), p, height = 2.5, width = 6)
+p
+```
+
 ## Antiviral
 
 ```{r}
@@ -399,6 +452,31 @@ p <- fas_itt_outdat_agg_antiviral %>%
   guides(colour = guide_legend(title.position="top", title.hjust = 0.5))
 path <- file.path("outputs", "figures", "outcomes", "secondary")
 ggsave(file.path(path, "outcome-7-1-descriptive-antiviral-alt.pdf"), p, height = 2.5, width = 6)
+p
+```
+
+```{r}
+#| label: fig-7-1-antiviral-alt-acs-itt
+#| fig-cap: |
+#|   Progression to recovery by antiviral intervention.
+p <- acs_itt_outdat_agg_antiviral %>% 
+  select(-y1, -y2, -cy1, -cy2) %>% 
+  pivot_longer(cp1:cpn) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cp1", "cp2", "cpn"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, colour = AAssignment)) + 
+  facet_wrap(~ name, scales = "free_y") + 
+  geom_step() +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative proportion", colour = "Intervention") +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = "bottom") +
+  guides(colour = guide_legend(title.position="top", title.hjust = 0.5))
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "outcome-7-1-descriptive-antiviral-alt-acs-itt.pdf"), p, height = 2.5, width = 6)
 p
 ```
 
@@ -857,3 +935,71 @@ p
 ```
 
 ## AVS-ITT
+
+```{r}
+#| code-summary: Prepare data
+X <- make_X_design(avs_itt_outdat, c("agegte60", "supp_oxy2"))
+Xm <- X[, -1]
+sdat <- list(
+  N = nrow(avs_itt_outdat),
+  R = 2,
+  K = ncol(Xm),
+  T = 28,
+  time = avs_itt_outdat$time,
+  X = Xm,
+  y = as.matrix(avs_itt_outdat[, c("y0", "y1", "y2")]),
+  beta_sd = c(1, 1, 1, 1, 1, 2.5, 2.5)
+)
+```
+
+```{r}
+#| code-summary: Fit and save the model
+#| eval: false  
+fit <- mlogit_rw$sample(
+  data = sdat, 
+  seed = 12085,
+  chains = 4,
+  parallel_chains = min(4, parallel::detectCores()),
+  iter_sampling = 1250, 
+  iter_warmup = 500,
+  adapt_delta = 0.99
+)
+fit$save_object(file.path("outputs", "models", "secondary", "7-1-ttr", "primary-avs-itt.rds"))
+```
+
+```{r}
+#| label: load-model-avs-itt
+fit <- readRDS(file.path("outputs", "models", "secondary", "7-1-ttr", "primary-avs-itt.rds"))
+drws <- as_draws_rvars(fit$draws())
+rownames(drws$beta) <- colnames(sdat$X)
+drws$Acon <- contr.equalprior(2) %**% drws$beta[1, , drop = F]
+drws$Ccon <- contr.equalprior(4) %**% drws$beta[2:4, ]
+rownames(drws$Acon) <- c("SoC", "Nafamostat")
+rownames(drws$Ccon) <- c("Low", "Intermediate", "Low with aspirin", "Therapeutic")
+drws$Atrt <- drws$Acon[-1, ] - drws$Acon[1, ]
+drws$Ctrt <- drws$Ccon[-1, ] - drws$Ccon[1, ]
+drws$shift <- rvar_apply(sweep(drws$beta[6:7, ], 1, colMeans(sdat$X)[6:7], "*"), 2, rvar_sum)
+drws$alpha_shift <- sweep(drws$alpha, 2, drws$shift, "+")
+drws$OR <- exp(rbind(drws$Atrt, drws$Ctrt, drws$beta[-(1:5), ]))
+rownames(drws$OR)[-(1:4)] <- c("Age \u2265 60", "Oxygen requirement")
+colnames(drws$OR) <- c("Recovery", "Death")
+```
+
+```{r}
+save_tex_table(
+  make_odds_ratio_table(drws, format = "latex"),
+  "outcomes/secondary/7-1-primary-model-avs-itt-summary-table"
+)
+make_odds_ratio_table(drws)
+```
+
+```{r}
+#| fig-cap: Baseline hazard (logit) for death and recovery.
+p <- plot_baseline_hazard(drws) +
+  coord_flip()
+ggsave(
+  file.path("outputs", "figures", "outcomes", "secondary", "7-1-avs-itt-baseline-haz.pdf"),
+  p, height = 3, width = 6
+)
+p
+```

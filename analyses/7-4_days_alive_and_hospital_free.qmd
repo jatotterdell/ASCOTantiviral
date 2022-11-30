@@ -81,8 +81,8 @@ logistic <- compile_cmdstanr_mod(
 make_summary_table_anticoagulation <- function(dat, format = "html") {
   tdat <- dat %>%
   group_by(CAssignment = factor(CAssignment, 
-                                levels = c("C1", "C2", "C3", "C4"),
-                                labels = intervention_labels2()$CAssignment[-1])) %>%
+                                levels = c("C0", "C1", "C2", "C3", "C4"),
+                                labels = intervention_labels2()$CAssignment)) %>%
   summarise(
     Patients = n(),
     Known = sum(!is.na(out_dafh)),
@@ -127,8 +127,8 @@ make_summary_table_anticoagulation <- function(dat, format = "html") {
 make_summary_table_antiviral <- function(dat, format = "html") {
   tdat <- dat %>%
   group_by(AAssignment = factor(AAssignment, 
-                                levels = c("A1", "A2"),
-                                labels = intervention_labels2()$AAssignment[-1])) %>%
+                                levels = c("A0", "A1", "A2"),
+                                labels = intervention_labels2()$AAssignment)) %>%
   summarise(
     Patients = n(),
     Known = sum(!is.na(out_dafh)),
@@ -230,11 +230,11 @@ p
 ```{r}
 #| label: tbl-7-4-summary-anticoagulation
 #| code-summary: Summary of DAFH outcome by arm
-#| tbl-cap: Summary of days alive and free of hospital to day 28 by anticoagulation treatment group, ACS-ITT.
+#| tbl-cap: Summary of days alive and free of hospital to day 28 by anticoagulation treatment group, FAS-ITT.
 save_tex_table(
-  make_summary_table_anticoagulation(acs_itt_dat, "latex"), 
+  make_summary_table_anticoagulation(fas_itt_dat, "latex"), 
   file.path("outcomes", "secondary", "7-4-anticoagulation-summary"))
-make_summary_table_anticoagulation(acs_itt_dat)
+make_summary_table_anticoagulation(fas_itt_dat)
 ```
 
 ```{r}
@@ -280,16 +280,42 @@ ggsave(file.path(pth, "outcome-7-4-descriptive-anticoagulation2.pdf"), p, height
 p
 ```
 
+```{r}
+#| label: fig-dafh-dist-anticoagulation-avs-itt
+#| code-summary: DAFH by intervention
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by anti-coagulation intervention, AVS-ITT.
+#| fig-height: 4
+pdat <- avs_itt_nona_dat %>%
+  dplyr::count(
+    CAssignment = factor(CAssignment, labels = str_replace(intervention_labels()$CAssignment, "<br>", "\n")),
+    dafh = ordered(out_dafh, levels = 0:27), 
+    .drop = F) %>%
+  group_by(CAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p <- ggplot(pdat, aes(CAssignment, p)) +
+  geom_col(aes(fill = fct_rev(dafh))) +
+  labs(x = "Anticoagulation intervention", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.75, "lines"))
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-4-descriptive-anticoagulation-avs-itt.pdf"), p, height = 3, width = 6)
+p
+```
+
 ## Antiviral
 
 ```{r}
 #| label: tbl-7-4-summary-antiviral
 #| code-summary: Summary of DAFH outcome by arm
-#| tbl-cap: Summary of days alive and free of hospital to day 28 by antiviral treatment group, AVS-ITT.
+#| tbl-cap: Summary of days alive and free of hospital to day 28 by antiviral treatment group, FAS-ITT.
 save_tex_table(
-  make_summary_table_antiviral(avs_itt_dat, "latex"), 
+  make_summary_table_antiviral(fas_itt_dat, "latex"), 
   file.path("outcomes", "secondary", "7-4-antiviral-summary"))
-make_summary_table_antiviral(avs_itt_dat)
+make_summary_table_antiviral(fas_itt_dat)
 ```
 
 ```{r}
@@ -332,6 +358,32 @@ p <- ggplot(pdat, aes(dafh, cp)) +
   guides(fill = guide_legend(reverse = TRUE))
 pth <- file.path("outputs", "figures", "outcomes", "secondary")
 ggsave(file.path(pth, "outcome-7-4-descriptive-antiviral2.pdf"), p, height = 3, width = 6)
+p
+```
+
+```{r}
+#| label: fig-dafh-dist-antiviral-acs-itt
+#| code-summary: DAFH by intervention
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by antiviral intervention, ACS-ITT.
+#| fig-height: 4
+pdat <- acs_itt_nona_dat %>%
+  dplyr::count(
+    AAssignment = factor(AAssignment, labels = str_replace(intervention_labels()$AAssignment, "<br>", "\n")),
+    dafh = ordered(out_dafh, levels = 0:27), 
+    .drop = F) %>%
+  group_by(AAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p <- ggplot(pdat, aes(AAssignment, p)) +
+  geom_col(aes(fill = fct_rev(dafh))) +
+  labs(x = "Antiviral intervention", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.75, "lines"))
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-4-descriptive-antiviral-acs-itt.pdf"), p, height = 3, width = 6)
 p
 ```
 

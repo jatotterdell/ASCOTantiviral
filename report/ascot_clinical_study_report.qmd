@@ -1860,7 +1860,7 @@ knitr::include_graphics(
 
 This section reports on the analysis of the secondary outcome: WHO outcome scale at day 28. The model is coded so that an odds ratio less than 1 implies a benefit (reduction in odds of having a higher WHO score at day 28).
 
-@tbl-7-2-summary-anticoagulation presents the number of participants where the outcome was observed by the allocated anticoagulation arm. Similarly for the antiviral arms in @tbl-7-2-summary-antiviral. @fig-7-2-anticoagulation and @fig-7-2-antiviral report on the distribution of day 28 WHO score.
+@tbl-7-2-summary-anticoagulation presents the number of participants where the outcome was observed by the allocated anticoagulation arm. Similarly for the antiviral arms in @tbl-7-2-summary-antiviral.
 
 ```{r}
 #| label: tbl-7-2-summary-anticoagulation
@@ -1882,6 +1882,16 @@ tab <- readLines(file.path(
 writeLines(tab)
 ```
 
+\clearpage
+
+#### FAS-ITT
+
+- **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
+- **Set**: FAS-ITT
+
+@fig-7-2-anticoagulation and @fig-7-2-antiviral report on the distribution of day 28 WHO score.
+
 ```{r}
 #| label: fig-7-2-anticoagulation
 #| fig-cap: |
@@ -1899,14 +1909,6 @@ knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/7-2-antiviral.pdf"
 )
 ```
-
-\clearpage
-
-#### FAS-ITT
-
-- **Model**: cumulative logistic (ordinal) regression assuming proportional odds
-- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
-- **Set**: FAS-ITT
 
 The model parameters (odds ratios) are summarised in @tbl-7-2-primary-model-fas-itt-summary for the fixed-effect terms and in @fig-7-2-primary-model-fas-itt-site-epoch-parameters for the site and epoch specific terms.
 
@@ -1949,6 +1951,17 @@ knitr::include_graphics(
 - **Terms**: antiviral intervention, anticoagulation intervention, age group, oxygen requirement
 - **Set**: AVS-ITT
 
+@fig-7-2-anticoagulation-avs-itt presents the distribution of day 28 WHO score by anticoagulation intervention for AVS-ITT.
+
+```{r}
+#| label: fig-7-2-anticoagulation-avs-itt
+#| fig-cap: |
+#|   Observed distribution of WHO outcome scale at day 28 by anticoagulation treatment group, AVS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-2-anticoagulation-avs-itt.pdf"
+)
+```
+
 ```{r}
 #| label: tbl-7-2-primary-model-avs-itt-summary
 #| tbl-cap: |
@@ -1966,6 +1979,56 @@ writeLines(tab)
 #|   Posterior densities for the treatment effect odds ratios, AVS-ITT.
 knitr::include_graphics(
   "../outputs/figures/outcomes/primary/7-2-primary-model-avs-itt-odds-ratio-densities.pdf"
+)
+```
+
+\clearpage
+
+#### ACS-ITT
+
+- **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
+- **Set**: ACS-ITT
+
+@fig-7-2-antiviral-avs-itt presents the distribution of day 28 WHO score by antiviral intervention for ACS-ITT.
+
+```{r}
+#| label: fig-7-2-antiviral-avs-itt
+#| fig-cap: |
+#|   Observed distribution of WHO outcome scale at day 28 by antiviral treatment group, ACS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-2-antiviral-acs-itt.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-2-primary-model-acs-itt-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios)
+#|   for WHO outcome scale at day 28 outcome model fit to the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary",
+                           "7-2-primary-model-acs-itt-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-2-acs-itt-odds-ratio-densities
+#| fig-cap: |
+#|   Posterior densities for the treatment effect odds ratios, ACS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/7-2-primary-model-acs-itt-odds-ratio-densities.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-2-primary-model-acs-itt-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI)
+#|   of odds ratio for epoch and site effects on WHO outcome scale at
+#|   day 28 for the outcome model fit to the ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-2-primary-model-epoch-site-terms-acs-itt.pdf"
 )
 ```
 
@@ -2022,12 +2085,19 @@ This section reports on the analysis of the secondary outcome: all-cause mortali
 
 \clearpage
 
+#### ACS-ITT
+
+- **Model**: logistic regression
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, site nested within region, and epoch.
+- **Set**: ACS-ITT
+
+\clearpage
+
 ### Days alive and free of hospital to day 28
 
 This section reports on the analysis of the secondary outcome: days alive and free of hospital (DAFH) to day 28. For this outcome, participants who died within 28 days were coded to have 0 DAFH. The model is coded so that an odds ratio greater than 1 implies a benefit (increased odds of more days alive and free of hospital).
 
 @tbl-7-4-summary-anticoagulation presents the number of participants where the outcome was observed by the allocated anticoagulation arm. Similarly, @tbl-7-4-summary-antiviral for the antiviral domain. 
-The observed distribution of DAFH by domain treatment arm is shown in @fig-7-4-descriptive-anticoagulation, @fig-7-4-descriptive-anticoagulation2, @fig-7-4-descriptive-antiviral and @fig-7-4-descriptive-antiviral2. 
 
 ```{r}
 #| label: fig-7-4-dist-overall
@@ -2041,7 +2111,7 @@ knitr::include_graphics(
 ```{r}
 #| label: tbl-7-4-summary-anticoagulation
 #| tbl-cap: |
-#|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT.
+#|   Summary of days alive and free of hospital to day 28 by treatment group, FAS-ITT.
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-summary.tex"))
@@ -2049,31 +2119,33 @@ writeLines(tab)
 ```
 
 ```{r}
-#| label: fig-7-4-descriptive-anticoagulation
-#| fig-cap: |
-#|   Observed distribution of days alive and free of hospital at day 28 by anticoagulation treatment group, ACS-ITT.
-knitr::include_graphics(
-  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-anticoagulation.pdf"
-)
-```
-
-```{r}
-#| label: fig-7-4-descriptive-anticoagulation2
-#| fig-cap: |
-#|   Observed cumulative distribution of days alive and free of hospital at day 28 by anticoagulation treatment group, ACS-ITT.
-knitr::include_graphics(
-  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-anticoagulation2.pdf"
-)
-```
-
-```{r}
 #| label: tbl-7-4-summary-antiviral
 #| tbl-cap: |
-#|   Summary of days alive and free of hospital to day 28 by treatment group, AVS-ITT.
+#|   Summary of days alive and free of hospital to day 28 by treatment group, FAS-ITT.
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary", "7-4-antiviral-summary.tex"))
 writeLines(tab)
+```
+
+\clearpage
+
+#### FAS-ITT
+
+- **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, site nested within region, and epoch.
+- **Set**: FAS-ITT
+
+The observed distribution of DAFH by domain treatment arm is shown in @fig-7-4-descriptive-anticoagulation and @fig-7-4-descriptive-antiviral.
+
+
+```{r}
+#| label: fig-7-4-descriptive-anticoagulation
+#| fig-cap: |
+#|   Observed distribution of days alive and free of hospital at day 28 by anticoagulation treatment group, FAS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-anticoagulation.pdf"
+)
 ```
 
 ```{r}
@@ -2085,22 +2157,6 @@ knitr::include_graphics(
 )
 ```
 
-```{r}
-#| label: fig-7-4-descriptive-antiviral2
-#| fig-cap: |
-#|   Observed cumulative distribution of days alive and free of hospital at day 28 by antiviral treatment group, AVS-ITT.
-knitr::include_graphics(
-  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-antiviral2.pdf"
-)
-```
-
-\clearpage
-
-#### FAS-ITT
-
-- **Model**: cumulative logistic (ordinal) regression assuming proportional odds
-- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, site nested within region, and epoch.
-- **Set**: FAS-ITT
 
 ```{r}
 #| label: tbl-7-4-primary-model-fas-itt-summary
@@ -2142,6 +2198,15 @@ knitr::include_graphics(
 - **Set**: AVS-ITT
 
 ```{r}
+#| label: fig-7-4-descriptive-anticoagulation-avs-itt
+#| fig-cap: |
+#|   Observed distribution of days alive and free of hospital at day 28 by anticoagulation treatment group, AVS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-anticoagulation-avs-itt.pdf"
+)
+```
+
+```{r}
 #| label: tbl-7-4-primary-model-avs-itt-summary
 #| tbl-cap: |
 #|   Summary of model parameters (fixed-effects odds-ratios)
@@ -2170,6 +2235,15 @@ knitr::include_graphics(
 - **Set**: ACS-ITT
 
 ```{r}
+#| label: fig-7-4-descriptive-antiviral-acs-itt
+#| fig-cap: |
+#|   Observed distribution of days alive and free of hospital at day 28 by antiviral treatment group, ACS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-antiviral-acs-itt.pdf"
+)
+```
+
+```{r}
 #| label: tbl-7-4-primary-model-acs-itt-summary
 #| tbl-cap: |
 #|   Summary of model parameters (fixed-effects odds-ratios)
@@ -2196,7 +2270,6 @@ knitr::include_graphics(
 This section reports on the analysis of the secondary outcome: days alive and free invasive or non-invasive ventilation (DAFV) to day 28. For this outcome, participants who died within 28 days were coded to have 0 DAFV.
 
 @tbl-7-5-summary-anticoagulation presents the number of participants where the outcome was observed by the allocated anticoagulation arm. Similarly, @tbl-7-5-summary-antiviral for the antiviral domain. 
-The observed distribution of DAFV by domain treatment arm is shown in @fig-7-5-descriptive-anticoagulation and @fig-7-5-descriptive-antiviral. 
 
 ```{r}
 #| label: fig-7-5-dist-overall
@@ -2218,15 +2291,6 @@ writeLines(tab)
 ```
 
 ```{r}
-#| label: fig-7-5-descriptive-anticoagulation
-#| fig-cap: |
-#|   Observed distribution of days alive and free of ventilation at day 28 by anticoagulation treatment group, FAS-ITT.
-knitr::include_graphics(
-  "../outputs/figures/outcomes/secondary/outcome-7-5-descriptive-anticoagulation.pdf"
-)
-```
-
-```{r}
 #| label: tbl-7-5-summary-antiviral
 #| tbl-cap: |
 #|   Summary of days alive and free of ventilation to day 28 by antiviral treatment group, FAS-ITT.
@@ -2234,6 +2298,25 @@ knitr::include_graphics(
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary", "7-5-antiviral-summary.tex"))
 writeLines(tab)
+```
+
+\clearpage
+
+#### FAS-ITT
+
+- **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, site nested within region, and epoch.
+- **Set**: FAS-ITT
+
+The observed distribution of DAFV by domain treatment arm is shown in @fig-7-5-descriptive-anticoagulation and @fig-7-5-descriptive-antiviral. 
+
+```{r}
+#| label: fig-7-5-descriptive-anticoagulation
+#| fig-cap: |
+#|   Observed distribution of days alive and free of ventilation at day 28 by anticoagulation treatment group, FAS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-5-descriptive-anticoagulation.pdf"
+)
 ```
 
 ```{r}
@@ -2244,14 +2327,6 @@ knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/outcome-7-5-descriptive-antiviral.pdf"
 )
 ```
-
-\clearpage
-
-#### FAS-ITT
-
-- **Model**: cumulative logistic (ordinal) regression assuming proportional odds
-- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, site nested within region, and epoch.
-- **Set**: FAS-ITT
 
 ```{r}
 #| label: tbl-7-5-primary-model-fas-itt-summary
@@ -2293,6 +2368,15 @@ knitr::include_graphics(
 - **Set**: AVS-ITT
 
 ```{r}
+#| label: fig-7-5-descriptive-anticoagulation-avs-itt
+#| fig-cap: |
+#|   Observed distribution of days alive and free of ventilation at day 28 by anticoagulation treatment group, AVS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-5-descriptive-anticoagulation-avs-itt.pdf"
+)
+```
+
+```{r}
 #| label: tbl-7-5-primary-model-avs-itt-summary
 #| tbl-cap: |
 #|   Summary of model parameters (fixed-effects odds-ratios)
@@ -2321,6 +2405,15 @@ knitr::include_graphics(
 - **Set**: ACS-ITT
 
 ```{r}
+#| label: fig-7-5-descriptive-antiviral-acs-itt
+#| fig-cap: |
+#|   Observed distribution of days alive and free of ventilation at day 28 by antiviral treatment group, ACS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-5-descriptive-antiviral-acs-itt.pdf"
+)
+```
+
+```{r}
 #| label: tbl-7-5-primary-model-acs-itt-summary
 #| tbl-cap: |
 #|   Summary of model parameters (fixed-effects odds-ratios)
@@ -2342,9 +2435,9 @@ knitr::include_graphics(
 
 \clearpage
 
-<!-- ### Presence of patient reported shortness of breath at day 28 -->
+### Presence of patient reported shortness of breath at day 28
 
-<!-- This section reports on the analysis of the secondary outcome: patient reported shortness of breath at day 28. For this outcome, participants who died within 28 days were coded to have a missing value, so this outcome reflects shortness of breath at day 28 amongst patients who survived to at least day 28. The model is coded so that an odds ratio less than 1 implies a benefit (reduction in odds of shortness of breath at day 28). -->
+This section reports on the analysis of the secondary outcome: patient reported shortness of breath at day 28. For this outcome, participants who died within 28 days were coded to have a missing value, so this outcome reflects shortness of breath at day 28 amongst patients who survived to at least day 28. The model is coded so that an odds ratio less than 1 implies a benefit (reduction in odds of shortness of breath at day 28).
 
 <!-- - **Model**: logistic regression -->
 <!-- - **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch. -->
@@ -2385,101 +2478,11 @@ knitr::include_graphics(
 <!-- ) -->
 <!-- ``` -->
 
-<!-- \clearpage -->
+\clearpage
 
-<!-- #### Sensitivity: Concurrent Enrolments -->
+### Modified Medical Research Council (mMRC) breathlessness scale at day 28
 
-<!-- ##### Intermediate dose -->
-
-<!-- -   **Model**: logistic regression -->
-<!-- -   **Terms**: anticoagulation intervention, age group, region -->
-<!-- -   **Set**: ACS-ITT-intermediate -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-7-6-concurrent-intermediate-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of shortness of breath at day 28 by treatment group, ACS-ITT-intermediate. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", -->
-<!--   "7-6-anticoagulation-concurrent-intermediate-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-7-6-concurrent-intermediate-model-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of posterior odds ratios, ACS-ITT-intermediate. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", -->
-<!--   "7-6-primary-model-acs-itt-concurrent-intermediate-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ##### Standard dose plus aspirin -->
-
-<!-- -   **Model**: logistic regression -->
-<!-- -   **Terms**: anticoagulation intervention, age group, region -->
-<!-- -   **Set**: ACS-ITT-aspirin -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-7-6-concurrent-stdaspirin-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of shortness of breath at day 28 by treatment group, ACS-ITT-aspirin. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", -->
-<!--   "7-6-anticoagulation-concurrent-stdaspirin-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-7-6-concurrent-stdaspirin-model-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of posterior odds ratios, ACS-ITT-aspirin. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", -->
-<!--   "7-6-primary-model-acs-itt-concurrent-stdaspirin-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ##### Therapeutic dose -->
-
-<!-- - **Model**: logistic regression -->
-<!-- - **Terms**: anticoagulation intervention, age group, region -->
-<!-- - **Set**: ACS-ITT-therapeutic -->
-
-<!-- *Note: the reference region was switched to Nepal for this model due to small numbers in India.* -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-7-6-concurrent-therapeutic-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of shortness of breath at day 28 by treatment group, ACS-ITT-therapeutic. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", -->
-<!--   "7-6-anticoagulation-concurrent-therapeutic-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-7-6-concurrent-therapeutic-model-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of posterior odds ratios, ACS-ITT-therapeutic. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", -->
-<!--   "7-6-primary-model-acs-itt-concurrent-therapeutic-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- \clearpage -->
-
-<!-- ### Modified Medical Research Council (mMRC) breathlessness scale at day 28 -->
-
-<!-- The mMRC scale was only asked of participants who responded "yes" to the question of new or worsening breathlessness since COVID. Therefore, the distribution of this outcome scale is conditional on the patient responding that they were experiencing new or worse breathlessness since having COVID. In the following tables "Not asked" refers to participants who responded "no" to the question of breathlessness. -->
+The mMRC scale was only asked of participants who responded "yes" to the question of new or worsening breathlessness since COVID. Therefore, the distribution of this outcome scale is conditional on the patient responding that they were experiencing new or worse breathlessness since having COVID. In the following tables "Not asked" refers to participants who responded "no" to the question of breathlessness.
 
 <!-- ```{r} -->
 <!-- #| label: tbl-7-7-mmrc-acs-itt -->
@@ -2512,9 +2515,9 @@ knitr::include_graphics(
 <!-- ) -->
 <!-- ``` -->
 
-<!-- \clearpage -->
+\clearpage
 
-<!-- ### Quality of life as measured by EQ-5D-5L questionnaire at day 28 -->
+### Quality of life as measured by EQ-5D-5L questionnaire at day 28
 
 <!-- The EQ-5D-5L responses are described. -->
 

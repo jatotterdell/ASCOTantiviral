@@ -197,6 +197,8 @@ make_summary_table_anticoagulation(fas_itt_dat)
 ```
 
 ```{r}
+#| label: fig-who-anticoagulation-fas-itt
+#| fig-cap: Day 28 WHO score, anticoagulation domain, FAS-ITT.
 p1 <- fas_itt_nona_dat %>%
   filter(!is.na(D28_who)) %>%
   group_by(CAssignment = factor(CAssignment, labels = str_replace(intervention_labels()$CAssignment, "<br>", "\n"))) %>%
@@ -227,6 +229,29 @@ ggsave(file.path(pth, "7-2-anticoagulation.pdf"), p2, height = 3, width = 6)
 p2
 ```
 
+```{r}
+#| label: fig-who-anticoagulation-avs-itt
+#| fig-cap: Day 28 WHO score, anticoagulation domain, AVS-ITT.
+p2 <- avs_itt_nona_dat %>%
+  filter(!is.na(D28_who)) %>%
+  dplyr::count(
+    CAssignment = factor(
+      CAssignment, 
+      labels = str_replace(intervention_labels()$CAssignment, "<br>", "\n")), 
+    D28_who = ordered(as.integer(D28_who), levels = 1:8)
+  ) %>%
+  group_by(CAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  ggplot(., aes(CAssignment, p)) +
+  geom_col(aes(fill = D28_who)) +
+  scale_fill_viridis_d(option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = F)) +
+  labs(fill = "WHO scale", y = "Cumulative proportion", x = "Anticoagulation intervention")
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "7-2-anticoagulation-avs-itt.pdf"), p2, height = 3, width = 6)
+p2
+```
+
 ## Antiviral
 
 ```{r}
@@ -240,6 +265,8 @@ make_summary_table_antiviral(fas_itt_dat)
 ```
 
 ```{r}
+#| label: fig-who-antiviral-fas-itt
+#| fig-cap: Day 28 WHO score, antiviral domain, FAS-ITT.
 p1 <- fas_itt_nona_dat %>%
   filter(!is.na(D28_who)) %>%
   group_by(AAssignment = factor(AAssignment, labels = str_replace(intervention_labels()$AAssignment, "<br>", "\n"))) %>%
@@ -268,6 +295,29 @@ p <- p1 | p2
 pth <- file.path("outputs", "figures", "outcomes", "secondary")
 ggsave(file.path(pth, "7-2-antiviral.pdf"), p2, height = 3, width = 6)
 p
+```
+
+```{r}
+#| label: fig-who-antiviral-acs-itt
+#| fig-cap: Day 28 WHO score, antiviral domain, ACS-ITT.
+p2 <- acs_itt_nona_dat %>%
+  filter(!is.na(D28_who)) %>%
+  dplyr::count(
+    AAssignment = factor(
+      AAssignment, 
+      labels = str_replace(intervention_labels()$AAssignment, "<br>", "\n")), 
+    D28_who = ordered(as.integer(D28_who), levels = 1:8)
+  ) %>%
+  group_by(AAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  ggplot(., aes(AAssignment, p)) +
+  geom_col(aes(fill = D28_who)) +
+  scale_fill_viridis_d(option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = F)) +
+  labs(fill = "WHO scale", y = "Cumulative proportion", x = "Anticoagulation intervention")
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "7-2-antiviral-acs-itt.pdf"), p2, height = 3, width = 6)
+p2
 ```
 
 ## Age
@@ -536,6 +586,7 @@ res <- fit_primary_model(
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
 names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+save(res, file.path("outputs", "models", "secondary", "7-2-who", "primary-fas-itt.rds"))
 ```
 
 ```{r}

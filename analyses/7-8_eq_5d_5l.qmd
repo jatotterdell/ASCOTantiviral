@@ -1,0 +1,288 @@
+---
+title: "7-8 EQ-5D-5L"
+description: |
+  Analyse of the EQ-5D-5L outcome.
+author: 
+  - name: James Totterdell
+    affiliation: University of Sydney
+  - name: Rob Mahar
+    affiliation: University of Melbourne
+date: last-modified
+---
+
+## Preamble
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(ASCOTr)
+library(tidyverse)
+library(labelled)
+library(kableExtra)
+library(cmdstanr)
+library(posterior)
+library(bayestestR)
+library(bayesplot)
+library(matrixStats)
+library(ggdist)
+library(patchwork)
+library(lubridate)
+library(eq5d)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+```
+
+```{r}
+#| label: analysis-sets
+#| code-summary: Prepare datasets
+all_dat <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+
+# AVS-ITT
+avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_dat) 
+
+```
+
+## Descriptive
+
+```{r}
+#| label: states
+#| code-summary: Derive states
+
+eq5d <- avs_itt_dat %>% select(AAssignment, starts_with("D28_EQ"), D28_death) %>%
+  mutate(state = paste0(D28_EQMobility, 
+                           D28_EQPersonalCare,
+                           D28_EQUsualActivities,
+                           D28_EQPainDiscomfort,
+                           D28_EQAnxietyDepression))
+
+# Table the states against day 28 death.
+# Looks like 00000 are dead at day 28 (or NA, i.e. lost to followup)
+# Looks like NANANANANA are genuinely missing (all alive), keep but seperate out of tables. 
+with(eq5d, table(D28_death, state, useNA = "always"))
+
+eq5d <- eq5d %>%  
+  filter(state != "00000") %>%
+  mutate(state = ifelse(state == "NANANANANA", NA, state))
+
+```
+
+```{r}
+#| label: counts
+#| code-summary: Derive counts
+
+missing <- eq5d %>% 
+     group_by(AAssignment) %>% 
+     summarise(missing_state = paste0(sum(is.na(state)), " (", round(sum(is.na(state))/n()*100, 2), "%)")) 
+
+counts <- with(eq5d, table(state, AAssignment))
+nms    <- colnames(counts)
+counts <- lapply(colnames(counts), function(x) counts[,x])
+names(counts) <- nms 
+
+counts <- lapply(counts, function(x) x[order(-x, names(x))])
+counts <- lapply(counts, function(x) x[x>0])
+counts <- lapply(counts, function(x) cbind(names(x),
+                                           x,
+                                           round(x/sum(x)*100,1), 
+                                           cumsum(x), 
+                                           round(cumsum(x/sum(x))*100,1))[c(1:10,length(x)),])
+counts  <- lapply(counts, function(x) rbind(x[1:10,], c("...", "", "", "", ""), x[11,]))
+counts <- do.call(rbind, counts) %>% as_tibble() 
+
+make_table <- function(format = "html", fn = NULL)
+{
+out <- counts %>% kable(format = format, digits = 2, booktabs = TRUE, linesep = "", align = "lrrrrr", longtable = TRUE,
+                        col.names = c("Health state", "n", "%", "n", "%"),
+                        caption = "Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28).") %>%
+  kable_styling(latex_options = "HOLD_position", font_size = 12) %>%
+  group_rows(paste0("No nafamostat, missing = ",   missing[["missing_state"]][missing[["AAssignment"]] == "A1"]), 1, 12) %>%
+  group_rows(paste0("Nafamostat, missing = ",   missing[["missing_state"]][missing[["AAssignment"]] == "A2"]), 13, 24) %>%
+  add_header_above(c(" " = 1, "Frequency" = 2, "Cumulative frequency" = 2))
+
+out <- counts %>% 
+  kable(
+    format = format, 
+    digits = 2, 
+    booktabs = TRUE, 
+    linesep = "", 
+    align = "lrrrrr", 
+    longtable = TRUE,
+    col.names = c("Health state", "n", "%", "n", "%"),
+    caption = "Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28).") %>%
+  kable_styling(latex_options = "HOLD_position", font_size = 9) %>%
+  group_rows("No nafamostat", 1, 12) %>%
+  group_rows("Nafamostat", 13, 24) %>%
+  add_header_above(c(" " = 1, "Frequency" = 2, "Cumulative" = 2))
+  if (!is.null(fn) & format == "latex") {
+      out
+      save_tex_table(out, fn)
+  } else {
+      return(out)
+  }
+}
+make_table()  %>% 
+  kable_styling()
+make_table(format = "latex", fn = "outcomes/secondary/7-8_eq5d5l_counts")
+```
+
+# Get breakdown table.
+```{r}
+#| label: scores
+#| code-summary: Derive scores
+
+get_profiles <- function(x)
+{
+  avs_itt_dat %>% 
+    dplyr::count(AAssignment, !!sym(x)) %>%
+    filter(!!sym(x) != 0) %>%
+    spread(AAssignment, n, fill = 0) %>%
+    mutate(Overall = A1 + A2) %>% 
+    rbind(colSums(.[-c(1),])) %>% select(-!!sym(x)) %>%
+    mutate(across(A1:Overall, ~ sprintf("%i (%.0f)", .x, 100 * .x / sum(.x)))) %>%
+    rename(
+      `No namafostat` = A1,
+      Namafostat = A2
+    )
+}
+
+tab1 <-  get_profiles("D28_EQMobility") 
+tab2 <-  get_profiles("D28_EQPersonalCare")
+tab3 <-  get_profiles("D28_EQUsualActivities")
+tab4 <-  get_profiles("D28_EQPainDiscomfort")
+tab5 <-  get_profiles("D28_EQAnxietyDepression")
+
+marg <- c(1:5, "Any mobility problem",
+          1:5, "Any self care problem",
+          1:5, "Any usual activities problem",
+          1:5, "Any pain/discomfort problem",
+          1:5, "Any anxiety/depression problem")
+          
+make_table <- function(format = "html", fn = NULL)
+{
+  out <- bind_cols(marg, bind_rows(tab1, tab2, tab3, tab4, tab5))
+  out <- kable(out,
+    col.names = c("EQ-5D-5L", names(out)[-1]),
+    caption = "Distribution of responses on the EQ-5D-5L (day 28).",
+    align = "lrrrrr", format = format, digits = 2, booktabs = TRUE, linesep = "", longtable = TRUE) %>%  
+    kable_styling(latex_options = "HOLD_position", font_size = 9) %>%
+    # collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
+    group_rows("Mobility",           1,   6) %>%
+    group_rows("Self care",          7,  12) %>%
+    group_rows("Usual activities",   13, 18) %>%
+    group_rows("Pain/discomfort",    19, 24) %>%
+    group_rows("Anxiety/depression", 25, 30) 
+    if (!is.null(fn) & format == "latex") {
+      out
+      save_tex_table(out, fn)
+    } else {
+      return(out)
+    }
+}
+make_table()  %>% kable_styling()
+make_table(format = "latex", fn = "outcomes/secondary/7-8_eq5d5l_distribution")
+
+
+```
+
+# Get VAS table.
+
+
+```{r}
+#| label: vas
+#| code-summary: Derive visual analog score
+
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+vas <- avs_itt_dat %>% 
+  select(AAssignment, starts_with("D28_EQ"), D28_death) %>%
+  select(AAssignment, D28_EQOverallHealthScore) %>%
+  mutate(D28_EQOverallHealthScore = ifelse(D28_EQOverallHealthScore == 0, NA, D28_EQOverallHealthScore)) %>%
+  group_by(AAssignment) %>%
+  summarise(n       = n(),
+            Mean    = round(mean(D28_EQOverallHealthScore, na.rm = T), 1),
+            SD      = round(sd(D28_EQOverallHealthScore, na.rm = T), 1),
+            Median  = median(D28_EQOverallHealthScore, na.rm = T),
+            Mode    = getmode(D28_EQOverallHealthScore),
+            Min     = min(D28_EQOverallHealthScore, na.rm = T),
+            Max     = max(D28_EQOverallHealthScore, na.rm = T),
+            `Missing, n (%)` = paste0(sum(is.na(D28_EQOverallHealthScore)), " (", round(sum(is.na(D28_EQOverallHealthScore))/n(),4)*100,")")) %>% t %>% as.data.frame()
+names(vas) <- vas[1,]
+vas <- vas[-1,]
+colnames(vas) <- c("No namafostat", "Namafostat")
+
+make_table <- function(format = "html", fn = NULL)
+{  
+ out <- vas %>% kable(
+    caption = "Descriptive summary of EQ-5D VAS (day 28).",
+    align = "rrrr", format = format, digits = 2, booktabs = TRUE, linesep = "", longtable = TRUE) %>%  
+    kable_styling(latex_options = "HOLD_position", font_size = 9)
+    if (!is.null(fn) & format == "latex") {
+      out
+      save_tex_table(out, fn)
+    } else {
+      return(out)
+    }
+}
+
+make_table()  %>% kable_styling()
+make_table(format = "latex", fn = "outcomes/secondary/7-8_eq5d_vas")
+
+```
+
+# Apply value set to derive utilities
+
+Here we use the R package `eq5d' to derive utilities from the EQ-5D-5L data, by treatment, using the included UK crosswalk valueset. 
+
+```{r}
+#| label: utility
+#| code-summary: Derive utility
+
+value <- eq5d %>%
+  mutate(value = eq5d(as.numeric(eq5d$state), version = "5L", type = "CW", country = "UK", ignore.invalid = T)) %>%
+  select(AAssignment, state, value) %>%
+  group_by(AAssignment) %>%
+  summarise(n       = n(),
+            Mean    = round(mean(value, na.rm = T), 4),
+            SD      = round(sd(value, na.rm = T), 4),
+            Median  = median(value, na.rm = T),
+            Mode    = getmode(value),
+            Min     = min(value, na.rm = T),
+            Max     = max(value, na.rm = T),
+            `Missing, n (%)` = paste0(sum(is.na(value)), " (", round(sum(is.na(value))/n(),4)*100,")")) %>% t %>% as.data.frame()
+names(value) <- c("No namafostat", "Namafostat")
+value <- value[-1,]
+
+make_table <- function(format = "html", fn = NULL)
+{  
+ out <- value %>% kable(
+    caption = "Descriptive summary of EQ-5D-5L utilities (day 28).",
+    align = "rrrr", format = format, digits = 2, booktabs = TRUE, linesep = "", longtable = TRUE) %>%  
+    kable_styling(latex_options = "HOLD_position", font_size = 11) %>%
+    collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
+       add_footnote(label = "Note: UK EQ-5D-5L crosswalk valueset used", notation = "none", escape = TRUE)
+
+    if (!is.null(fn) & format == "latex") {
+      out
+      save_tex_table(out, fn)
+    } else {
+      return(out)
+    }
+}
+
+make_table()  %>% kable_styling()
+make_table(format = "latex", fn = "outcomes/secondary/7-8_eq5d_utility")
+
+```
+
+
+
+
+# End of script.

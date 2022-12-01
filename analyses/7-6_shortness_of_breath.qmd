@@ -1,0 +1,345 @@
+---
+title: "7-6 shortness of breath"
+description: |
+  Shortness of breath.
+author:
+  - name: James Totterdell
+    affiliation: University of Sydney
+  - name: Rob Mahar
+    affiliation: University of Melbourne
+date: today
+toc-depth: 5
+---
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(ASCOTr)
+library(tidyverse)
+library(lubridate)
+library(kableExtra)
+library(patchwork)
+library(cmdstanr)
+library(posterior)
+library(bayesplot)
+library(ggdist)
+library(lme4)
+library(broom)
+library(broom.mixed)
+library(bayestestR)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+
+color_scheme_set("red")
+options(digits = 4)
+```
+
+```{r}
+#| label: analysis-sets
+#| code-summary: Prepare datasets
+all_dat <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+
+# FAS-ITT
+fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_dat)
+fas_itt_nona_dat <- fas_itt_dat |>
+  filter(!is.na(out_sob))
+
+# ACS-ITT
+acs_itt_dat <- ASCOTr:::make_acs_itt_set(all_dat)
+acs_itt_nona_dat <- acs_itt_dat |>
+  filter(!is.na(out_sob))
+
+# AVS-ITT
+avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_dat)
+avs_itt_nona_dat <- avs_itt_dat |>
+  filter(!is.na(out_sob))
+```
+
+```{r}
+#| label: stan-models
+#| code-summary: Load models
+logistic_mod        <- cmdstan_model(file.path("stan", "binary", "logistic.stan"))
+logistic_site_epoch <- cmdstan_model(file.path("stan", "binary", "logistic_site_epoch.stan"))
+```
+
+```{r}
+make_out_sob_table_A <- function(dat, format = "html") {
+  tab <- dat %>%
+    mutate(AAssignment = factor(
+      AAssignment, 
+      levels = paste0("A", 0:2),
+      labels = intervention_labels()$AAssignment)
+    ) %>%
+    group_by(AAssignment) %>%
+    summarise(
+      Randomised = n(),
+      `Outcome missing` = sprintf("%i (%.1f)", sum(is.na(out_sob)), 100 * mean(is.na(out_sob))),
+      `Outcome observed` = sprintf("%i (%.1f)", sum(!is.na(out_sob)), 100 * mean(!is.na(out_sob))),
+      `Died within 28 days` = sprintf("%i (%.1f)", sum(out_sob, na.rm = TRUE), 100 * mean(out_sob, na.rm = TRUE)),
+    ) %>%
+    bind_rows(
+      dat  %>%
+        group_by(AAssignment = "Overall") %>%
+        summarise(
+          Randomised = n(),
+          `Outcome missing` = sprintf("%i (%.1f)", sum(is.na(out_sob)), 100 * mean(is.na(out_sob))),
+          `Outcome observed` = sprintf("%i (%.1f)", sum(!is.na(out_sob)), 100 * mean(!is.na(out_sob))),
+          `Died within 28 days` = sprintf("%i (%.1f)", sum(out_sob, na.rm = TRUE), 100 * mean(out_sob, na.rm = TRUE)),
+      )
+    ) %>%
+    mutate(AAssignment = fct_inorder(AAssignment)) %>%
+    gather(key, value, -AAssignment, factor_key = T) %>%
+    spread(AAssignment, value)
+  colnames(tab)[1] <- "n (\\%)"
+  if(format == "latex") {
+    colnames(tab) <- linebreak(colnames(tab), align = "c", linebreaker = "<br>")
+  }
+    kable(tab,
+      format = format,
+      align = "lrrrrr",
+      escape = FALSE,
+      booktabs = TRUE
+    ) %>%
+    kable_styling(
+      font_size = 9, 
+      latex_options = "HOLD_position")  
+}
+
+
+make_out_sob_table_C <- function(dat, format = "html") {
+  tab <- dat %>%
+    mutate(CAssignment = factor(
+      CAssignment, 
+      levels = paste0("C", 0:4),
+      labels = intervention_labels()$CAssignment)
+    ) %>%
+    group_by(CAssignment) %>%
+    summarise(
+      Randomised = n(),
+      `Outcome missing` = sprintf("%i (%.1f)", sum(is.na(out_sob)), 100 * mean(is.na(out_sob))),
+      `Outcome observed` = sprintf("%i (%.1f)", sum(!is.na(out_sob)), 100 * mean(!is.na(out_sob))),
+      `Died within 28 days` = sprintf("%i (%.1f)", sum(out_sob, na.rm = TRUE), 100 * mean(out_sob, na.rm = TRUE)),
+    ) %>%
+    bind_rows(
+      dat  %>%
+        group_by(CAssignment = "Overall") %>%
+        summarise(
+          Randomised = n(),
+          `Outcome missing` = sprintf("%i (%.1f)", sum(is.na(out_sob)), 100 * mean(is.na(out_sob))),
+          `Outcome observed` = sprintf("%i (%.1f)", sum(!is.na(out_sob)), 100 * mean(!is.na(out_sob))),
+          `Died within 28 days` = sprintf("%i (%.1f)", sum(out_sob, na.rm = TRUE), 100 * mean(out_sob, na.rm = TRUE)),
+      )
+    ) %>%
+    mutate(CAssignment = fct_inorder(CAssignment)) %>%
+    gather(key, value, -CAssignment, factor_key = T) %>%
+    spread(CAssignment, value)
+  colnames(tab)[1] <- "n (\\%)"
+  if(format == "latex") {
+    colnames(tab) <- linebreak(colnames(tab), align = "c", linebreaker = "<br>")
+  }
+    kable(tab,
+      format = format,
+      align = "lrrrrrr",
+      escape = FALSE,
+      booktabs = TRUE
+    ) %>%
+    kable_styling(
+      font_size = 9, 
+      latex_options = "HOLD_position")  
+}
+```
+
+```{r}
+#| label: tbl-domainC-po
+#| code-summary: Relationship anti-coagulation to outcome
+#| tbl-cap: Primary outcome by anti-coagulation intervention.
+make_out_sob_table_C(
+    acs_itt_nona_dat
+)
+save_tex_table(make_out_sob_table_C(
+      acs_itt_nona_dat,
+      "latex"), 
+      "outcomes/secondary/7-6-anticoagulation-summary")
+```
+
+```{r}
+#| label: tbl-domainA-po
+#| code-summary: Relationship anti-viral to outcome
+#| tbl-cap: Primary outcome by anti-viral intervention.
+make_out_sob_table_A(
+     avs_itt_nona_dat
+)
+save_tex_table(make_out_sob_table_A(
+     avs_itt_nona_dat,
+      "latex"), 
+      "outcomes/secondary/7-6-antiviral-summary")
+```
+
+# Analyses
+
+## FAS-ITT
+
+```{r}
+res <- fit_primary_model(fas_itt_nona_dat, logistic_site_epoch, ctr = contr.equalprior, outcome = "out_sob")
+
+res$drws$OR <- res$drws$OR[-1]
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-fas-itt
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects), FAS-ITT.
+save_tex_table(
+  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  "outcomes/secondary/7-6-primary-model-fas-itt-summary-table")
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+```
+
+```{r}
+#| code-summary: Odds ratio summary for epoch and site
+#| fig-cap: Summary of epoch and site posterior odds ratios.
+p <- plot_epoch_site_terms(
+  res$drws$gamma_epoch,
+  res$drws$gamma_site,
+  factor(res$dat$region_by_site, 
+         labels = c("India", "Australia\nNew Zealand", "Nepal"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-6-primary-model-epoch-site-terms-fas-itt.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
+```{r}
+#| fig-cap: Posterior densities for treatment comparisons.
+p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-6-primary-model-fas-itt-odds-ratio-densities.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+:::{.callout-caution collapse="true"}
+### Diagnostics
+```{r}
+res$fit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+### Trace plots
+```{r}
+mcmc_trace(res$drws["beta"])
+mcmc_trace(res$drws["gamma_site"])
+mcmc_trace(res$drws["gamma_epoch"])
+```
+:::
+
+## ACS-ITT
+
+```{r}
+#| label: fit-model-acs-itt
+#| code-summary: Fit primary model
+
+res <- fit_primary_model(acs_itt_nona_dat, logistic_site_epoch, ctr = contr.equalprior, outcome = "out_sob")
+
+res$drws$OR <- res$drws$OR[-1]
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+```
+
+```{r}
+#| code-summary: Odds ratio summary for epoch and site
+#| fig-cap: Summary of epoch and site posterior odds ratios.
+p <- plot_epoch_site_terms(
+  res$drws$gamma_epoch,
+  res$drws$gamma_site,
+  factor(res$dat$region_by_site, 
+         labels = c("India", "Australia\nNew Zealand", "Nepal"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-6-primary-model-epoch-site-terms-fas-itt.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
+```{r}
+#| fig-cap: Posterior densities for treatment comparisons.
+p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-6-primary-model-fas-itt-odds-ratio-densities.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+:::{.callout-caution collapse="true"}
+### Diagnostics
+```{r}
+res$fit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+### Trace plots
+```{r}
+mcmc_trace(res$drws["beta"])
+mcmc_trace(res$drws["gamma_site"])
+mcmc_trace(res$drws["gamma_epoch"])
+```
+:::
+
+```{r}
+#| label: odds-ratio-summary-table-acs-itt
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects), ACS-ITT.
+save_tex_table(
+  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  "outcomes/secondary/7-6-primary-model-acs-itt-summary-table")
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+```
+
+## AVS-ITT
+
+```{r}
+res <- fit_primary_model(avs_itt_nona_dat, logistic_mod, ctr = contr.equalprior, outcome = "out_sob", vars = c("agegte60", "supp_oxy2"), beta_sd_var = c(2.5, 2.5)
+)
+
+res$drws$OR <- res$drws$OR[-1]
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR) <- c("Age \u2265 60", "Oxygen requirement")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-avs-itt
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects), AVS-ITT.
+save_tex_table(
+  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  "outcomes/secondary/7-6-primary-model-avs-itt-summary-table")
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+```
+
+:::{.callout-caution collapse="true"}
+### Diagnostics
+```{r}
+res$fit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+### Trace plots
+```{r}
+mcmc_trace(res$drws["beta"])
+```
+:::
+
+# End of script.

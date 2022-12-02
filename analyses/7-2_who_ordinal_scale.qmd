@@ -424,7 +424,7 @@ p1 <- ggplot(pdat2, aes(Country, n)) +
       x = "Country of enrolment")
 p2 <- ggplot(pdat, aes(Country, p)) +
   geom_col(aes(fill = who)) +
-  labs(x = "Anticoagulation intervention", y = "Cumulative\nproportion") +
+  labs(x = "Country", y = "Cumulative\nproportion") +
   scale_fill_viridis_d("WHO scale", option = "A", direction = -1) +
   guides(fill = guide_legend(reverse = F)) +
   theme(legend.key.size = unit(0.5, "lines"))
@@ -473,7 +473,7 @@ p1 <- ggplot(pdat2, aes(Site, n)) +
 p2 <- ggplot(pdat, aes(Site, p)) +
   facet_grid( ~ Country, scales = "free_x", space = "free_x") +
   geom_col(aes(fill = who)) +
-  labs(x = "Anticoagulation intervention", y = "Cumulative\nproportion") +
+  labs(x = "Study site", y = "Cumulative\nproportion") +
   scale_fill_viridis_d("WHO scale", option = "A", direction = -1) +
   guides(fill = guide_legend(reverse = F, ncol = 1)) +
   theme(axis.text.x = element_text(hjust = 1, angle = 45)) +

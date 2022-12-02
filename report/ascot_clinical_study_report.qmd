@@ -2728,9 +2728,43 @@ The SAP specifies that descriptive summaries are to be reported for the antivira
 
 #### Viral Clearance
 
+The SAP specified that viral clearance was to be summarised at days 3 and 7.
+However, most participants did not have any PCR tests recorded during their hospital stay (@tbl-viral-clearance-patient), and those that did had inconsistent timing of the tests (@tbl-viral-clearance-daily).
+
+```{r}
+#| label: tbl-viral-clearance-patient
+#| tbl-cap: |
+#|   Descriptive summary of participant PCR testing.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-viral-clearance.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-viral-clearance-daily
+#| tbl-cap: |
+#|   Descriptive summary of daily PCR testing, study days 1 to 7.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "daily-viral-clearance.tex"))
+writeLines(tab)
+```
+
 \clearpage
 
 #### Viral Load
+
+The SAP specified a descriptive summary of viral load to days 3 and 7, and change in viral load from baseline.
+Very few participants (24 of 156) had baseline cycle threshold values recorded so there was little data for looking at change in viral load from baseline.
+Additionally, most participants had no cycle threshold values reported their hospital stay.
+
+```{r}
+#| label: tbl-viral-load-patient
+#| tbl-cap: |
+#|   Descriptive summary of participant cycle threshold values.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-viral-load.tex"))
+writeLines(tab)
+```
 
 \clearpage
 
@@ -3186,6 +3220,50 @@ knitr::include_graphics(
 
 \clearpage
 
+### Modified Medical Research Council (mMRC) breathlessness scale at day 28 (FAS-ITT)
+
+```{r}
+#| label: fig-7-7-age
+#| fig-cap: |
+#|   Distrubtion of Modified Medical Research Council breathlessness scale (mMRCbs)  at day 28
+#|   by age groups.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-7-age.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-7-country
+#| fig-cap: |
+#|   Distrubtion of Modified Medical Research Council breathlessness scale (mMRCbs) at day 28
+#|   by country of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-7-country.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-7-country-site
+#| fig-cap: |
+#|   Distrubtion of Modified Medical Research Council breathlessness scale (mMRCbs) at day 28
+#|   by country and site of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-7-country-site.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-7-calendar-time
+#| fig-cap: |
+#|   Distrubtion of Modified Medical Research Council breathlessness scale (mMRCbs) at day 28
+#|   by calendar time (month) of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-7-calendar-time.pdf"
+)
+```
+
+\clearpage
+
 ## Primary Model Posterior Predictive Summaries
 
 ### Primary Outcome
@@ -3220,16 +3298,16 @@ knitr::include_graphics(pth)
 
 ### Mortality to day 28
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-3-primary-model-acs-itt-ppc -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior predictive distribution for mortality to day 28  -->
-<!-- #|   by model covariates for primary model using ACS-ITT. -->
-<!-- #|   Red diamond indicates observed proportions. -->
-<!-- pth <- file.path("..", "outputs", "figures", "outcomes", "secondary", -->
-<!--                  "7-3-primary-model-acs-itt-ppc.pdf") -->
-<!-- knitr::include_graphics(pth) -->
-<!-- ``` -->
+```{r}
+#| label: fig-7-3-primary-model-fas-itt-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution for mortality to day 28
+#|   by model covariates for primary model using FAS-ITT.
+#|   Red diamond indicates observed proportions.
+pth <- file.path("..", "outputs", "figures", "outcomes", "secondary",
+                 "7-3-primary-model-fas-itt-ppc.pdf")
+knitr::include_graphics(pth)
+```
 
 \clearpage
 

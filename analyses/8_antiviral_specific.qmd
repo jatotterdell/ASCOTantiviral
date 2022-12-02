@@ -58,41 +58,83 @@ Will only provide descriptive summaries of available data.
 Check how many participants had any tests done:
 
 ```{r}
-all_daily_data |> 
+vc_table <- all_daily_data |> 
   filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |> 
   select(StudyPatientID, DD_StudyDay, AAssignment, DD_RespiratoryPCR_TestDone) |>
-  group_by(StudyPatientID, AAssignment) |>
+  group_by(StudyPatientID, AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
   summarise(
     any_tests = any(DD_RespiratoryPCR_TestDone == "Yes"),
     num_tests = sum(DD_RespiratoryPCR_TestDone == "Yes", na.rm = TRUE)) |>
   group_by(AAssignment) |>
   summarise(
-    Randomised = n(),
-    `Any tests` = sum(any_tests),
-    Proportion = mean(any_tests),
-    `Total tests` = sum(num_tests),
-    `Mean number of tests` = mean(num_tests),
-    `Max number of tests` = max(num_tests)
-  )
+    Assigned = sprintf("%i", n()),
+    `Any tests` = sprintf("%i", sum(any_tests)),
+    Proportion = sprintf("%.2f", mean(any_tests)),
+    `Total tests` = sprintf("%i", sum(num_tests)),
+    `Mean number of tests` = sprintf("%.2f", mean(num_tests)),
+    `Max number of tests` = sprintf("%i", max(num_tests))
+  ) |>
+  pivot_longer(2:7, names_to = "Variable") |>
+  pivot_wider(names_from = AAssignment, values_from = value)
+
+vc_table |> 
+  kable("html", digits = 2, align = "lrr") |>
+  kable_styling("striped", font_size = 12)
+
+vc_table |> 
+  kable("latex", digits = 2, booktabs = TRUE, align = "lrr", linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  save_tex_table("outcomes/domain/patient-viral-clearance")
 ```
 
 Check how many participants had a test done on each study day:
 
 ```{r}
-all_daily_data |> 
+vc_table <- all_daily_data |> 
   filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |> 
   select(StudyPatientID, DD_StudyDay, AAssignment, DD_RespiratoryPCR_TestDone, DD_RespiratorySampleResult) |>
-  group_by(DD_StudyDay) |>
+  group_by(DD_StudyDay, AAssignment) |>
   summarise(
-    n = n(),
-    tests = sum(DD_RespiratoryPCR_TestDone == "Yes"),
-    prop_test = tests / n,
-    positive = sum(DD_RespiratorySampleResult == "Positive", na.rm = TRUE),
-    negative = sum(DD_RespiratorySampleResult == "Negative", na.rm = TRUE),
-    prop_positive = positive / tests
-  ) |> 
-  kable("html", digits = 2) |>
-  kable_styling("striped", font_size = 12)
+    Patients = sprintf("%i", n()),
+    `Tests` = sprintf("%i (%.0f)", 
+                          sum(DD_RespiratoryPCR_TestDone == "Yes"), 
+                          100 * sum(DD_RespiratoryPCR_TestDone == "Yes") / n()),
+    `Positive` = sprintf("%i (%.0f)", 
+                       sum(DD_RespiratorySampleResult == "Positive", na.rm = TRUE), 
+                       100 * sum(DD_RespiratorySampleResult == "Positive", na.rm = TRUE) / sum(DD_RespiratoryPCR_TestDone == "Yes")),
+    `Negative` = sprintf("%i (%.0f)", 
+                       sum(DD_RespiratorySampleResult == "Negative", na.rm = TRUE), 
+                       100 * sum(DD_RespiratorySampleResult == "Negative", na.rm = TRUE) / sum(DD_RespiratoryPCR_TestDone == "Yes")),
+    `Indeterminate` = sprintf("%i (%.0f)", 
+                       sum(DD_RespiratorySampleResult == "Indeterminate", na.rm = TRUE), 
+                       100 * sum(DD_RespiratorySampleResult == "Indeterminate", na.rm = TRUE) / sum(DD_RespiratoryPCR_TestDone == "Yes")),
+  )  |>
+  ungroup() |>
+  pivot_wider(names_from = AAssignment, values_from = Patients:Indeterminate) |>
+  select(DD_StudyDay, ends_with("A1"), ends_with("A2")) |>
+  filter(DD_StudyDay < 8)
+colnames(vc_table) <- gsub("_A[1-2]", "", colnames(vc_table))
+colnames(vc_table)[1] <- "Day"
+
+vc_table |>  
+  kable(
+    "latex", 
+    digits = 2,
+    align = "r",
+    linesep = "",
+    booktabs = TRUE) |>
+  kable_styling(latex_options = "HOLD_position", font_size = 8) |>
+  add_header_above(c(" " = 1, "Standard of care" = 5, "Nafamostat" = 5)) |>
+  save_tex_table(fn = "outcomes/domain/daily-viral-clearance")
+
+vc_table |>  
+  kable(
+    "html", 
+    digits = 2,
+    align = "r"
+  ) |>
+  kable_styling("striped", font_size = 11) |>
+  add_header_above(c(" " = 1, "Standard of care" = 5, "Nafamostat" = 5))
 ```
 
 Check sequence of test results across participants (note `NA` means no test done):
@@ -131,22 +173,32 @@ all_data |>
 ```
 
 ```{r}
-all_daily_data |> 
+vl_table <- all_daily_data |> 
   filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |> 
   select(StudyPatientID, DD_StudyDay, AAssignment, DD_CycleThreshold) |>
-  group_by(StudyPatientID, AAssignment) |>
+  group_by(StudyPatientID, AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
   summarise(
     any_tests = any(!is.na(DD_CycleThreshold)),
     num_tests = sum(!is.na(DD_CycleThreshold))
   ) |>
   group_by(AAssignment) |>
   summarise(
-    Randomised = n(),
-    `Any values` = sum(any_tests),
-    Proportion = mean(any_tests),
-    `Total values` = sum(num_tests),
-    `Max number of values` = max(num_tests)
-  )
+    Assigned = sprintf("%i", n()),
+    `Any Ct values` = sprintf("%i (%.0f)", sum(any_tests), 100 * sum(any_tests) / n()),
+    `Total Ct values` = sprintf("%i", sum(num_tests)),
+    `Max number of Ct values` = sprintf("%i", max(num_tests))
+  ) |>
+  pivot_longer(2:5, names_to = "Variable") |>
+  pivot_wider(names_from = AAssignment, values_from = value)
+
+vl_table |> 
+  kable("html", digits = 2, align = "lrr") |>
+  kable_styling("striped", font_size = 12)
+
+vl_table |> 
+  kable("latex", digits = 2, booktabs = TRUE, align = "lrr", linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  save_tex_table("outcomes/domain/patient-viral-load")
 ```
 
 ```{r}

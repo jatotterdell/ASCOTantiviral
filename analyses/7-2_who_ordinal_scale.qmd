@@ -585,8 +585,7 @@ res <- fit_primary_model(
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
-save(res, file.path("outputs", "models", "secondary", "7-2-who", "primary-fas-itt.rds"))
+names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
@@ -746,7 +745,7 @@ res <- fit_primary_model(
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
@@ -823,13 +822,13 @@ res <- fit_primary_model(
   avs_itt_nona_dat,
   ordmod0,
   outcome = "D28_who",
-  vars = c("agegte60", "supp_oxy2"),
-  beta_sd_var = c(2.5, 2.5),
+  vars = c("agegte60", "sexF", "supp_oxy2"),
+  beta_sd_var = c(2.5, 2.5, 2.5),
   intercept = FALSE
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Age \u2265 60", "Oxygen requirement")
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Oxygen requirement")
 ```
 
 ```{r}

@@ -237,7 +237,7 @@ Check participant summaries:
 tt <- all_daily_data |> 
   filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
   select(StudyPatientID, DD_StudyDay, AAssignment, DD_Potassium) |>
-  group_by(StudyPatientID, AAssignment) |>
+  group_by(StudyPatientID, AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
   summarise(
     days = n(),
     any_tests = any(!is.na(DD_Potassium)),
@@ -245,17 +245,29 @@ tt <- all_daily_data |>
     any_gt55 = as.numeric(any(DD_Potassium > 5.5, na.rm = TRUE)),
     n_gt55 = sum(DD_Potassium > 5.5, na.rm = TRUE)
   )
-tt |> group_by(AAssignment) |>
+sp_table <- tt |> 
+  group_by(AAssignment) |>
   summarise(
-    participants = n(),
-    n_any_tests = sum(any_tests),
-    n_any_gt55 = sum(any_gt55),
-    days = sum(days),
-    tests = sum(tests),
-    days_gt55 = sum(n_gt55)
+    Assigned = n(),
+    `Any tests` = sum(any_tests),
+    `Any > 5.5 mmol/L` = sum(any_gt55),
+    `Total days` = sum(days),
+    `Total tests` = sum(tests),
+    `Total > 5.5 mmol/L` = sum(n_gt55)
   ) |>
+  pivot_longer(2:7, names_to = "Variable") |>
+  pivot_wider(names_from = AAssignment, values_from = value)
   kable("html", digits = 2) |>
   kable_styling("striped", font_size = 12)
+  
+sp_table |> 
+  kable("html", digits = 2, align = "lrr") |>
+  kable_styling("striped", font_size = 12)
+
+sp_table |> 
+  kable("latex", digits = 2, booktabs = TRUE, align = "lrr", linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  save_tex_table("outcomes/domain/patient-serum-potassium")
 ```
 
 Check daily potassium tests:
@@ -263,29 +275,47 @@ Check daily potassium tests:
 ```{r}
 #| label: tbl-daily-potassium
 #| tbl-cap: Summary of daily potassium levels.
-all_daily_data |> 
+sp_table <- all_daily_data |> 
   filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
   select(StudyPatientID, DD_StudyDay, AAssignment, DD_Potassium) |>
   group_by(AAssignment, DD_StudyDay) |>
   summarise(
     n = n(),
-    tests = sum(!is.na(DD_Potassium)),
-    proportion = tests / n,
+    tests = sprintf("%i (%0.f)", sum(!is.na(DD_Potassium)), 100 *  sum(!is.na(DD_Potassium)) / n),
     mean = mean(DD_Potassium, na.rm = TRUE),
-    gt55 = sprintf("%i (%.2f)", sum(DD_Potassium > 5.5, na.rm = TRUE), sum(DD_Potassium > 5.5, na.rm = TRUE) / tests),
+    gt55 = sprintf("%i (%.0f)", 
+                   sum(DD_Potassium > 5.5, na.rm = TRUE), 
+                   100 * sum(DD_Potassium > 5.5, na.rm = TRUE) / sum(!is.na(DD_Potassium))),
   ) |>
   ungroup() |>
   pivot_wider(names_from = AAssignment, values_from = n:gt55) |>
-  select(DD_StudyDay, ends_with("A1"), ends_with("A2")) |>
+  select(DD_StudyDay, ends_with("A1"), ends_with("A2"))
+
+clab <- c("Study Day", rep(c("Patients", "Tested\n(\\% of patients)", "Mean", "> 5.5\n(\\% of tests)"), times = 2))
+
+sp_table |>  
+  kable(
+    "latex", 
+    digits = 2,
+    align = "r",
+    booktabs = TRUE,
+    col.names = linebreak(clab, align = "c"),
+    escape = FALSE) |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  add_header_above(c(" " = 1, "Standard of care" = 4, "Nafamostat" = 4)) |>
+  save_tex_table(fn = "outcomes/domain/daily-serum-potassium")
+
+sp_table |>  
   kable(
     "html", 
     digits = 2,
-    col.names = c("Study Day", rep(c("n", "tests", "proportion", "mean", "> 5.5"), times = 2))) |>
+    align = "r",
+    col.names = c("Study Day", rep(c("Patients", "Tested (%)", "Mean", "> 5.5 (%)"), times = 2))) |>
   kable_styling("striped", font_size = 11) |>
-  add_header_above(c(" " = 1, "A1" = 5, "A2" = 5))
+  add_header_above(c(" " = 1, "Standard of care" = 4, "Nafamostat" = 4))
 ```
 
-### Elevation of serum sodium
+### Decrease of serum sodium
 
 Decrease of serum sodium to less than 125 mmol/L will be represented as a binary indicator variable.
 
@@ -320,7 +350,7 @@ Check participant summaries:
 tt <- all_daily_data |> 
   filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
   select(StudyPatientID, DD_StudyDay, AAssignment, DD_Sodium) |>
-  group_by(StudyPatientID, AAssignment) |>
+  group_by(StudyPatientID, AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
   summarise(
     days = n(),
     any_tests = any(!is.na(DD_Sodium)),
@@ -328,44 +358,71 @@ tt <- all_daily_data |>
     any_lt125 = as.numeric(any(DD_Sodium < 125, na.rm = TRUE)),
     n_lt125 = sum(DD_Sodium < 125, na.rm = TRUE)
   )
-tt |> group_by(AAssignment) |>
+ss_table <- tt |> 
+  group_by(AAssignment) |>
   summarise(
-    participants = n(),
-    n_any_tests = sum(any_tests),
-    n_any_lt125 = sum(any_lt125),
-    days = sum(days),
-    tests = sum(tests),
-    days_lt125 = sum(n_lt125)
+    Assigned = n(),
+    `Any tests` = sum(any_tests),
+    `Any < 125 mmol/L` = sum(any_lt125),
+    `Total days` = sum(days),
+    `Total tests` = sum(tests),
+    `Total < 125 mmol/L` = sum(n_lt125)
   ) |>
-  kable("html", digits = 2) |>
+  pivot_longer(2:7, names_to = "Variable") |>
+  pivot_wider(names_from = AAssignment, values_from = value)
+
+ss_table |> 
+  kable("html", digits = 2, align = "lrr") |>
   kable_styling("striped", font_size = 12)
+
+ss_table |> 
+  kable("latex", digits = 2, booktabs = TRUE, align = "lrr", linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  save_tex_table("outcomes/domain/patient-serum-sodium")
 ```
 
 Check daily sodium tests:
 
 ```{r}
 #| label: tbl-daily-sodium
-#| tbl-cap: Summary of daily sodium levels.
-all_daily_data |> 
+#| tbl-cap: Summary of daily sodium levels (mmol/L).
+ss_table <- all_daily_data |> 
   filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
   select(StudyPatientID, DD_StudyDay, AAssignment, DD_Sodium) |>
   group_by(AAssignment, DD_StudyDay) |>
   summarise(
     n = n(),
-    tests = sum(!is.na(DD_Sodium)),
-    proportion = tests / n,
+    tests = sprintf("%i (%.0f)", sum(!is.na(DD_Sodium)), 100 * sum(!is.na(DD_Sodium)) / n),
     mean = mean(DD_Sodium, na.rm = TRUE),
-    lt125 = sprintf("%i (%.2f)", sum(DD_Sodium < 125, na.rm = TRUE), sum(DD_Sodium < 125, na.rm = TRUE) / tests),
+    lt125 = sprintf("%i (%.0f)", 
+                    sum(DD_Sodium < 125, na.rm = TRUE), 
+                    100 * sum(DD_Sodium < 125, na.rm = TRUE) / sum(!is.na(DD_Sodium))),
   ) |>
   ungroup() |>
   pivot_wider(names_from = AAssignment, values_from = n:lt125) |>
-  select(DD_StudyDay, ends_with("A1"), ends_with("A2")) |>
+  select(DD_StudyDay, ends_with("A1"), ends_with("A2"))
+
+clab <- c("Study Day", rep(c("Patients", "Tested\n(\\% of patients)", "Mean", "< 125\n(\\% of tests)"), times = 2))
+
+ss_table |>  
+  kable(
+    "latex", 
+    digits = 2,
+    align = "r",
+    booktabs = TRUE, escape = FALSE,
+    col.names = linebreak(clab, linebreaker = "\n", align = "c")) |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  add_header_above(c(" " = 1, "Standard of care" = 4, "Nafamostat" = 4)) |>
+  save_tex_table(fn = "outcomes/domain/daily-serum-sodium")
+
+ss_table |>  
   kable(
     "html", 
     digits = 2,
-    col.names = c("Study Day", rep(c("n", "tests", "proportion", "mean", "< 125"), times = 2))) |>
+    align = "r",
+    col.names = clab) |>
   kable_styling("striped", font_size = 11) |>
-  add_header_above(c(" " = 1, "A1" = 5, "A2" = 5))
+  add_header_above(c(" " = 1, "Standard of care" = 4, "Nafamostat" = 4))
 ```
 
 ### Major Bleeding per ISTH
@@ -373,3 +430,175 @@ all_daily_data |>
 The relevant fields are:
 
 - `DD_AE_C_MajorBleedingISTH`
+- `D28_AECMajorBleeding`
+
+```{r}
+all_data |>
+  filter_avs_itt() |>
+  group_by(AAssignment) |>
+  summarise(
+    Patients = n(),
+    `Day 28 major bleeding` = sum(D28_AECMajorBleeding == "Yes")
+  )
+
+dd <- all_daily_data |>
+  filter_avs_itt() |>
+  group_by(StudyPatientID, AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
+  summarise(
+    days = n(),
+    any_major_bleeding = any(DD_AE_C_MajorBleedingISTH == "Yes"),
+    major_bleeding = sum(DD_AE_C_MajorBleedingISTH == "Yes")
+  )
+mb_table <- dd |>
+  group_by(AAssignment) |>
+  summarise(
+    Assigned = n(),
+    `Total days in hospital` = sum(days),
+    `Any major bleeding (patient)` = sum(any_major_bleeding),
+    `Total major bleeding (days)` = sum(major_bleeding)
+  ) |>
+  pivot_longer(names_to = "Variable", 2:5) |>
+  pivot_wider(names_from = AAssignment, values_from = value)
+
+mb_table |> 
+  kable("html", digits = 2, align = "lrr") |>
+  kable_styling("striped", font_size = 12)
+
+mb_table |> 
+  kable("latex", digits = 2, booktabs = TRUE, align = "lrr", linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  save_tex_table("outcomes/domain/patient-major-bleeding")
+```
+
+### Clinically Relevant non-major bleeding
+
+The relevant fields are:
+
+- `D28_ABNonMajorBleeding` (appears missing if not randomised to anticoagulation)
+- `DIS_NonMajorBleeding` (appears missing for many participants)
+
+```{r}
+all_data |>
+  filter_avs_itt() |>
+  count(AAssignment, CAssignment, DIS_NonMajorBleeding) |>
+  spread(CAssignment, n)
+
+all_data |>
+  filter_avs_itt() |>
+  count(AAssignment, CAssignment, D28_ABNonMajorBleeding) |>
+  spread(CAssignment, n)
+
+all_data |>
+  count(AAssignment, D28_ABNonMajorBleeding, DIS_NonMajorBleeding) |>
+  spread(DIS_NonMajorBleeding, n)
+
+all_data |>
+  count(CAssignment, D28_ABNonMajorBleeding, DIS_NonMajorBleeding) |>
+  spread(DIS_NonMajorBleeding, n)
+
+all_data |>
+  filter(AAssignment != "A0", CAssignment != "C0") |>
+  count(D28_ABNonMajorBleeding, DIS_NonMajorBleeding) |>
+  spread(D28_ABNonMajorBleeding, n, fill = 0) |>
+  kable() |>
+  kable_styling() |>
+  add_header_above(c(" " = 1, "D28_ABNonMajorBleeding" = 4))
+```
+
+```{r}
+nmb_dat <- all_data |>
+  filter_avs_itt() |>
+  mutate(
+    mb = case_when(
+      D28_ABNonMajorBleeding == "Yes" ~ 1,
+      DIS_NonMajorBleeding == "Yes" ~ 1,
+      DIS_NonMajorBleeding == "No" & D28_ABNonMajorBleeding == "No" ~ 0,
+      TRUE ~ NA_real_
+    )
+  ) |>
+  group_by(AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
+  summarise(
+    Assigned = n(),
+    Missing = sum(is.na(mb)),
+    `Any non-major bleeding` = sum(mb, na.rm = TRUE)
+  ) |>
+  pivot_longer(names_to = "Variable", 2:4) |>
+  pivot_wider(names_from = AAssignment, values_from = value)
+
+nmb_dat |> 
+  kable("html", digits = 2, align = "lrr") |>
+  kable_styling("striped", font_size = 12)
+
+nmb_dat |> 
+  kable("latex", digits = 2, booktabs = TRUE, align = "lrr", linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  save_tex_table("outcomes/domain/patient-non-major-bleeding")
+```
+
+```{r}
+nmb_dat <- all_data |>
+  filter_fas_itt() |>
+  group_by(
+    Antiviral = factor(AAssignment, labels = intervention_labels2()$AAssignment),
+    Anticoagulation = factor(CAssignment, labels = intervention_labels2()$CAssignment)) |>
+  summarise(
+    Assigned = n(),
+    Missing = sum(is.na(D28_ABNonMajorBleeding)),
+    `Day 28 non-major bleeding` = sum(D28_ABNonMajorBleeding == "Yes", na.rm = TRUE)
+  )
+
+nmb_dat |> 
+  kable("html", digits = 2, align = "lrr") |>
+  kable_styling("striped", font_size = 12)
+
+nmb_dat |> 
+  kable("latex", digits = 2, booktabs = TRUE, align = "lrr", linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  save_tex_table("outcomes/domain/patient-non-major-bleeding")
+```
+
+
+### Thrombo
+
+Relevant fields are:
+
+- `DIS_ThrombophlebitisIVLine`
+
+```{r}
+thromb_table <- all_data |>
+  filter_avs_itt() |>
+  group_by(AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
+  summarise(
+    Assigned = sprintf("%i", n()),
+    `Thrombophlebitis/vasculitis at IV line site (%)` = 
+      sprintf("%i (%.0f)", 
+              sum(DIS_ThrombophlebitisIVLine == "Yes"),
+              100 * sum(DIS_ThrombophlebitisIVLine == "Yes") / n()
+      )
+  ) |>
+  pivot_longer(names_to = "Variable", 2:3) |>
+  pivot_wider(names_from = AAssignment, values_from = value)
+
+thromb_table |> 
+  kable("html", digits = 2, align = "lrr") |>
+  kable_styling("striped", font_size = 12)
+
+thromb_table |> 
+  kable("latex", digits = 2, booktabs = TRUE, align = "lrr", linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  save_tex_table("outcomes/domain/patient-thrombo")
+```
+
+### Anticoagulation
+
+The SAP specifies that some of the outcomes should be stratiied by the anticoagulation treatment received.
+Relevant fields are:
+
+- `CAssignment`
+- `DIS_AntiCoagTreatment`
+
+```{r}
+all_data |>
+  filter_avs_itt() |>
+  count(CAssignment, DIS_AntiCoagTreatment)
+```

@@ -937,7 +937,7 @@ tidy(avs_itt_mle, conf.int = TRUE, exponentiate = TRUE) |>
 res <- fit_primary_model(fas_itt_nona_dat, logistic_site_epoch, ctr = contr.equalprior)
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
@@ -1075,7 +1075,7 @@ p
 res <- fit_primary_model(fas_itt_nona_dat, logistic_site_epoch, ctr = contr.treatment)
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
@@ -1103,11 +1103,11 @@ res <- fit_primary_model(
   fas_itt_nona_dat, 
   logistic_site_epoch, 
   ctr = contr.equalprior_deviations, 
-  beta_sd_int = 10, beta_sd_trt = 10, beta_sd_var = rep(10, 5)
+  beta_sd_int = 10, beta_sd_trt = 10, beta_sd_var = rep(10, 6)
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
@@ -1136,7 +1136,7 @@ p
 res <- fit_primary_model(acs_itt_nona_dat, logistic_site_epoch, ctr = contr.equalprior)
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
@@ -1198,7 +1198,7 @@ p
 res <- fit_primary_model(acs_itt_nona_dat, logistic_site_epoch, ctr = contr.treatment)
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
@@ -1226,11 +1226,11 @@ res <- fit_primary_model(
   fas_itt_nona_dat, 
   logistic_site_epoch, 
   ctr = contr.equalprior_deviations, 
-  beta_sd_int = 10, beta_sd_trt = 10, beta_sd_var = rep(10, 5)
+  beta_sd_int = 10, beta_sd_trt = 10, beta_sd_var = rep(10, 6)
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
@@ -1303,12 +1303,12 @@ However, again with no region, epoch or site specific terms.
 res <- fit_primary_model(
   avs_itt_nona_dat,
   logistic_mod,
-  vars = c("agegte60", "supp_oxy2"),
-  beta_sd_var = c(2.5, 2.5)
+  vars = c("agegte60", "sexF", "supp_oxy2"),
+  beta_sd_var = c(2.5, 2.5, 2.5)
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR)[-1] <- c("Age \u2265 60", "Oxygen requirement")
+names(res$drws$OR)[-1] <- c("Age \u2265 60", "Female", "Oxygen requirement")
 ```
 
 ```{r}
@@ -1356,13 +1356,13 @@ p
 res <- fit_primary_model(
   avs_itt_nona_dat,
   logistic_mod,
-  vars = c("agegte60", "supp_oxy2"),
+  vars = c("agegte60", "sexF", "supp_oxy2"),
   ctr = contr.treatment,
-  beta_sd_var = c(2.5, 2.5),
+  beta_sd_var = c(2.5, 2.5, 2.5),
   includeC = FALSE
 )
 names(res$drws$AOR) <- "Nafamostat"
-names(res$drws$OR)[-1] <- c("Age \u2265 60", "Oxygen requirement")
+names(res$drws$OR)[-1] <- c("Age \u2265 60", "Female", "Oxygen requirement")
 ```
 
 ```{r}
@@ -1377,14 +1377,14 @@ odds_ratio_summary_table(c(res$drws$AOR, res$drws$OR[-1]))
 res <- fit_primary_model(
   avs_itt_nona_dat,
   logistic_mod,
-  vars = c("agegte60", "supp_oxy2"),
+  vars = c("agegte60", "sexF", "supp_oxy2"),
   beta_sd_int = 10,
   beta_sd_trt = 10,
-  beta_sd_var = c(10, 10),
+  beta_sd_var = c(10, 10, 10),
   includeC = FALSE
 )
 names(res$drws$AOR) <- "Nafamostat"
-names(res$drws$OR)[-1] <- c("Age \u2265 60", "Oxygen requirement")
+names(res$drws$OR)[-1] <- c("Age \u2265 60", "Female", "Oxygen requirement")
 ```
 
 ```{r}
@@ -1392,3 +1392,7 @@ names(res$drws$OR)[-1] <- c("Age \u2265 60", "Oxygen requirement")
 #| tbl-cap: Posterior summaries for model parameters, AVS-ITT.
 odds_ratio_summary_table(c(res$drws$AOR, res$drws$OR[-1]))
 ```
+
+## FAS-PP
+
+Here the primary model is fit to the FAS-PP where per-protocol participants were identified as pre the provided listings.

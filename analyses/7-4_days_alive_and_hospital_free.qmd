@@ -613,7 +613,7 @@ res <- fit_primary_model(
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
@@ -753,7 +753,7 @@ g2
 
 ```{r}
 #| label: fit-model-acs-itt
-#| code-summary: Fit primary model
+#| code-summary: Fit primary model - ACS-ITT
 res <- fit_primary_model(
   acs_itt_nona_dat,
   ordmod,
@@ -762,7 +762,7 @@ res <- fit_primary_model(
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
@@ -788,41 +788,19 @@ p
 ## AVS-ITT
 
 ```{r}
-#| label: fig-dafh-dist-anticoagulation-avs-itt
-#| code-summary: DAFH by intervention
-#| fig-cap: |
-#|   Distribution of days alive and free of hospital by anti-coagulation intervention.
-#| fig-height: 4
-pdat <- avs_itt_nona_dat %>%
-  dplyr::count(
-    CAssignment = factor(CAssignment, labels = str_replace(intervention_labels()$CAssignment, "<br>", "\n")),
-    dafh = ordered(out_dafh, levels = 0:27), 
-    .drop = F) %>%
-  group_by(CAssignment) %>%
-  mutate(p = n / sum(n)) %>%
-  mutate(cp = cumsum(p)) %>%
-  ungroup()
-p <- ggplot(pdat, aes(CAssignment, p)) +
-  geom_col(aes(fill = fct_rev(dafh))) +
-  labs(x = "Anticoagulation intervention", y = "Cumulative proportion") +
-  scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
-  guides(fill = guide_legend(reverse = TRUE)) +
-  theme(legend.key.size = unit(0.75, "lines"))
-p
-```
-
-```{r}
+#| label: fit-model-avs-itt
+#| code-summary: Fit primary model - AVS-ITT
 res <- fit_primary_model(
   avs_itt_nona_dat,
   ordmod0,
   outcome = "out_dafh",
-  vars = c("agegte60", "supp_oxy2"),
-  beta_sd_var = c(2.5, 2.5),
+  vars = c("agegte60", "sexF", "supp_oxy2"),
+  beta_sd_var = c(2.5, 2.5, 2.5),
   intercept = FALSE
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Age \u2265 60", "Oxygen requirement")
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Oxygen requirement")
 ```
 
 ```{r}

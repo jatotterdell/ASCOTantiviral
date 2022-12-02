@@ -610,8 +610,7 @@ The trial decision quantities are reported in @tbl-primary-model-fas-itt-decisio
 ```{r}
 #| label: tbl-primary-model-fas-itt-decision
 #| tbl-cap: |
-#|   Summary of domain decision qauntities (relative to standard dose)
-#|   for primary outcome model fit to the FAS-ITT set.
+#|   Summary of domain decision qauntities for primary outcome model fit to the FAS-ITT set.
 #| results: asis
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-fas-itt-decision-table.tex"))
 writeLines(tab)
@@ -712,18 +711,17 @@ Due to the small number of events, the parameter posteriors will be sensitive to
 In summary, the analysis was based on the following:
 
 - **Model**: logistic regression
-- **Terms**: antiviral intervention
+- **Terms**: antiviral intervention, anticoagulation intervention, age group, sex, oxygen requirement
 - **Set**: AVS-ITT
 
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-model-avs-itt-decision -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of domain decision qauntities (relative to standard dose) -->
-<!-- #|   for primary outcome model fit to the AVS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-avs-itt-decision-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-primary-model-avs-itt-decision
+#| tbl-cap: |
+#|   Summary of domain decision qauntities for primary outcome model fit to the AVS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-avs-itt-decision-table.tex"))
+writeLines(tab)
+```
 
 ```{r}
 #| label: tbl-primary-model-avs-itt-summary
@@ -731,7 +729,7 @@ In summary, the analysis was based on the following:
 #|   Summary of model parameters (fixed-effects odds-ratios)
 #|   for primary outcome model fit to the AVS-ITT set.
 #| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-avs-itt-summary-table-trt-only.tex"))
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-avs-itt-summary-table.tex"))
 writeLines(tab)
 ```
 
@@ -740,7 +738,7 @@ writeLines(tab)
 #| fig-cap: |
 #|   Posterior densities for the treatment effect odds ratios, AVS-ITT.
 knitr::include_graphics(
-  "../outputs/figures/outcomes/primary/primary-model-avs-itt-odds-ratio-densities-trt-only.pdf"
+  "../outputs/figures/outcomes/primary/primary-model-avs-itt-odds-ratio-densities.pdf"
 )
 ```
 
@@ -2560,53 +2558,147 @@ The antiviral domain-specific outcomes were:
 - viral load at days 3 and 7
 - safety:
   - elevation of Alanine Transaminase (ALT) or Aspartate Transaminase (AST)
-  - elevation of serum potassium
-  - decrease of serum sodium
+  - elevated of serum potassium (> 5.5 mmol/L)
+  - decrease of serum sodium  (< 125 mmol/L)
   - major bleeding as defined by the International Society on Thrombosis and Haemostasis (ISTH)
   - clinically relevant non-major bleeding (as defined by the ISTH)
   - thrombophlebitis/vasculitis at IV line site
 
 The SAP specifies that descriptive summaries are to be reported for the antiviral specific outcomes.
 
-<!-- ### Anticoagulation Domain -->
+\clearpage
 
-<!-- The anticoagulation domain-specific outcomes are reported in @tbl-8-0-acs-itt-summary. The number of thrombotic and bleeding events were low across all interventions and overall. -->
+#### Viral Clearance
 
-<!-- ```{r} -->
-<!-- #| label: tbl-8-0-acs-itt-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Descriptive summary of anticoagulation-specific outcomes -->
-<!-- #|   (thrombotic and bleeding events). -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "8-0-anticoagulation-specific-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+\clearpage
 
-<!-- The SAP described a formal analysis of the two composite outcomes: any thrombotic event (or death), and any clinical relevant bleeding. Due to the small number of bleeding events this analysis was not undertaken. Similarly, for any thrombotic event or death, due to the majority of the events being due to death, the results were expected to be similar to those for all-cause mortality to day 28. Despite this, the analysis *was* performed for any thrombotic event or death and the results reported below. -->
+#### Viral Load
 
-<!-- ### Any thrombotic event (or death) to day 28 -->
+\clearpage
 
-<!-- ```{r} -->
-<!-- #| label: tbl-8-1-primary-model-acs-itt-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios)  -->
-<!-- #|   for any thrombotic event or death to day 28  -->
-<!-- #|   for primary model fit to the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "8-1-primary-model-acs-itt-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+#### Serum Potassium
 
-<!-- ```{r} -->
-<!-- #| label: fig-8-1-primary-model-acs-itt-site-epoch-parameters -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI)  -->
-<!-- #|   of odds ratio for epoch and site effects for any thrombotic event or death -->
-<!-- #|   to day 28 for the primary model fit to the ACS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/secondary/8-1-primary-model-epoch-site-terms.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+Eight participants had at least one day on which they were tested and had a serum potassium level greater than 5.5 mmol/L, 7 assigned to Nafamostat, and 1 assigned to standard of care.
+Six of the participants only had the one day exceeding 5.5 mmol/L, two had 2 days, and one had 3 days.
+For participants assigned to Nafamostat, all days where serum potassium exceeded 5.5 mmmol/L occurred during the first 8 study days. For the participant assigned to standard of care, the elevated potassium occurred on day 10.
+
+```{r}
+#| label: tbl-serum-potassium-patient
+#| tbl-cap: |
+#|   Descriptive summary of participant serum potassium levels (mmol/L) and testing.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-serum-potassium.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-serum-potassium-daily
+#| tbl-cap: |
+#|   Descriptive summary of daily serum potassium levels (mmol/L) and testing.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "daily-serum-potassium.tex"))
+writeLines(tab)
+```
+
+\clearpage
+
+#### Serum Sodium
+
+One participant had any days on which they were tested and had a serum sodium level less than 125 mmol/L.
+This participant had serum sodium less than 125 mmol/L on two consecutive days (study days 26 and 27).
+They were assigned to standard of care in the antiviral domain.
+
+Most participants had at least one test during their hospital admission (@tbl-serum-sodium-patient).
+A summary of serum sodium testing by study day is presented in @tbl-serum-sodium-daily.
+
+```{r}
+#| label: tbl-serum-sodium-patient
+#| tbl-cap: |
+#|   Descriptive summary of participant serum sodium levels (mmol/L) and testing.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-serum-sodium.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-serum-sodium-daily
+#| tbl-cap: |
+#|   Descriptive summary of daily serum sodium levels (mmol/L) and testing.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "daily-serum-sodium.tex"))
+writeLines(tab)
+```
+
+\clearpage
+
+#### Major bleeding as defined by the International Society on Thrombosis and Haemostasis (ISTH)
+
+One participant randomised to the antiviral domain experienced a major bleeding event.
+Two events were recorded for this participant on study days 5 and 6.
+
+```{r}
+#| label: tbl-major-bleeding-patient
+#| tbl-cap: |
+#|   Descriptive summary of major bleeding (ISTH) events.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-major-bleeding.tex"))
+writeLines(tab)
+```
+
+The SAP specified that this be reported stratified by anticoagulation treatment
+
+\clearpage
+
+####  Clinically relevant non-major bleeding (as defined by the ISTH)
+
+Two participants randomised to the antiviral domain experienced any clinically relevant non-major bleeding to study day 28.
+
+```{r}
+#| label: tbl-non-major-bleeding-patient
+#| tbl-cap: |
+#|   Descriptive summary of clinically relevant non-major bleeding (ISTH) events.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-non-major-bleeding.tex"))
+writeLines(tab)
+```
+
+\clearpage
+
+####  Thrombophlebitis/vasculitis at IV line site
+
+```{r}
+#| label: tbl-thrombo-patient
+#| tbl-cap: |
+#|   Descriptive summary of thrombophlebitis/vasculitis at IV line site events.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-thrombo.tex"))
+writeLines(tab)
+```
+
+\clearpage
+
+## Safety Listings
+
+### SAEs
+
+```{r}
+#| label: tbl-sae-listing
+#| tbl-cap: SAE listing.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "safety", "saes.tex"))
+writeLines(tab)
+```
+
+### SARs
+
+```{r}
+#| label: tbl-sar-listing
+#| tbl-cap: SAR listing.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "safety", "sars.tex"))
+writeLines(tab)
+```
+
 
 \clearpage
 

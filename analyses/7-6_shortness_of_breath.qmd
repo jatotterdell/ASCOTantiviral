@@ -64,38 +64,45 @@ avs_itt_nona_dat <- avs_itt_dat |>
 ```{r}
 #| label: stan-models
 #| code-summary: Load models
-logistic_mod        <- cmdstan_model(file.path("stan", "binary", "logistic.stan"))
-logistic_site_epoch <- cmdstan_model(file.path("stan", "binary", "logistic_site_epoch.stan"))
+logistic_mod <- compile_cmdstanr_mod(
+  file.path("binary", "logistic"), dir = "stan")
+logistic_site_epoch <- compile_cmdstanr_mod(
+  file.path("binary", "logistic_site_epoch"), dir = "stan")
 ```
 
 ```{r}
-make_out_sob_table_A <- function(dat, format = "html") {
+make_summary_table_anticoagulation <- function(dat, format = "html") {
   tab <- dat %>%
-    mutate(AAssignment = factor(
-      AAssignment, 
-      levels = paste0("A", 0:2),
-      labels = intervention_labels()$AAssignment)
-    ) %>%
-    group_by(AAssignment) %>%
+    mutate(CAssignment = factor(
+      CAssignment, 
+      levels = c("C1", "C2", "C3", "C4"),
+      labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " "))) %>%
+    group_by(CAssignment) %>%
     summarise(
-      Randomised = n(),
-      `Outcome missing` = sprintf("%i (%.1f)", sum(is.na(out_sob)), 100 * mean(is.na(out_sob))),
-      `Outcome observed` = sprintf("%i (%.1f)", sum(!is.na(out_sob)), 100 * mean(!is.na(out_sob))),
-      `Died within 28 days` = sprintf("%i (%.1f)", sum(out_sob, na.rm = TRUE), 100 * mean(out_sob, na.rm = TRUE)),
+      Patients = n(),
+      Known = sprintf(
+        "%i (%.1f)", sum(!is.na(out_sob)), 100 * mean(!is.na(out_sob))),
+      Missing = sprintf(
+        "%i (%.1f)", sum(is.na(out_sob)), 100 * mean(is.na(out_sob))),
+      `Shortness of breath day 28` = sprintf(
+        "%i (%.1f)", sum(out_sob, na.rm = TRUE), 100 * mean(out_sob, na.rm = TRUE)),
     ) %>%
     bind_rows(
       dat  %>%
-        group_by(AAssignment = "Overall") %>%
+        group_by(CAssignment = "Overall") %>%
         summarise(
-          Randomised = n(),
-          `Outcome missing` = sprintf("%i (%.1f)", sum(is.na(out_sob)), 100 * mean(is.na(out_sob))),
-          `Outcome observed` = sprintf("%i (%.1f)", sum(!is.na(out_sob)), 100 * mean(!is.na(out_sob))),
-          `Died within 28 days` = sprintf("%i (%.1f)", sum(out_sob, na.rm = TRUE), 100 * mean(out_sob, na.rm = TRUE)),
+          Patients = n(),
+          Known = sprintf(
+            "%i (%.1f)", sum(!is.na(out_sob)), 100 * mean(!is.na(out_sob))),
+          Missing = sprintf(
+            "%i (%.1f)", sum(is.na(out_sob)), 100 * mean(is.na(out_sob))),
+          `Shortness of breath day 28` = sprintf(
+            "%i (%.1f)", sum(out_sob, na.rm = TRUE), 100 * mean(out_sob, na.rm = TRUE)),
       )
     ) %>%
-    mutate(AAssignment = fct_inorder(AAssignment)) %>%
-    gather(key, value, -AAssignment, factor_key = T) %>%
-    spread(AAssignment, value)
+    mutate(CAssignment = fct_inorder(CAssignment)) %>%
+    gather(key, value, -CAssignment, factor_key = T) %>%
+    spread(key, value)
   colnames(tab)[1] <- "n (\\%)"
   if(format == "latex") {
     colnames(tab) <- linebreak(colnames(tab), align = "c", linebreaker = "<br>")
@@ -106,10 +113,57 @@ make_out_sob_table_A <- function(dat, format = "html") {
       escape = FALSE,
       booktabs = TRUE
     ) %>%
-    kable_styling(
-      font_size = 9, 
-      latex_options = "HOLD_position")  
+    kable_styling(font_size = 10, latex_options = "HOLD_position")  %>%
+    row_spec(nrow(tab), bold = TRUE)
 }
+
+
+make_summary_table_antiviral <- function(dat, format = "html") {
+  tab <- dat %>%
+    mutate(AAssignment = factor(
+      AAssignment, 
+      levels = c("A1", "A2"),
+      labels = str_replace(intervention_labels()$AAssignment[-1], "<br>", " "))) %>%
+    group_by(AAssignment) %>%
+    summarise(
+      Patients = n(),
+      Known = sprintf(
+        "%i (%.1f)", sum(!is.na(out_sob)), 100 * mean(!is.na(out_sob))),
+      Missing = sprintf(
+        "%i (%.1f)", sum(is.na(out_sob)), 100 * mean(is.na(out_sob))),
+      `Shortness of breath day 28` = sprintf(
+        "%i (%.1f)", sum(out_sob, na.rm = TRUE), 100 * mean(out_sob, na.rm = TRUE)),
+    ) %>%
+    bind_rows(
+      dat  %>%
+        group_by(AAssignment = "Overall") %>%
+        summarise(
+          Patients = n(),
+          Known = sprintf(
+            "%i (%.1f)", sum(!is.na(out_sob)), 100 * mean(!is.na(out_sob))),
+          Missing = sprintf(
+            "%i (%.1f)", sum(is.na(out_sob)), 100 * mean(is.na(out_sob))),
+          `Shortness of breath day 28` = sprintf(
+            "%i (%.1f)", sum(out_sob, na.rm = TRUE), 100 * mean(out_sob, na.rm = TRUE)),
+      )
+    ) %>%
+    mutate(AAssignment = fct_inorder(AAssignment)) %>%
+    gather(key, value, -AAssignment, factor_key = T) %>%
+    spread(key, value)
+  colnames(tab)[1] <- "n (\\%)"
+  if(format == "latex") {
+    colnames(tab) <- linebreak(colnames(tab), align = "c", linebreaker = "<br>")
+  }
+    kable(tab,
+      format = format,
+      align = "lrrrrr",
+      escape = FALSE,
+      booktabs = TRUE
+    ) %>%
+    kable_styling(font_size = 10, latex_options = "HOLD_position")  %>%
+    row_spec(nrow(tab), bold = TRUE)
+}
+
 
 
 make_out_sob_table_C <- function(dat, format = "html") {
@@ -155,30 +209,183 @@ make_out_sob_table_C <- function(dat, format = "html") {
 }
 ```
 
+# Descriptive
+
 ```{r}
 #| label: tbl-domainC-po
 #| code-summary: Relationship anti-coagulation to outcome
 #| tbl-cap: Primary outcome by anti-coagulation intervention.
-make_out_sob_table_C(
-    acs_itt_nona_dat
-)
-save_tex_table(make_out_sob_table_C(
-      acs_itt_nona_dat,
+save_tex_table(make_summary_table_anticoagulation(
+      acs_itt_dat,
       "latex"), 
       "outcomes/secondary/7-6-anticoagulation-summary")
+make_summary_table_anticoagulation(
+    acs_itt_dat
+)
 ```
 
 ```{r}
 #| label: tbl-domainA-po
 #| code-summary: Relationship anti-viral to outcome
 #| tbl-cap: Primary outcome by anti-viral intervention.
-make_out_sob_table_A(
-     avs_itt_nona_dat
-)
-save_tex_table(make_out_sob_table_A(
-     avs_itt_nona_dat,
+save_tex_table(make_summary_table_antiviral(
+     avs_itt_dat,
       "latex"), 
       "outcomes/secondary/7-6-antiviral-summary")
+make_summary_table_antiviral(
+     avs_itt_dat
+)
+```
+
+## Age
+
+```{r}
+#| label: fig-age-sob
+#| code-summary: Relationship age to shortness of breath
+#| fig-cap: |
+#|   Relationship (logistic regression linear in age) 
+#|   between age at entry and shortness of breath at day 28.
+agedat <- fas_itt_dat %>%
+  dplyr::count(out_sob, AgeAtEntry) %>% 
+  spread(out_sob, n, fill = 0) %>% 
+  mutate(
+    n = `0` + `1` + `<NA>`,
+    p = `1` / (`1` + `0`))
+agemod <- glm(
+  cbind(`1`, `0`) ~ AgeAtEntry, 
+  data = agedat, 
+  family = binomial())
+agedat <- agedat %>%
+  mutate(
+    ypred = predict(agemod, newdata = agedat, type = "response")
+  )
+p1 <- ggplot(agedat, aes(AgeAtEntry, n)) +
+  geom_col(colour = "grey40", fill = "grey40") +
+  geom_vline(xintercept = 60, linetype = 2) +
+  labs(y = "Number of\nparticipants",
+       x = "Age at entry")
+p2 <- ggplot(agedat, aes(AgeAtEntry, p)) +
+    geom_point() +
+    geom_vline(xintercept = 60, linetype = 2) +
+    geom_line(aes(y = ypred)) +
+    labs(y = "Proportion\nshortness of breath\nday 28", x = "Age at entry")
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-6-age.pdf"), p, height = 2, width = 6)
+p
+```
+
+## Country
+
+```{r}
+#| label: fig-country-sob
+#| code-summary: Relationship country to outcome
+#| fig-cap: Shortness of breath by country.
+tdat <- fas_itt_dat %>%
+  dplyr::count(Country = factor(
+    Country, 
+    levels = c("IN", "AU", "NP", "NZ"),
+    labels = c("India", "Australia", "Nepal", "New\nZealand")), out_sob) %>%
+  group_by(Country) %>%
+  spread(out_sob, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0` + `<NA>`,
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  )
+p1 <- ggplot(tdat, aes(Country, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Country of enrolment")
+p2 <- ggplot(tdat, aes(Country, p_1)) +
+  geom_point() +
+    labs(
+      y = "Proportion\nshortness of breath\nday 28", 
+      x = "Country of enrolment")  +
+  ylim(0, NA)
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-6-country.pdf"), p, height = 2, width = 6)
+p
+```
+
+## Site
+
+```{r}
+#| label: fig-site-7-6
+#| code-summary: Relationship site to outcome
+#| fig-cap: Shortness of breath at day 28 by site within country.
+tdat <- all_dat %>%
+  filter_fas_itt() %>%
+  dplyr::count(
+    Country_lab = Country,
+    Site_lab = fct_infreq(Location),
+    Country = factor(PT_CountryName, levels = c("India", "Australia", "Nepal", "New Zealand")),
+    Site = PT_LocationName,
+    out_sob) %>%
+  group_by(Country, Site) %>%
+  spread(out_sob, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0` + `<NA>`,
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  ungroup()
+p1 <- ggplot(tdat, aes(Site_lab, n)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+p2 <- ggplot(tdat, aes(Site_lab, p_1)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_point() +
+    labs(
+      y = "Proportion\nshortness of breath\nday 28", 
+      x = "Site of enrolment") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+p <- p1 / p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-6-country-site.pdf"), p, height = 4, width = 6.25)
+p
+```
+
+## Calendar Time
+
+```{r}
+#| label: fig-cal-po
+#| code-summary: Relationship calendar date to outcome
+#| fig-cap: |
+#|   Relationship between calendar date and the primary outcome.
+caldat <- all_dat %>% 
+  filter_fas_itt() %>%
+  dplyr::count(out_sob, yr = year(RandDate), mth = month(RandDate)) %>% 
+  spread(out_sob, n, fill = 0) %>% 
+  mutate(p = `1` / (`1` + `0`),
+         n = `1` + `0` + `<NA>`)
+p1 <- ggplot(caldat, aes(mth, p)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+    geom_point() +
+    labs(
+      y = "Proportion\nshortness of breath\nday 28", 
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12) +
+  ylim(0, NA)
+p2 <- ggplot(caldat, aes(mth, n)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+    geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12)
+p <- p2 | p1
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-6-calendar-time.pdf"), p, height = 2, width = 6)
+p
 ```
 
 # Analyses
@@ -187,11 +394,10 @@ save_tex_table(make_out_sob_table_A(
 
 ```{r}
 res <- fit_primary_model(fas_itt_nona_dat, logistic_site_epoch, ctr = contr.equalprior, outcome = "out_sob")
-
 res$drws$OR <- res$drws$OR[-1]
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
@@ -248,13 +454,21 @@ mcmc_trace(res$drws["gamma_epoch"])
 ```{r}
 #| label: fit-model-acs-itt
 #| code-summary: Fit primary model
-
 res <- fit_primary_model(acs_itt_nona_dat, logistic_site_epoch, ctr = contr.equalprior, outcome = "out_sob")
-
 res$drws$OR <- res$drws$OR[-1]
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-acs-itt
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects), FAS-ITT.
+save_tex_table(
+  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  "outcomes/secondary/7-6-primary-model-acs-itt-summary-table")
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
 ```
 
 ```{r}
@@ -266,7 +480,7 @@ p <- plot_epoch_site_terms(
   factor(res$dat$region_by_site, 
          labels = c("India", "Australia\nNew Zealand", "Nepal"))
 )
-pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-6-primary-model-epoch-site-terms-fas-itt.pdf")
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-6-primary-model-epoch-site-terms-acs-itt.pdf")
 ggsave(pth, p, width = 6, height = 4.5)
 p
 ```
@@ -275,7 +489,7 @@ p
 #| fig-cap: Posterior densities for treatment comparisons.
 p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
-pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-6-primary-model-fas-itt-odds-ratio-densities.pdf")
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-6-primary-model-acs-itt-odds-ratio-densities.pdf")
 ggsave(pth, p, width = 6, height = 2.5)
 p
 ```
@@ -296,26 +510,21 @@ mcmc_trace(res$drws["gamma_epoch"])
 ```
 :::
 
-```{r}
-#| label: odds-ratio-summary-table-acs-itt
-#| code-summary: Odds ratio summary table
-#| tbl-cap: Posterior summaries for model parameters (fixed-effects), ACS-ITT.
-save_tex_table(
-  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
-  "outcomes/secondary/7-6-primary-model-acs-itt-summary-table")
-odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
-```
-
 ## AVS-ITT
 
 ```{r}
-res <- fit_primary_model(avs_itt_nona_dat, logistic_mod, ctr = contr.equalprior, outcome = "out_sob", vars = c("agegte60", "supp_oxy2"), beta_sd_var = c(2.5, 2.5)
+res <- fit_primary_model(
+  avs_itt_nona_dat, 
+  logistic_mod, 
+  ctr = contr.equalprior,
+  outcome = "out_sob", 
+  vars = c("agegte60", "sexF", "supp_oxy2"), 
+  beta_sd_var = c(2.5, 2.5, 2.5)
 )
-
 res$drws$OR <- res$drws$OR[-1]
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Age \u2265 60", "Oxygen requirement")
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Oxygen requirement")
 ```
 
 ```{r}
@@ -326,6 +535,15 @@ save_tex_table(
   odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
   "outcomes/secondary/7-6-primary-model-avs-itt-summary-table")
 odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+```
+
+```{r}
+#| fig-cap: Posterior densities for treatment comparisons.
+p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-6-primary-model-avs-itt-odds-ratio-densities.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
 ```
 
 :::{.callout-caution collapse="true"}

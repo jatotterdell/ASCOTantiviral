@@ -1,0 +1,76 @@
+---
+title: "Safety Listings"
+description: |
+  Table listings for SAEs and SARs
+author: "James Totterdell"
+date: today
+execute: 
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: pkgs
+#| include: false
+library(tidyverse)
+library(kableExtra)
+library(labelled)
+library(lubridate)
+library(patchwork)
+library(ASCOTr)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+```
+
+```{r}
+saes <- readxl::read_excel(
+  file.path(ASCOT_DATA, "explanation", "ASCOT_ADAPT_ListofSAEs.xlsx")) |>
+  arrange(`Date of SAE onset`)  
+
+saes |>
+  select(
+    -`Patient ID`, 
+    - Site,
+    - `Domains Randomised To:`,
+    -`SAE ID`, 
+    -`Date Logged on Database`, 
+    -`Concurrant Disorder / Medication?`, 
+    - `SAE Category`,
+    -`Notes from Site`) |>
+  mutate(across(where(is.POSIXct), date)) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 10)
+
+saes |>
+  select(-`Patient ID`, -`SAE ID`, -Site, - `Domains Randomised To:`, -`Date Logged on Database`, -`Concurrant Disorder / Medication?`, - `SAE Category`, -`Notes from Site`) |>
+  mutate(across(where(is.POSIXct), date)) |>
+  kable("latex", booktabs = TRUE, align = "l") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 6) |>
+  column_spec(c(1:2, 4:9), width = "1.5cm") |>
+  column_spec(3, width = "0.8cm") |>
+  save_tex_table("outcomes/safety/saes")
+```
+
+```{r}
+sars <- readxl::read_excel(
+  file.path(ASCOT_DATA, "explanation", "ASCOT_ADAPT_ListofSARs.xlsx")) |>
+  arrange(`Date of SAE onset`)  
+
+sars |>
+  select(-`Patient ID`, -`SAE ID`, - `Domains Randomised To`, -`Date Logged on Database`, -`Notes from Site`) |>
+  mutate(across(where(is.POSIXct), date)) |>
+  kable("latex", booktabs = TRUE) |>
+  kable_styling(latex_options = "HOLD_position", font_size = 7)
+
+sars |>
+  select(-`Patient ID`, -`SAE ID`, -Site, - `Domains Randomised To`, -`Date Logged on Database`, -`Concurrant Disorder / Medication?`, - `SAE Category`, -`Notes from Site`) |>
+  mutate(across(where(is.POSIXct), date)) |>
+  kable("latex", booktabs = TRUE, align = "l") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 6) |>
+  column_spec(c(1:2, 4, 6:10), width = "1.5cm") |>
+  column_spec(c(3, 5), width = "0.8cm") |>
+  save_tex_table("outcomes/safety/sars")
+```

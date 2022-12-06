@@ -606,7 +606,7 @@ The primary model was a logistic regression model adjusting for anticoagulation 
 #### FAS-ITT
 
 - **Model**: logistic regression
-- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, site nested within region, and epoch
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, sex, oxygen requirement, region, site nested within region, and epoch
 - **Set**: FAS-ITT
 
 The trial decision quantities are reported in @tbl-primary-model-fas-itt-decision and the model parameter posteriors are summarised in @tbl-primary-model-fas-itt-summary and @fig-primary-model-fas-itt-site-epoch-parameters.
@@ -647,54 +647,6 @@ knitr::include_graphics(
 #|   the primary outcome model fit to the FAS-ITT set.
 knitr::include_graphics(
   "../outputs/figures/outcomes/primary/primary-model-fas-itt-epoch-site-terms.pdf"
-)
-```
-
-\clearpage
-
-#### ACS-ITT
-
-- **Model**: logistic regression
-- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, site nested within region, and epoch
-- **Set**: ACS-ITT
-
-```{r}
-#| label: tbl-primary-model-acs-itt-decision
-#| tbl-cap: |
-#|   Summary of domain decision qauntities (relative to standard dose)
-#|   for primary outcome model fit to the ACS-ITT set.
-#| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-decision-table.tex"))
-writeLines(tab)
-```
-
-```{r}
-#| label: tbl-primary-model-acs-itt-summary
-#| tbl-cap: |
-#|   Summary of model parameters (fixed-effects odds-ratios)
-#|   for primary outcome model fit to the ACS-ITT set.
-#| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-summary-table.tex"))
-writeLines(tab)
-```
-
-```{r}
-#| label: fig-primary-model-acs-itt-site-odds-ratio-densities
-#| fig-cap: |
-#|   Posterior densities for the treatment effect odds ratios, ACS-ITT.
-knitr::include_graphics(
-  "../outputs/figures/outcomes/primary/primary-model-acs-itt-odds-ratio-densities.pdf"
-)
-```
-
-```{r}
-#| label: fig-primary-model-acs-itt-site-epoch-parameters
-#| fig-cap: |
-#|   Posterior Summaries (point - median, block - 75% CrI, line 0.95% CrI)
-#|   of odds ratio for epoch and site effects for
-#|   the primary outcome model fit to the ACS-ITT set.
-knitr::include_graphics(
-  "../outputs/figures/outcomes/primary/primary-model-acs-itt-epoch-site-terms.pdf"
 )
 ```
 
@@ -743,6 +695,54 @@ writeLines(tab)
 #|   Posterior densities for the treatment effect odds ratios, AVS-ITT.
 knitr::include_graphics(
   "../outputs/figures/outcomes/primary/primary-model-avs-itt-odds-ratio-densities.pdf"
+)
+```
+
+\clearpage
+
+#### ACS-ITT
+
+- **Model**: logistic regression
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, sex, oxygen requirement, region, site nested within region, and epoch
+- **Set**: ACS-ITT
+
+```{r}
+#| label: tbl-primary-model-acs-itt-decision
+#| tbl-cap: |
+#|   Summary of domain decision qauntities (relative to standard dose)
+#|   for primary outcome model fit to the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-decision-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-model-acs-itt-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios)
+#|   for primary outcome model fit to the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-primary-model-acs-itt-site-odds-ratio-densities
+#| fig-cap: |
+#|   Posterior densities for the treatment effect odds ratios, ACS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-acs-itt-odds-ratio-densities.pdf"
+)
+```
+
+```{r}
+#| label: fig-primary-model-acs-itt-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line 0.95% CrI)
+#|   of odds ratio for epoch and site effects for
+#|   the primary outcome model fit to the ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-acs-itt-epoch-site-terms.pdf"
 )
 ```
 
@@ -2197,7 +2197,7 @@ writeLines(tab)
 #### FAS-ITT
 
 - **Model**: cumulative logistic (ordinal) regression assuming proportional odds
-- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, site nested within region, and epoch.
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, sex, oxygen requirement, region, site nested within region, and epoch.
 - **Set**: FAS-ITT
 
 The observed distribution of DAFH by domain treatment arm is shown in @fig-7-4-descriptive-anticoagulation and @fig-7-4-descriptive-antiviral.
@@ -2258,7 +2258,7 @@ knitr::include_graphics(
 #### AVS-ITT
 
 - **Model**: cumulative logistic (ordinal) regression assuming proportional odds
-- **Terms**: anticoagulation intervention, antiviral intervention, age group, oxygen requirement
+- **Terms**: anticoagulation intervention, antiviral intervention, age group, sex, oxygen requirement
 - **Set**: AVS-ITT
 
 ```{r}
@@ -2295,7 +2295,7 @@ knitr::include_graphics(
 #### ACS-ITT
 
 - **Model**: cumulative logistic (ordinal) regression assuming proportional odds
-- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, site nested within region, and epoch.
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, sex, oxygen requirement, region, site nested within region, and epoch.
 - **Set**: ACS-ITT
 
 ```{r}
@@ -2369,7 +2369,7 @@ writeLines(tab)
 #### FAS-ITT
 
 - **Model**: cumulative logistic (ordinal) regression assuming proportional odds
-- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, site nested within region, and epoch.
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, sex, oxygen requirement, region, site nested within region, and epoch.
 - **Set**: FAS-ITT
 
 The observed distribution of DAFV by domain treatment arm is shown in @fig-7-5-descriptive-anticoagulation and @fig-7-5-descriptive-antiviral. 
@@ -2428,7 +2428,7 @@ knitr::include_graphics(
 #### AVS-ITT
 
 - **Model**: cumulative logistic (ordinal) regression assuming proportional odds
-- **Terms**: anticoagulation intervention, antiviral intervention, age group, oxygen requirement
+- **Terms**: anticoagulation intervention, antiviral intervention, age group, sex, oxygen requirement
 - **Set**: AVS-ITT
 
 ```{r}
@@ -2465,7 +2465,7 @@ knitr::include_graphics(
 #### ACS-ITT
 
 - **Model**: cumulative logistic (ordinal) regression assuming proportional odds
-- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, oxygen requirement, region, site nested within region, and epoch.
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, sex, oxygen requirement, region, site nested within region, and epoch.
 - **Set**: ACS-ITT
 
 ```{r}
@@ -2640,36 +2640,83 @@ knitr::include_graphics(
 
 The mMRC scale was only asked of participants who responded "yes" to the question of new or worsening breathlessness since COVID. Therefore, the distribution of this outcome scale is conditional on the patient responding that they were experiencing new or worse breathlessness since having COVID. In the following tables "Not asked" refers to participants who responded "no" to the question of breathlessness.
 
-<!-- ```{r} -->
-<!-- #| label: tbl-7-7-mmrc-acs-itt -->
-<!-- #| tbl-cap: | -->
-<!-- #|   mMRC breathlessness scale by anticoagulation intervention (day 28). -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-7_mmrc_scale_descriptive.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-7-7-summary-anticoagulation
+#| tbl-cap: |
+#|   Summary of mMRC scale at day 28 by treatment group, anticoagulation domain, ACS-ITT.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-7-anticoagulation-summary.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-7-7-primary-model-acs-itt-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios) -->
-<!-- #|   for the mMRC scale at day 28 primary model fit to the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", -->
-<!--                            "7-7-primary-model-acs-itt-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-7-7-summary-antiviral
+#| tbl-cap: |
+#|   Summary of mMRC scale at day 28 by treatment group, antiviral domain, AVS-ITT.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-7-antiviral-summary.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-7-primary-model-acs-itt-site-epoch-parameters -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) -->
-<!-- #|   of odds ratio for epoch and site effects on the mMRC scale at day 28 for -->
-<!-- #|   the primary model fit to the ACS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/secondary/7-7-primary-model-epoch-site-terms.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+\clearpage
+
+#### FAS-ITT
+
+- **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, sex, oxygen requirement, region, site nested within region, and epoch.
+- **Set**: FAS-ITT
+
+```{r}
+#| label: fig-7-7-descriptive-anticoagulation
+#| fig-cap: |
+#|   Observed distribution of mMRC breathlessness scale (mMRCbs) at day 28 by treatment group, anticoagulation domain, FAS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-7-anticoagulation.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-7-descriptive-antiviral
+#| fig-cap: |
+#|   Observed distribution of mMRC breathlessness scale (mMRCbs) at day 28 by treatment group, antiviral domain, FAS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-7-antiviral.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-7-primary-model-fas-itt-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios)
+#|   for mMRC breathlessness scale at day 28 outcome model
+#|   fit to the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-7-primary-model-fas-itt-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-7-fas-itt-odds-ratio-densities
+#| fig-cap: |
+#|   Posterior densities for the treatment effect odds ratios, FAS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/7-7-primary-model-fas-itt-odds-ratio-densities.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-7-primary-model-fas-itt-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI)
+#|   of odds ratio for epoch and site effects on mMRC breathlessness scale at
+#|    day 28 for the outcome model fit to the FAS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-7-primary-model-epoch-site-terms-fas-itt.pdf"
+)
+```
+
 
 \clearpage
 
@@ -2768,11 +2815,52 @@ writeLines(tab)
 
 \clearpage
 
+#### Elevation of Alanine Transaminase (ALT) or Aspartate Transaminase (AST)
+
+The SAP specified that elevation of Alanine Transaminase (ALT) or Aspartate Transaminase (AST) to more than 5 times the upper limit of normal will be summarised.
+The collected values were reported on IU/L, therefore a threshold of 150 IU/L was used rather than 5 times  the upper limit of normal.
+The number of participants with any ALT/AST tests reported, and the number with values exceeding 150 IU/L are reported in @tbl-alt-ast-patient.
+
+Daily summaries are reported in @tbl-alt-daily and @tbl-ast-daily.
+
+
+```{r}
+#| label: tbl-alt-ast-patient
+#| tbl-cap: |
+#|   Descriptive summary of participant cycle threshold values.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-alt-ast.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-alt-daily
+#| tbl-cap: |
+#|   Descriptive summary of daily ALT levels (IU/L) and testing.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "daily-alt.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-ast-daily
+#| tbl-cap: |
+#|   Descriptive summary of daily AST levels (IU/L) and testing.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "daily-ast.tex"))
+writeLines(tab)
+```
+
+\clearpage
+
 #### Serum Potassium
 
-Eight participants had at least one day on which they were tested and had a serum potassium level greater than 5.5 mmol/L, 7 assigned to Nafamostat, and 1 assigned to standard of care.
+Eight participants had at least one day on which they were tested and had a serum potassium level greater than 5.5 mmol/L, 7 assigned to Nafamostat, and 1 assigned to standard of care (@tbl-serum-potassium-patient).
 Six of the participants only had the one day exceeding 5.5 mmol/L, two had 2 days, and one had 3 days.
-For participants assigned to Nafamostat, all days where serum potassium exceeded 5.5 mmmol/L occurred during the first 8 study days. For the participant assigned to standard of care, the elevated potassium occurred on day 10.
+For participants assigned to Nafamostat, all days where serum potassium exceeded 5.5 mmmol/L occurred during the first 8 study days. For the participant assigned to standard of care, the elevated potassium occurred on day 10 (@tbl-serum-potassium-daily).
+
+Of the seven participants assigned to Nafamostat, one had no reported SAE/SAR which was for hyperkalaemia.
+For the other six participants details are provided in @tbl-sae-listing-serum-potassium, @tbl-sae-listing, and @tbl-sar-listing.
 
 ```{r}
 #| label: tbl-serum-potassium-patient
@@ -2789,6 +2877,14 @@ writeLines(tab)
 #|   Descriptive summary of daily serum potassium levels (mmol/L) and testing.
 #| results: asis
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "daily-serum-potassium.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-sae-listing-serum-potassium
+#| tbl-cap: Elevated serum potassium SAE notes.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "sae-serum-potassium.tex"))
 writeLines(tab)
 ```
 
@@ -2825,8 +2921,11 @@ writeLines(tab)
 
 #### Major bleeding as defined by the International Society on Thrombosis and Haemostasis (ISTH)
 
-One participant randomised to the antiviral domain experienced a major bleeding event.
+One participant randomised to the antiviral domain experienced a major bleeding event (@tbl-major-bleeding-patient).
 Two events were recorded for this participant on study days 5 and 6.
+This participant was also assigned to the *intermediate-dose* intervention in the anticoagulation domain.
+
+An SAR was recorded for this event (onset date 2021-08-30), details are provided in @tbl-sar-listing-major-bleed and @tbl-sar-listing.
 
 ```{r}
 #| label: tbl-major-bleeding-patient
@@ -2837,26 +2936,46 @@ tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "pat
 writeLines(tab)
 ```
 
-The SAP specified that this be reported stratified by anticoagulation treatment
+```{r}
+#| label: tbl-sar-listing-major-bleed
+#| tbl-cap: Major bleeding SARS notes.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "safety", "sars-major-bleed.tex"))
+writeLines(tab)
+```
 
 \clearpage
 
 ####  Clinically relevant non-major bleeding (as defined by the ISTH)
 
-Two participants randomised to the antiviral domain experienced any clinically relevant non-major bleeding to study day 28.
+Two participants randomised to the antiviral domain had clinically relevant non-major bleeding reported on their day 28 form (@tbl-non-major-bleeding-patient).
+One participant was assigned to Nafamostat and intermediate-dose anticoagulation.
+The other was assigned to standard of care in the antiviral domain and therapeutic-dose anticoagulation.
+
+An SAR was recorded for both of these events, details are provided in @tbl-sar-listing-non-major-bleed and @tbl-sar-listing.
 
 ```{r}
 #| label: tbl-non-major-bleeding-patient
 #| tbl-cap: |
-#|   Descriptive summary of clinically relevant non-major bleeding (ISTH) events.
+#|   Descriptive summary of clinically relevant non-major bleeding (ISTH) events reported at day 28.
 #| results: asis
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-non-major-bleeding.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-sar-listing-non-major-bleed
+#| tbl-cap: Major bleeding SARS notes.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "safety", "sars-non-major-bleed.tex"))
 writeLines(tab)
 ```
 
 \clearpage
 
 ####  Thrombophlebitis/vasculitis at IV line site
+
+Six participants assigned to Nafamostat had reported thrombophlebitis/vasculitis at IV line site (@tbl-thrombo-patient).
 
 ```{r}
 #| label: tbl-thrombo-patient
@@ -2870,6 +2989,8 @@ writeLines(tab)
 \clearpage
 
 ## Safety Listings
+
+Listings of serious adverse events (SAEs) and serious adverse reactions (SARs) for participants randomised to the antiviral domain are included in @tbl-sae-listing and @tbl-sar-listing.
 
 ### SAEs
 
@@ -3373,118 +3494,30 @@ knitr::include_graphics(pth)
 
 \clearpage
 
-<!-- ### Presence of patient reported shortness of breath at day 28 -->
+### Presence of patient reported shortness of breath at day 28
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-6-primary-model-acs-itt-ppc -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior predictive distribution for shortness of breath at day 28  -->
-<!-- #|   by model covariates for primary model using ACS-ITT. -->
-<!-- #|   Red diamond indicates observed proportions. -->
-<!-- pth <- file.path("..", "outputs", "figures", "outcomes", "secondary", -->
-<!--                  "7-6-primary-model-acs-itt-ppc.pdf") -->
-<!-- knitr::include_graphics(pth) -->
-<!-- ``` -->
+```{r}
+#| label: fig-7-6-primary-model-fas-itt-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution for shortness of breath at day 28
+#|   by model covariates for primary model using FAS-ITT.
+#|   Red diamond indicates observed proportions.
+pth <- file.path("..", "outputs", "figures", "outcomes", "secondary",
+                 "7-6-primary-model-fas-itt-ppc.pdf")
+knitr::include_graphics(pth)
+```
 
-<!-- \clearpage -->
+\clearpage
 
-<!-- ### mMRC Breathlessness Scale -->
+### mMRC Breathlessness Scale
 
-<!-- ```{r} -->
-<!-- #| label: fig-7-7-primary-model-acs-itt-ppc -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior predictive distribution for mMRC scale  -->
-<!-- #|   by model covariates for primary model using ACS-ITT. -->
-<!-- #|   Red diamond indicates observed proportions. -->
-<!-- pth <- file.path("..", "outputs", "figures", "outcomes", "secondary", -->
-<!--                  "7-7-primary-model-acs-itt-ppc.pdf") -->
-<!-- knitr::include_graphics(pth) -->
-<!-- ``` -->
-
-
-<!-- ## Baseline Characteristics for Concurrent Sets -->
-
-<!-- ### Demographics -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-baseline-demographics-acs-itt-aspirin -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Baseline demographics for participants included in ACS-ITT-aspirin. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "baseline", "demographics-acs-itt-aspirin.tex")) -->
-<!-- writeLines(tab[-which(grepl("caption", tab))]) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-baseline-demographics-acs-itt-therapeutic -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Baseline demographics for participants included in ACS-ITT-therapeutic -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "baseline", "demographics-acs-itt-therapeutic.tex")) -->
-<!-- writeLines(tab[-which(grepl("caption", tab))]) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-baseline-demographics-acs-itt-rest -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Baseline demographics for participants who were  -->
-<!-- #|   not part of ACS-ITT-aspirin or ACS-ITT-therapeutic. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "baseline", "demographics-acs-itt-rest.tex")) -->
-<!-- writeLines(tab[-which(grepl("caption", tab))]) -->
-<!-- ``` -->
-
-<!-- ### Co-morbidities -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-baseline-comorbidities-acs-itt-aspirin -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Baseline comorbidities for participants included in ACS-ITT-aspirin. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "baseline", "comorbidities-acs-itt-aspirin.tex")) -->
-<!-- writeLines(tab[-which(grepl("caption", tab))]) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-baseline-comorbidities-acs-itt-therapeutic -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Baseline comorbidities for participants included in ACS-ITT-therapeutic -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "baseline", "comorbidities-acs-itt-therapeutic.tex")) -->
-<!-- writeLines(tab[-which(grepl("caption", tab))]) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-baseline-comorbidities-acs-itt-rest -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Baseline comorbidities for participants who were  -->
-<!-- #|   not part of ACS-ITT-aspirin or ACS-ITT-therapeutic. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "baseline", "comorbidities-acs-itt-rest.tex")) -->
-<!-- writeLines(tab[-which(grepl("caption", tab))]) -->
-<!-- ``` -->
-
-<!-- \clearpage -->
-
-<!-- ### Prognostics -->
-
-<!-- ```{r} -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "baseline", "prognostics-acs-itt-aspirin.tex")) -->
-<!-- tab[which(grepl("caption", tab))] <- "\\caption{\\label{tbl-baseline-prognostics-acs-itt-aspirin.}Baseline prognostics for participants included in ACS-ITT-aspirin.}\\\\" -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "baseline", "prognostics-acs-itt-therapeutic.tex")) -->
-<!-- tab[which(grepl("caption", tab))] <- "\\caption{\\label{tbl-baseline-prognostics-acs-itt-therapeutic}Baseline prognostics for participants included in ACS-ITT-therapeutic}\\\\" -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "baseline", "prognostics-acs-itt-rest.tex")) -->
-<!-- tab[which(grepl("caption", tab))] <- "\\caption{\\label{tbl-baseline-prognostics-acs-itt-rest}Baseline prognostics for participants who were not part of ACS-ITT-aspirin or ACS-ITT-therapeutic.}\\\\" -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: fig-7-7-primary-model-fas-itt-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution for mMRC scale
+#|   by model covariates for primary model using FAS-ITT.
+#|   Red diamond indicates observed proportions.
+pth <- file.path("..", "outputs", "figures", "outcomes", "secondary",
+                 "7-7-primary-model-fas-itt-ppc.pdf")
+knitr::include_graphics(pth)
+```

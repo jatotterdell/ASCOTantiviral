@@ -104,7 +104,7 @@ logistic <- compile_cmdstanr_mod(
 make_summary_table_anticoagulation <- function(dat, format = "html") {
   tdat <- dat %>%
   group_by(
-    CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment)) %>%
+    CAssignment = factor(CAssignment, levels = c("C0", "C1", "C2", "C3", "C4"), labels = intervention_labels2()$CAssignment)) %>%
   summarise(
     Patients = n(),
     Known = sum(!is.na(out_mmrc_scale)),
@@ -175,7 +175,7 @@ make_summary_table_anticoagulation <- function(dat, format = "html") {
 make_summary_table_antiviral <- function(dat, format = "html") {
   tdat <- dat %>%
   group_by(
-    AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment)) %>%
+    AAssignment = factor(AAssignment, levels = c("A0", "A1", "A2"), labels = intervention_labels2()$AAssignment)) %>%
   summarise(
     Patients = n(),
     Known = sum(!is.na(out_mmrc_scale)),
@@ -253,9 +253,9 @@ make_summary_table_antiviral <- function(dat, format = "html") {
 #| code-summary: Summary of mMRC outcome by arm
 #| tbl-cap: Summary of mMRC scale at day 28 by treatment group, anticoagulation domain, FAS-ITT.
 save_tex_table(
-  make_summary_table_anticoagulation(fas_itt_dat, "latex"), 
+  make_summary_table_anticoagulation(acs_itt_dat, "latex"), 
   file.path("outcomes", "secondary", "7-7-anticoagulation-summary"))
-make_summary_table_anticoagulation(fas_itt_dat)
+make_summary_table_anticoagulation(acs_itt_dat)
 ```
 
 ```{r}
@@ -281,7 +281,7 @@ p2 <- fas_itt_nona_dat %>%
   geom_col(aes(fill = out_mmrc_scale)) +
   scale_fill_viridis_d(option = "A", direction = -1) +
   guides(fill = guide_legend(reverse = F)) +
-  labs(fill = "mMRC breathlessness scale", y = "Cumulative proportion", x = "Anticoagulation intervention")
+  labs(fill = "mMRCbs", y = "Cumulative proportion", x = "Anticoagulation intervention")
 p <- p1 | p2
 pth <- file.path("outputs", "figures", "outcomes", "secondary")
 ggsave(file.path(pth, "7-7-anticoagulation.pdf"), p2, height = 3, width = 6)
@@ -295,9 +295,9 @@ p2
 #| code-summary: Summary of mMRC outcome by arm
 #| tbl-cap: Summary of mMRC scale at day 28 by treatment group, antiviral domain, FAS-ITT.
 save_tex_table(
-  make_summary_table_antiviral(fas_itt_dat, "latex"), 
+  make_summary_table_antiviral(avs_itt_dat, "latex"), 
   file.path("outcomes", "secondary", "7-7-antiviral-summary"))
-make_summary_table_antiviral(fas_itt_dat)
+make_summary_table_antiviral(avs_itt_dat)
 ```
 
 ```{r}
@@ -323,7 +323,7 @@ p2 <- fas_itt_nona_dat %>%
   geom_col(aes(fill = out_mmrc_scale)) +
   scale_fill_viridis_d(option = "A", direction = -1) +
   guides(fill = guide_legend(reverse = F)) +
-  labs(fill = "mMRC breathlessness scale", y = "Cumulative proportion", x = "Antiviral intervention")
+  labs(fill = "mMRCbs", y = "Cumulative proportion", x = "Antiviral intervention")
 p <- p1 | p2
 pth <- file.path("outputs", "figures", "outcomes", "secondary")
 ggsave(file.path(pth, "7-7-antiviral.pdf"), p2, height = 3, width = 6)
@@ -646,8 +646,10 @@ mcmc_trace(res$drws["gamma_epoch"])
 #| code-summary: Posterior predictive figure
 #| label: fig-fas-itt-ppc
 #| fig-cap: Posterior predictive check, FAS-ITT.
+y_raw <- as.integer(levels(res$dat$y_raw))
 y_ppc <- res$drws$y_ppc
-ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
+y_ppc_raw <- rfun(\(x) y_raw[x])(y_ppc)
+ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc_raw))
 grp_ppc1 <- function(grp) {
   ppc_dat  %>%
   group_by(grp = !!grp) %>%
@@ -672,18 +674,20 @@ grp_ppc2 <- function(grp) {
   ppc_dat  %>%
   group_by(grp = !!grp) %>%
   summarise(
-    y_1 = mean(out_mmrc_scale == 1),
+    y_1 = mean(out_mmrc_scale == 0),
     ypp_1 = rvar_mean(y_ppc == 1),
-    y_2 = mean(out_mmrc_scale == 2),
+    y_2 = mean(out_mmrc_scale == 1),
     ypp_2 = rvar_mean(y_ppc == 2),
-    y_3 = mean(out_mmrc_scale == 3),
+    y_3 = mean(out_mmrc_scale == 2),
     ypp_3 = rvar_mean(y_ppc == 3),
-    y_4 = mean(out_mmrc_scale == 4),
+    y_4 = mean(out_mmrc_scale == 3),
     ypp_4 = rvar_mean(y_ppc == 4),
-    y_5 = mean(out_mmrc_scale == 5),
-    ypp_5 = rvar_mean(y_ppc == 5)
+    y_5 = mean(out_mmrc_scale == 4),
+    ypp_5 = rvar_mean(y_ppc == 5),
+    y_6 = mean(out_mmrc_scale == 5),
+    ypp_6 = rvar_mean(y_ppc == 6)
   ) %>%
-  pivot_longer(y_1:ypp_5, names_to = c("response", "mrc"), 
+  pivot_longer(y_1:ypp_6, names_to = c("response", "mrc"), 
                names_sep = "_", values_to = "posterior") %>%
   mutate(mrc = as.numeric(mrc))
 }

@@ -24,6 +24,14 @@ library(ASCOTr)
 #| label: load-data
 all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
 all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
+
+saes <- readxl::read_excel(
+  file.path(ASCOT_DATA, "explanation", "ASCOT_ADAPT_ListofSAEs.xlsx")) |>
+  arrange(`Date of SAE onset`)  
+
+sars <- readxl::read_excel(
+  file.path(ASCOT_DATA, "explanation", "ASCOT_ADAPT_ListofSARs.xlsx")) |>
+  arrange(`Date of SAE onset`)
 ```
 
 
@@ -231,26 +239,134 @@ Will need advice from the antiviral group.
 tt <- all_daily_data |> 
   filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
   select(StudyPatientID, DD_StudyDay, AAssignment, DD_ALTLabs, DD_ASTLabs) |>
-  group_by(StudyPatientID, AAssignment) |>
+  group_by(StudyPatientID, AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
   summarise(
     days = n(),
     any_alt_tests = any(!is.na(DD_ALTLabs)),
     any_ast_tests = any(!is.na(DD_ASTLabs)),
+    any_alt_gt150 = any(DD_ALTLabs > 150, na.rm = TRUE),
+    any_ast_gt150 = any(DD_ASTLabs > 150, na.rm = TRUE),
     n_alt_tests = sum(!is.na(DD_ALTLabs)),
-    n_ast_tests = sum(!is.na(DD_ASTLabs))
+    n_ast_tests = sum(!is.na(DD_ASTLabs)),
+    n_alt_gt150 = sum(DD_ALTLabs > 150, na.rm = TRUE),
+    n_ast_gt150 = sum(DD_ASTLabs > 150, na.rm = TRUE)
   )
-tt |> group_by(AAssignment) |>
+
+tt_tab <- tt |> 
+  group_by(AAssignment) |>
   summarise(
-    participants = n(),
-    days = sum(days),
-    n_any_alt_tests = sum(any_alt_tests),
-    n_any_ast_tests = sum(any_ast_tests),
-    n_alt_tests = sum(n_alt_tests),
-    n_ast_tests = sum(n_ast_tests)
+    Assigned = sprintf("%i", n()),
+    `Any ALT tests, n (% of assigned)` = sprintf("%i (%.0f)", sum(any_alt_tests), 100 * sum(any_alt_tests) / n()),
+    `Any ALT > 150, n (% of tested)` = sprintf("%i (%.0f)", sum(any_alt_gt150), 100 * sum(any_alt_gt150) / sum(any_alt_tests)),
+    `Any AST tests, n (% of assigned)` = sprintf("%i (%.0f)", sum(any_ast_tests), 100 * sum(any_ast_tests) / n()),
+    `Any AST > 150, n (% of tested)` = sprintf("%i (%.0f)", sum(any_ast_gt150), 100 * sum(any_ast_gt150) / sum(any_ast_tests)),
+    `Total days` = sprintf("%i", sum(days)),
+    `Total days ALT tested, n (% of days)` = sprintf("%i (%.0f)", sum(n_alt_tests), 100 * sum(n_alt_tests) / sum(days)),
+    `Total days ALT > 150, n (% of tests)` = sprintf("%i (%.0f)", sum(n_alt_gt150), 100 * sum(n_alt_gt150) / sum(n_alt_tests)),
+    `Total days AST tested, n (% of days)` = sprintf("%i (%.0f)", sum(n_ast_tests), 100 * sum(n_ast_tests) / sum(days)),
+    `Total days AST > 150, n (% of tests)` = sprintf("%i (%.0f)", sum(n_ast_gt150), 100 * sum(n_ast_gt150) / sum(n_ast_tests))
   ) |>
-  kable("html", digits = 2) |>
+  pivot_longer(2:11, names_to = "Variable") |>
+  pivot_wider(names_from = AAssignment, values_from = value)
+
+tt_tab |>
+  kable("html", digits = 2, align = "lrr") |>
   kable_styling("striped", font_size = 12)
+
+tt_tab |>
+  kable("latex", booktabs = TRUE, digits = 2, align = "lrr") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  save_tex_table("outcomes/domain/patient-alt-ast")
 ```
+
+Check daily tests:
+
+```{r}
+#| label: tbl-daily-alt
+#| tbl-cap: Summary of daily ALT levels.
+alt_table <- all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
+  select(StudyPatientID, DD_StudyDay, AAssignment, DD_ALTLabs, DD_ASTLabs) |>
+  group_by(AAssignment, DD_StudyDay) |>
+  summarise(
+    n = n(),
+    alt_tests = sprintf("%i (%0.f)", sum(!is.na(DD_ALTLabs)), 100 *  sum(!is.na(DD_ALTLabs)) / n),
+    alt_median = sprintf("%.0f", median(DD_ALTLabs, na.rm = TRUE)),
+    alt_gt150_tests = sprintf(
+      "%i (%0.f)", 
+      sum(DD_ALTLabs > 150, na.rm = TRUE), 
+      100 * sum(DD_ALTLabs > 150, na.rm = TRUE) / sum(!is.na(DD_ALTLabs)))
+  ) |>
+  ungroup() |>
+  pivot_wider(names_from = AAssignment, values_from = n:alt_gt150_tests) |>
+  select(DD_StudyDay, ends_with("A1"), ends_with("A2"))
+clab <- c("Study Day", rep(c("Patients", "Tested\n(\\% of patients)", "Median", "> 150 IU/L\n(\\% of tests)"), times = 2))
+
+alt_table |>  
+  kable(
+    "latex", 
+    digits = 2,
+    align = "r",
+    booktabs = TRUE,
+    col.names = linebreak(clab, align = "c"),
+    escape = FALSE) |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  add_header_above(c(" " = 1, "Standard of care" = 4, "Nafamostat" = 4)) |>
+  save_tex_table(fn = "outcomes/domain/daily-alt")
+
+alt_table |>  
+  kable(
+    "html", 
+    digits = 2,
+    align = "r",
+    col.names = clab) |>
+  kable_styling("striped", font_size = 11) |>
+  add_header_above(c(" " = 1, "Standard of care" = 4, "Nafamostat" = 4))
+```
+
+```{r}
+#| label: tbl-daily-ast
+#| tbl-cap: Summary of daily AST levels.
+ast_table <- all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
+  select(StudyPatientID, DD_StudyDay, AAssignment, DD_ASTLabs) |>
+  group_by(AAssignment, DD_StudyDay) |>
+  summarise(
+    n = n(),
+    ast_tests = sprintf("%i (%0.f)", sum(!is.na(DD_ASTLabs)), 100 *  sum(!is.na(DD_ASTLabs)) / n),
+    ast_median = sprintf("%.0f", median(DD_ASTLabs, na.rm = TRUE)),
+    ast_gt150_tests = sprintf(
+      "%i (%0.f)", 
+      sum(DD_ASTLabs > 150, na.rm = TRUE), 
+      100 * sum(DD_ASTLabs > 150, na.rm = TRUE) / sum(!is.na(DD_ASTLabs)))
+  ) |>
+  ungroup() |>
+  pivot_wider(names_from = AAssignment, values_from = n:ast_gt150_tests) |>
+  select(DD_StudyDay, ends_with("A1"), ends_with("A2"))
+clab <- c("Study Day", rep(c("Patients", "Tested\n(\\% of patients)", "Median", "> 150 IU/L\n(\\% of tests)"), times = 2))
+
+ast_table |>  
+  kable(
+    "latex", 
+    digits = 2,
+    align = "r",
+    booktabs = TRUE,
+    col.names = linebreak(clab, align = "c"),
+    escape = FALSE) |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  add_header_above(c(" " = 1, "Standard of care" = 4, "Nafamostat" = 4)) |>
+  save_tex_table(fn = "outcomes/domain/daily-ast")
+
+ast_table |>  
+  kable(
+    "html", 
+    digits = 2,
+    align = "r",
+    col.names = clab) |>
+  kable_styling("striped", font_size = 11) |>
+  add_header_above(c(" " = 1, "Standard of care" = 4, "Nafamostat" = 4))
+```
+
 
 ### Elevation of serum potassium
 
@@ -365,6 +481,42 @@ sp_table |>
     col.names = c("Study Day", rep(c("Patients", "Tested (%)", "Mean", "> 5.5 (%)"), times = 2))) |>
   kable_styling("striped", font_size = 11) |>
   add_header_above(c(" " = 1, "Standard of care" = 4, "Nafamostat" = 4))
+```
+
+Check SARS/SAES
+
+```{r}
+events <- bind_rows(
+  saes |> select(`Patient ID`, `Date of SAE onset`, `SAE Term`, `Notes from Site`) |> mutate(Type = "SAR"),
+  sars |> select(`Patient ID`, `Date of SAE onset`, `SAE Term`, `Notes from Site`) |> mutate(Type = "SAE")
+) |>
+  rename(`Onset date` = `Date of SAE onset`) |>
+  mutate(`Onset date` = as.Date(`Onset date`)) |>
+  select(`Patient ID`, `Onset date`, `SAE Term`, Type, `Notes from Site`)
+tt |> 
+  filter(any_gt55 == 1) |>
+  select(StudyPatientID, Antiviral = AAssignment) |>
+  left_join(
+    events |> filter(grepl("hyper", tolower(`SAE Term`))), by = c("StudyPatientID" = "Patient ID")
+  ) |>
+  mutate(
+    across(where(is.character), ~replace_na(.x, ""))
+  ) |>
+  rename(ID = StudyPatientID) |>
+  kable(
+    "latex",
+    booktabs = TRUE,
+    align = "l",
+    linesep = ""
+  ) |>
+  kable_styling(
+    latex_options = "HOLD_position",
+    font_size = 5.5
+  ) |>
+  column_spec(1:4, width = "1cm") |>
+  column_spec(5, width = "0.5cm") |>
+  column_spec(6, width = "6cm") |>
+  save_tex_table("outcomes/domain/sae-serum-potassium")
 ```
 
 ### Decrease of serum sodium
@@ -495,7 +647,10 @@ all_data |>
 
 dd <- all_daily_data |>
   filter_avs_itt() |>
-  group_by(StudyPatientID, AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
+  group_by(
+    StudyPatientID, 
+    AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])
+  ) |>
   summarise(
     days = n(),
     any_major_bleeding = any(DD_AE_C_MajorBleedingISTH == "Yes"),
@@ -520,6 +675,28 @@ mb_table |>
   kable("latex", digits = 2, booktabs = TRUE, align = "lrr", linesep = "") |>
   kable_styling(latex_options = "HOLD_position", font_size = 9) |>
   save_tex_table("outcomes/domain/patient-major-bleeding")
+```
+
+A SAR was recorded in correspondence with this major bleeding event.
+
+```{r}
+sars <- readxl::read_excel(
+  file.path(ASCOT_DATA, "explanation", "ASCOT_ADAPT_ListofSARs.xlsx")) |>
+  arrange(`Date of SAE onset`)
+sars |> 
+  filter(`Patient ID` == "WES00039") |>
+  select(`Patient ID`, `Date of SAE onset`, `Notes from Site`) |>
+  mutate(`Onset Date` = as.Date(`Date of SAE onset`)) |>
+  select(`Patient ID`, `Onset Date`, `Notes from Site`) |>
+  kable(
+    "latex",
+    booktabs = TRUE, 
+    align = "l"
+  ) |>
+  kable_styling(latex_options = "HOLD_position", font_size = 5.5) |>
+  column_spec(1:2, width = "1cm") |>
+  column_spec(3, width = "9cm") |>
+  save_tex_table("outcomes/safety/sars-major-bleed")
 ```
 
 ### Clinically Relevant non-major bleeding
@@ -571,8 +748,8 @@ nmb_dat <- all_data |>
   group_by(AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
   summarise(
     Assigned = n(),
-    Missing = sum(is.na(mb)),
-    `Any non-major bleeding` = sum(mb, na.rm = TRUE)
+    Missing = sum(is.na(D28_ABNonMajorBleeding)),
+    `Any non-major bleeding` = sum(D28_ABNonMajorBleeding == "Yes", na.rm = TRUE)
   ) |>
   pivot_longer(names_to = "Variable", 2:4) |>
   pivot_wider(names_from = AAssignment, values_from = value)
@@ -588,6 +765,35 @@ nmb_dat |>
 ```
 
 ```{r}
+all_data |>
+  filter_avs_itt() |>
+  select(StudyPatientID, AAssignment, CAssignment, D28_ABNonMajorBleeding, DIS_NonMajorBleeding) |>
+  filter(D28_ABNonMajorBleeding == "Yes" | DIS_NonMajorBleeding == "Yes") |>
+  left_join(
+    sars |> select(`Patient ID`, `Notes from Site`), by = c("StudyPatientID" = "Patient ID")
+  )
+```
+
+A SAR was recorded in correspondence with the two non-major bleeding events reported on the day 28 form.
+
+```{r}
+sars |> 
+  filter(`Patient ID` %in% c("MID00009", "RPH00005")) |>
+  select(`Patient ID`, `Date of SAE onset`, `Notes from Site`) |>
+  mutate(`Onset Date` = as.Date(`Date of SAE onset`)) |>
+  select(`Patient ID`, `Onset Date`, `Notes from Site`) |>
+  kable(
+    "latex",
+    booktabs = TRUE, 
+    align = "l"
+  ) |>
+  kable_styling(latex_options = "HOLD_position", font_size = 5.5) |>
+  column_spec(1:2, width = "1cm") |>
+  column_spec(3, width = "9cm") |>
+  save_tex_table("outcomes/safety/sars-non-major-bleed")
+```
+
+```{r}
 nmb_dat <- all_data |>
   filter_fas_itt() |>
   group_by(
@@ -598,15 +804,6 @@ nmb_dat <- all_data |>
     Missing = sum(is.na(D28_ABNonMajorBleeding)),
     `Day 28 non-major bleeding` = sum(D28_ABNonMajorBleeding == "Yes", na.rm = TRUE)
   )
-
-nmb_dat |> 
-  kable("html", digits = 2, align = "lrr") |>
-  kable_styling("striped", font_size = 12)
-
-nmb_dat |> 
-  kable("latex", digits = 2, booktabs = TRUE, align = "lrr", linesep = "") |>
-  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
-  save_tex_table("outcomes/domain/patient-non-major-bleeding")
 ```
 
 

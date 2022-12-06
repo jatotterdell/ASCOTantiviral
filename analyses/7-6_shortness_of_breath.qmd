@@ -449,6 +449,62 @@ mcmc_trace(res$drws["gamma_epoch"])
 ```
 :::
 
+#### Posterior Predictive Checks
+
+```{r}
+#| label: primary-fas-itt-ppc
+y_ppc <- res$drws$y_ppc
+ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
+
+grp_ppc <- function(grp) {
+  ppc_dat %>%
+    group_by(grp = !!grp) %>%
+    summarise(
+      mean_y = mean(out_sob),
+      rvar_mean_y_ppc = rvar_mean(y_ppc)
+    )
+}
+
+plot_grp_ppc <- function(dat, lab = "") {
+  dat %>%
+    ggplot(aes(y = grp, xdist = rvar_mean_y_ppc)) +
+    stat_interval(size = 2) +
+    geom_point(aes(x = mean_y, y = 1:nrow(dat)), colour = "red", shape = 23) +
+    labs(
+      x = "Posterior predictive\nproportion", 
+      y = lab)  
+}
+
+ppc_A <- grp_ppc(sym("AAssignment"))
+ppc_C <- grp_ppc(sym("CAssignment"))
+ppc_ctry <- grp_ppc(sym("Country"))
+ppc_epoch <- grp_ppc(sym("epoch"))
+ppc_site <- ppc_dat %>%
+  group_by(Country = Country, grp = site) %>%
+  summarise(
+    mean_y = mean(out_sob),
+    rvar_mean_y_ppc = rvar_mean(y_ppc)
+  )
+
+p0 <- plot_grp_ppc(ppc_A, "Anti-\nviral") + labs(x = "")
+p1 <- plot_grp_ppc(ppc_C, "Anti-\ncoagulation") + labs(x = "")
+p2 <- plot_grp_ppc(ppc_ctry, "Country") + labs(x = "")
+p3 <- plot_grp_ppc(ppc_epoch, "Epoch") + labs(x = "")
+p4 <- plot_grp_ppc(ppc_site %>% filter(Country == "IN"), "Sites\nIndia")  + labs(x = "")
+p5 <- plot_grp_ppc(ppc_site %>% filter(Country == "AU"), "Sites\nAustralia") + labs(x = "")
+p6 <- plot_grp_ppc(ppc_site %>% filter(Country == "NP"), "Sites\nNepal")
+p7 <- plot_grp_ppc(ppc_site %>% filter(Country == "NZ"), "Sites\nNZ")
+p <- ((p3 | (p0 | p1) / p2) / 
+        ( (p4 | p5) / (p6 | p7) + 
+            plot_layout(heights = c(3, 1)) ) ) +
+  plot_layout(heights = c(1, 1.5), guides = "collect") &
+  theme(legend.position = "bottom")
+pth <- file.path("outputs", "figures", "outcomes", "secondary",
+                 "7-6-primary-model-fas-itt-ppc.pdf")
+ggsave(pth, p, width = 6, height = 5.5)
+p
+```
+
 ## ACS-ITT
 
 ```{r}

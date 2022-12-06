@@ -28,7 +28,8 @@ theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
 ```{r}
 saes <- readxl::read_excel(
   file.path(ASCOT_DATA, "explanation", "ASCOT_ADAPT_ListofSAEs.xlsx")) |>
-  arrange(`Date of SAE onset`)  
+  arrange(`Date of SAE onset`) |>
+  rename(`Onset date` = `Date of SAE onset`, `Resolution date` = `Date of Resolution`)
 
 saes |>
   select(
@@ -45,32 +46,42 @@ saes |>
   kable_styling("striped", font_size = 10)
 
 saes |>
-  select(-`Patient ID`, -`SAE ID`, -Site, - `Domains Randomised To:`, -`Date Logged on Database`, -`Concurrant Disorder / Medication?`, - `SAE Category`, -`Notes from Site`) |>
+  select(-`SAE ID`, -Site, - `Domains Randomised To:`, -`Date Logged on Database`, -`Concurrant Disorder / Medication?`, - `SAE Category`, -`Notes from Site`) |>
   mutate(across(where(is.POSIXct), date)) |>
   kable("latex", booktabs = TRUE, align = "l") |>
-  kable_styling(latex_options = "HOLD_position", font_size = 6) |>
-  column_spec(c(1:2, 4:9), width = "1.5cm") |>
-  column_spec(3, width = "0.8cm") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 5) |>
+  column_spec(c(1:2, 6:7), width = "0.9cm") |>
+  column_spec(c(3, 5, 8:10), width = "1.5cm") |>
+  column_spec(4, width = "0.8cm") |>
   save_tex_table("outcomes/safety/saes")
 ```
 
 ```{r}
 sars <- readxl::read_excel(
   file.path(ASCOT_DATA, "explanation", "ASCOT_ADAPT_ListofSARs.xlsx")) |>
-  arrange(`Date of SAE onset`)  
+  arrange(`Date of SAE onset`) |>
+  rename(`Onset date` = `Date of SAE onset`, `Resolution date` = `Date of Resolution`)
 
 sars |>
-  select(-`Patient ID`, -`SAE ID`, - `Domains Randomised To`, -`Date Logged on Database`, -`Notes from Site`) |>
+  select(-`Patient ID`, -`SAE ID`, - `Domains Randomised To`, -`Date Logged on Database`) |>
   mutate(across(where(is.POSIXct), date)) |>
-  kable("latex", booktabs = TRUE) |>
+  kable("html", booktabs = TRUE) |>
   kable_styling(latex_options = "HOLD_position", font_size = 7)
 
 sars |>
-  select(-`Patient ID`, -`SAE ID`, -Site, - `Domains Randomised To`, -`Date Logged on Database`, -`Concurrant Disorder / Medication?`, - `SAE Category`, -`Notes from Site`) |>
+  select(
+    -`SAE ID`,
+    -Site, 
+    -`Domains Randomised To`, 
+    -`Date Logged on Database`, 
+    -`Concurrant Disorder / Medication?`, 
+    -`SAE Category`,
+    -`Notes from Site`) |>
   mutate(across(where(is.POSIXct), date)) |>
   kable("latex", booktabs = TRUE, align = "l") |>
-  kable_styling(latex_options = "HOLD_position", font_size = 6) |>
-  column_spec(c(1:2, 4, 6:10), width = "1.5cm") |>
-  column_spec(c(3, 5), width = "0.8cm") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 5) |>
+  column_spec(c(1:2, 5, 7:8, 11), width = "0.9cm") |>
+  column_spec(c(3, 9:10), width = "1.25cm") |>
+  column_spec(c(4, 6), width = "0.6cm") |>
   save_tex_table("outcomes/safety/sars")
 ```

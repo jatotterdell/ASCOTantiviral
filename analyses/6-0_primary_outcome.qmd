@@ -47,6 +47,7 @@ options(digits = 4)
 #| label: analysis-sets
 #| code-summary: Prepare datasets
 all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
 
 # FAS-ITT
 fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data)
@@ -974,7 +975,7 @@ decision_quantity_summary_table(c("SoC" = rvar(1), res$drws$AOR)) |>
 #| fig-cap: Posterior densities for odds ratio contrasts.
 p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
-pth <- file.path("outputs", "figures", "outcomes", "primary", "7-4-primary-model-fas-itt-odds-ratio-densities.pdf")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-fas-itt-odds-ratio-densities.pdf")
 ggsave(pth, p, width = 6, height = 2.5)
 p
 ```
@@ -1023,6 +1024,15 @@ ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
 grp_ppc <- function(grp) {
   ppc_dat %>%
     group_by(grp = !!grp) %>%
+    summarise(
+      mean_y = mean(PO),
+      rvar_mean_y_ppc = rvar_mean(y_ppc)
+    )
+}
+
+grp2_ppc <- function(grp1, grp2) {
+  ppc_dat %>%
+    group_by(grp1 = !!grp1, grp2 = !!grp2) %>%
     summarise(
       mean_y = mean(PO),
       rvar_mean_y_ppc = rvar_mean(y_ppc)
@@ -1098,6 +1108,8 @@ p
 
 ### Diffuse prior
 
+For all fixed model parameters (including treatment differences), assume $\text{Normal}(0, 10^2)$.
+
 ```{r}
 res <- fit_primary_model(
   fas_itt_nona_dat, 
@@ -1118,6 +1130,40 @@ odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
 
 ```{r}
 #| label: odds-ratio-summary-primary-model-fas-itt-epoch-site-terms-diffuse
+p <- plot_epoch_site_terms(
+  res$drws$gamma_epoch, 
+  res$drws$gamma_site,
+  factor(
+    res$dat$region_by_site, 
+    labels = c("India", "Australia\nNew Zealand", "Nepal"))
+)
+p
+```
+
+### Sceptical prior
+
+For treatment differences, assume $\text{Normal}(0, 0.4^2)$
+
+```{r}
+res <- fit_primary_model(
+  fas_itt_nona_dat, 
+  logistic_site_epoch, 
+  ctr = contr.equalprior_pairs, 
+  beta_sd_trt = 0.4
+)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-fas-itt-sceptical
+#| tbl-cap: Posterior summaries for model parameters.
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
+```
+
+```{r}
+#| label: odds-ratio-summary-primary-model-fas-itt-epoch-site-terms-sceptical
 p <- plot_epoch_site_terms(
   res$drws$gamma_epoch, 
   res$drws$gamma_site,

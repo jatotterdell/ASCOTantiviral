@@ -17,7 +17,12 @@ execute:
 #| include: false
 library(tidyverse)
 library(kableExtra)
+library(ggplot2)
 library(ASCOTr)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
 ```
 
 ```{r}
@@ -210,12 +215,66 @@ vl_table |>
 ```
 
 ```{r}
-all_daily_data |> 
+tt <- all_daily_data |> 
   filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0", DD_StudyDay %in% 1:8) |> 
-  select(StudyPatientID, DD_StudyDay, DD_CycleThreshold) |> 
-  pivot_wider(names_from = DD_StudyDay, values_from = DD_CycleThreshold) |> 
-  kable("html", digits = 2) |>
-  kable_styling("striped", font_size = 11)
+  select(StudyPatientID, AAssignment, DD_StudyDay, DD_RespiratoryPCR_TestDone, DD_RespiratorySampleResult, DD_CycleThreshold) |> 
+  group_by(DD_StudyDay, AAssignment) |>
+  summarise(
+    Patients = sprintf("%i", n()),
+    `Tests` = sprintf("%i (%.0f)", 
+                          sum(DD_RespiratoryPCR_TestDone == "Yes"), 
+                          100 * sum(DD_RespiratoryPCR_TestDone == "Yes") / n()),
+    `Positive` = sprintf("%i (%.0f)", 
+                       sum(DD_RespiratorySampleResult == "Positive", na.rm = TRUE), 
+                       100 * sum(DD_RespiratorySampleResult == "Positive", na.rm = TRUE) / sum(DD_RespiratoryPCR_TestDone == "Yes")),
+    `Ct value` = sprintf("%i (%.0f)", 
+                       sum(!is.na(DD_CycleThreshold)), 
+                       100 * sum(!is.na(DD_CycleThreshold)) / sum(DD_RespiratorySampleResult == "Positive", na.rm = TRUE)),
+    `Median Ct value` = sprintf("%.0f", median(as.numeric(DD_CycleThreshold), na.rm = TRUE))
+  ) |>
+  ungroup() |>
+  pivot_wider(names_from = AAssignment, values_from = Patients:`Median Ct value`) |>
+  select(DD_StudyDay, ends_with("A1"), ends_with("A2"))
+
+colnames(tt) <- gsub("_A[1-2]", "", colnames(tt))
+colnames(tt)[1] <- "Day"
+
+tt |>  
+  kable(
+    "latex", 
+    digits = 2,
+    align = "lrrrrrrrrrr",
+    linesep = "",
+    booktabs = TRUE) |>
+  kable_styling(latex_options = "HOLD_position", font_size = 8) |>
+  add_header_above(c(" " = 1, "Standard of care" = 5, "Nafamostat" = 5)) |>
+  save_tex_table(fn = "outcomes/domain/daily-viral-load")
+
+tt |>
+  kable("html", digits = 2, align = "lrrrrrrrrrr") |>
+  kable_styling("striped", font_size = 11) |>
+  add_header_above(c(" " = 1, "Standard of care" = 5, "Nafamostat" = 5))
+```
+
+```{r}
+p <- all_daily_data |>
+  filter_avs_itt() |>
+  filter(!is.na(DD_CycleThreshold), DD_StudyDay < 8) |>
+  select(StudyPatientID, AAssignment, DD_StudyDay, DD_CycleThreshold) |>
+  mutate(DD_CycleThreshold = as.numeric(DD_CycleThreshold),
+         AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
+  ggplot(aes(DD_StudyDay, DD_CycleThreshold)) +
+  facet_wrap( ~ AAssignment) +
+  geom_point() +
+  geom_line(aes(group = StudyPatientID)) +
+  labs(x = "Study day", y = "Cycle threshold value")
+ggsave(
+  file.path("outputs", "figures", "outcomes", "domain", "ct-values.pdf"),
+  p,
+  height = 2,
+  width = 4,
+  dpi = 244
+)
 ```
 
 ### Elevation of Alanine Transaminase (ALT) or Aspartate Transaminase (AST)
@@ -487,8 +546,8 @@ Check SARS/SAES
 
 ```{r}
 events <- bind_rows(
-  saes |> select(`Patient ID`, `Date of SAE onset`, `SAE Term`, `Notes from Site`) |> mutate(Type = "SAR"),
-  sars |> select(`Patient ID`, `Date of SAE onset`, `SAE Term`, `Notes from Site`) |> mutate(Type = "SAE")
+  saes |> select(`Patient ID`, `Date of SAE onset`, `SAE Term`, `Notes from Site`) |> mutate(Type = "SAE"),
+  sars |> select(`Patient ID`, `Date of SAE onset`, `SAE Term`, `Notes from Site`) |> mutate(Type = "SAR")
 ) |>
   rename(`Onset date` = `Date of SAE onset`) |>
   mutate(`Onset date` = as.Date(`Onset date`)) |>
@@ -680,14 +739,10 @@ mb_table |>
 A SAR was recorded in correspondence with this major bleeding event.
 
 ```{r}
-sars <- readxl::read_excel(
-  file.path(ASCOT_DATA, "explanation", "ASCOT_ADAPT_ListofSARs.xlsx")) |>
-  arrange(`Date of SAE onset`)
 sars |> 
   filter(`Patient ID` == "WES00039") |>
-  select(`Patient ID`, `Date of SAE onset`, `Notes from Site`) |>
   mutate(`Onset Date` = as.Date(`Date of SAE onset`)) |>
-  select(`Patient ID`, `Onset Date`, `Notes from Site`) |>
+  select(`Patient ID`, `Date of SAE onset`, `Concurrant Disorder / Medication?`, `Notes from Site`) |>
   kable(
     "latex",
     booktabs = TRUE, 
@@ -695,7 +750,8 @@ sars |>
   ) |>
   kable_styling(latex_options = "HOLD_position", font_size = 5.5) |>
   column_spec(1:2, width = "1cm") |>
-  column_spec(3, width = "9cm") |>
+  column_spec(3, width = "2cm") |>
+  column_spec(4, width = "9cm") |>
   save_tex_table("outcomes/safety/sars-major-bleed")
 ```
 
@@ -741,15 +797,16 @@ nmb_dat <- all_data |>
     mb = case_when(
       D28_ABNonMajorBleeding == "Yes" ~ 1,
       DIS_NonMajorBleeding == "Yes" ~ 1,
-      DIS_NonMajorBleeding == "No" & D28_ABNonMajorBleeding == "No" ~ 0,
+      DIS_NonMajorBleeding == "No" ~ 0, 
+      D28_ABNonMajorBleeding == "No" ~ 0,
       TRUE ~ NA_real_
     )
   ) |>
   group_by(AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
   summarise(
     Assigned = n(),
-    Missing = sum(is.na(D28_ABNonMajorBleeding)),
-    `Any non-major bleeding` = sum(D28_ABNonMajorBleeding == "Yes", na.rm = TRUE)
+    Missing = sum(is.na(mb)),
+    `Any non-major bleeding` = sum(mb, na.rm = TRUE)
   ) |>
   pivot_longer(names_to = "Variable", 2:4) |>
   pivot_wider(names_from = AAssignment, values_from = value)
@@ -779,9 +836,8 @@ A SAR was recorded in correspondence with the two non-major bleeding events repo
 ```{r}
 sars |> 
   filter(`Patient ID` %in% c("MID00009", "RPH00005")) |>
-  select(`Patient ID`, `Date of SAE onset`, `Notes from Site`) |>
   mutate(`Onset Date` = as.Date(`Date of SAE onset`)) |>
-  select(`Patient ID`, `Onset Date`, `Notes from Site`) |>
+  select(`Patient ID`, `Date of SAE onset`, `Concurrant Disorder / Medication?`, `Notes from Site`) |>
   kable(
     "latex",
     booktabs = TRUE, 
@@ -789,7 +845,8 @@ sars |>
   ) |>
   kable_styling(latex_options = "HOLD_position", font_size = 5.5) |>
   column_spec(1:2, width = "1cm") |>
-  column_spec(3, width = "9cm") |>
+  column_spec(3, width = "2cm") |>
+  column_spec(4, width = "9cm") |>
   save_tex_table("outcomes/safety/sars-non-major-bleed")
 ```
 
@@ -806,6 +863,68 @@ nmb_dat <- all_data |>
   )
 ```
 
+### All Bleeding
+
+```{r}
+dd <- all_daily_data |>
+  filter_avs_itt() |>
+  group_by(
+    StudyPatientID, 
+    AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1]),
+    CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment)
+  ) |>
+  summarise(
+    days = n(),
+    dd_mb = as.integer(any(DD_AE_C_MajorBleedingISTH == "Yes")),
+    dd_mb_days = sum(DD_AE_C_MajorBleedingISTH == "Yes")
+  ) |>
+  ungroup()
+d <- all_data |>
+  filter_avs_itt() |>
+  transmute(
+    StudyPatientID,
+    d28_mb = as.integer(D28_AECMajorBleeding == "Yes"),
+    d28_nmb = case_when(
+      DIS_NonMajorBleeding == "Yes" ~ 1,
+      D28_ABNonMajorBleeding == "Yes" ~ 1,
+      DIS_NonMajorBleeding == "No" ~ 0,
+      D28_ABNonMajorBleeding == "No" ~ 0,
+      TRUE ~ NA_real_
+    )
+  )
+ddd <- dd |> left_join(d, by = "StudyPatientID")
+
+ddd |>
+  group_by(AAssignment) |>
+  summarise(
+    Assigned = sprintf("%i", n()),
+    `Major bleeding` = sprintf("%i", sum(dd_mb | d28_mb)),
+    `Non-major bleeding` = sprintf("%i", sum(d28_nmb, na.rm = TRUE)),
+    `Any bleeding` = sprintf("%i", sum(dd_mb | d28_mb | d28_nmb, na.rm = TRUE))
+  ) |>
+  pivot_longer(2:5, names_to = "Variable") |>
+  pivot_wider(names_from = "AAssignment", values_from = value) |> 
+  kable("latex", digits = 2, booktabs = TRUE, align = "lrr", linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  save_tex_table("outcomes/domain/patient-bleeding")
+
+ddd |>
+  filter(dd_mb == 1 | d28_mb == 1 | d28_nmb == 1) |>
+  transmute(
+    ID = StudyPatientID,
+    Antiviral = AAssignment,
+    Anticoagulation = CAssignment,
+    Bleeding = case_when(
+      dd_mb == 1 ~ "Major",
+      d28_mb == 1 ~ "Major",
+      d28_nmb == 1 ~ "Non-major",
+      TRUE ~ NA_character_
+    )
+  ) |> 
+  kable("latex", digits = 2, booktabs = TRUE, align = "l", linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  save_tex_table("outcomes/domain/patient-bleeding-listing")
+```
 
 ### Thrombo
 

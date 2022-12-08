@@ -746,9 +746,22 @@ knitr::include_graphics(
 )
 ```
 
+### Sensitivity Analyses
+
+The SAP outlined a number of sensitivity analyses.
+These are explored below.
+
+#### "Best-case" scenario
+
+#### "Worst-case" scenario
+
+#### Per-Protocol
+
+#### Temporal Variation
+
 \clearpage
 
-<!-- ### Subgroups -->
+### Subgroups
 
 <!-- The pre-specified subgroups where treatment effect heterogeneity was to be investigated were: -->
 
@@ -2040,25 +2053,38 @@ knitr::include_graphics(
 
 This section reports on the analysis of the secondary outcome: all-cause mortality to day 28. For this outcome, participants who died within 28 days were coded to have a value of 1, and those who did not, to have a value of 0. The model is coded so that an odds ratio less than 1 implies a benefit (reduction in odds of death by day 28).
 
+@tbl-7-3-summary-anticoagulation and @tbl-7-3-summary-antiviral presents the number of participants where the outcome was observed by the allocated anticoagulation (for ACS-ITT) arm and antiviral arm (for AVS-ITT) respectively. 
+
+```{r}
+#| label: tbl-7-3-summary-anticoagulation
+#| tbl-cap: |
+#|   Summary of mortality by day 28 by treatment group, ACS-ITT.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-3-anticoagulation-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-7-3-summary-antiviral
+#| tbl-cap: |
+#|   Summary of mortality by day 28 by treatment group, AVS-ITT.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-3-antiviral-summary.tex"))
+writeLines(tab)
+```
+
+\clearpage
+
 #### FAS-ITT
 
 - **Model**: logistic regression
 - **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, sex, oxygen requirement, region, site nested within region, and epoch.
 - **Set**: FAS-ITT
 
-<!-- @tbl-7-3-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The model parameters (odds ratios) are summarised in @tbl-7-3-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-3-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms. -->
+The model parameters (odds ratios) are summarised in @tbl-7-3-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-3-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms.
 
-<!-- The proportion who had died by day 28 was 3.3% (50 / 1530) amongst all randomised participants. Compared with standard dose, the median adjusted odds ratios (95% CrI) from the primary model were: 0.84 (0.41, 1.67) for intermediate dose, 0.82 (0.36, 1.81) for standard dose plus aspirin, and 3.16 (0.95, 10.5) for therapeutic dose. The corresponding posterior probabilities for effectiveness were 0.69, 0.69 and 0.03 respectively.   -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-7-3-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of mortality by day 28 by treatment group, ACS-ITT. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "secondary", "anticoagulation-summary-mortality.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
 
 ```{r}
 #| label: tbl-7-3-primary-model-fas-itt-summary
@@ -2724,32 +2750,32 @@ knitr::include_graphics(
 
 The EQ-5D-5L responses are described.
 
-<!-- ```{r} -->
-<!-- #| label: tbl-7-8-counts -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28). -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_counts.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-7-8-counts
+#| tbl-cap: |
+#|   Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28), AVS-ITT.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_counts.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-7-8-distributions -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Distribution of responses on the EQ-5D-5L (day 28). -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_distribution.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-7-8-distributions
+#| tbl-cap: |
+#|   Distribution of responses on the EQ-5D-5L (day 28), AVS-ITT.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_distribution.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-7-8-vas-descriptive -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Descriptive summary of EQ-5D VAS (day 28). -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d_vas.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-7-8-vas-descriptive
+#| tbl-cap: |
+#|   Descriptive summary of EQ-5D VAS (day 28), AVS-ITT.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d_vas.tex"))
+writeLines(tab)
+```
 
 \clearpage
 
@@ -2811,6 +2837,24 @@ Additionally, most participants had no cycle threshold values reported their hos
 #| results: asis
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-viral-load.tex"))
 writeLines(tab)
+```
+
+```{r}
+#| label: tbl-viral-load-daily
+#| tbl-cap: |
+#|   Descriptive summary of daily Ct values, study days 1 to 7.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "daily-viral-load.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-ct-values
+#| fig-cap: |
+#|   Cycle threshold values days 1 to 7. Line segments join values measured on the same individual.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/domain/ct-values.pdf"
+)
 ```
 
 \clearpage
@@ -2919,7 +2963,9 @@ writeLines(tab)
 
 \clearpage
 
-#### Major bleeding as defined by the International Society on Thrombosis and Haemostasis (ISTH)
+#### Bleeding Events
+
+##### Major bleeding as defined by the International Society on Thrombosis and Haemostasis (ISTH)
 
 One participant randomised to the antiviral domain experienced a major bleeding event (@tbl-major-bleeding-patient).
 Two events were recorded for this participant on study days 5 and 6.
@@ -2938,7 +2984,7 @@ writeLines(tab)
 
 ```{r}
 #| label: tbl-sar-listing-major-bleed
-#| tbl-cap: Major bleeding SARS notes.
+#| tbl-cap: Major bleeding SAEs/SARs notes.
 #| results: asis
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "safety", "sars-major-bleed.tex"))
 writeLines(tab)
@@ -2946,13 +2992,13 @@ writeLines(tab)
 
 \clearpage
 
-####  Clinically relevant non-major bleeding (as defined by the ISTH)
+#####  Clinically relevant non-major bleeding (as defined by the ISTH)
 
 Two participants randomised to the antiviral domain had clinically relevant non-major bleeding reported on their day 28 form (@tbl-non-major-bleeding-patient).
 One participant was assigned to Nafamostat and intermediate-dose anticoagulation.
 The other was assigned to standard of care in the antiviral domain and therapeutic-dose anticoagulation.
 
-An SAR was recorded for both of these events, details are provided in @tbl-sar-listing-non-major-bleed and @tbl-sar-listing.
+An SAR was recorded for two of these events, details are provided in @tbl-sar-listing-non-major-bleed and @tbl-sar-listing.
 
 ```{r}
 #| label: tbl-non-major-bleeding-patient
@@ -2965,9 +3011,32 @@ writeLines(tab)
 
 ```{r}
 #| label: tbl-sar-listing-non-major-bleed
-#| tbl-cap: Major bleeding SARS notes.
+#| tbl-cap: Non-major bleeding SAEs/SARs notes.
 #| results: asis
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "safety", "sars-non-major-bleed.tex"))
+writeLines(tab)
+```
+
+\clearpage
+
+##### Any Bleeding
+
+For reference, all patients with any reported bleeding events are summarised in @tbl-patient-bleeding and @tbl-patient-bleeding-listing.
+
+```{r}
+#| label: tbl-patient-bleeding
+#| tbl-cap: |
+#|   Descriptive summary of bleeding events reported.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-bleeding.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-patient-bleeding-listing
+#| tbl-cap: Line listing of patients who experienced bleeding events.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-bleeding-listing.tex"))
 writeLines(tab)
 ```
 

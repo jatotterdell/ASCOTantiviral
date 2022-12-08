@@ -33,6 +33,7 @@ website:
           - "analyses/7-5_days_alive_ventilation_free.qmd"
           - "analyses/7-6_shortness_of_breath.qmd"
           - "analyses/7-7_breathlessness.qmd"
+          - "analyses/7-8_eq_5d_5l.qmd"
           - "analyses/8_antiviral_specific.qmd"
 
 format:

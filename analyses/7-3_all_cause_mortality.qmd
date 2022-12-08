@@ -159,6 +159,10 @@ make_D28_death_table_C <- function(dat, format = "html") {
 }
 ```
 
+# Descriptive
+
+## Anticoagulation
+
 ```{r}
 #| label: tbl-domainC-po
 #| code-summary: Relationship anti-coagulation to outcome
@@ -167,10 +171,12 @@ make_D28_death_table_C(
     acs_itt_dat
 )
 save_tex_table(make_D28_death_table_C(
-      acs_itt_nona_dat,
+      acs_itt_dat,
       "latex"), 
       "outcomes/secondary/7-3-anticoagulation-summary")
 ```
+
+## Antiviral
 
 ```{r}
 #| label: tbl-domainA-po
@@ -180,12 +186,10 @@ make_D28_death_table_A(
      avs_itt_dat
 )
 save_tex_table(make_D28_death_table_A(
-     avs_itt_nona_dat,
+     avs_itt_dat,
       "latex"), 
       "outcomes/secondary/7-3-antiviral-summary")
 ```
-
-# Descriptive
 
 ## Age
 

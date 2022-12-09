@@ -360,6 +360,40 @@ ggsave(file.path(path, "7-2-age.pdf"), p, height = 2.5, width = 6)
 p
 ```
 
+## Sex
+
+```{r}
+#| label: fig-7-2-sex
+#| fig-cap: |
+#|   Distribution of WHO scale at day 28 by supplemental sex requirement, FAS-ITT
+#| fig-height: 4
+pdat <- all_data %>%
+  filter_fas_itt() %>%
+  filter(!is.na(D28_who)) %>%
+  dplyr::count(
+    Sex,
+    who = ordered(D28_who, levels = 1:8), 
+    .drop = F) %>%
+  group_by(Sex) %>%
+  mutate(p = n / sum(n))
+pdat2 <- pdat %>%
+  group_by(Sex) %>%
+  summarise(n = sum(n))
+p1 <- ggplot(pdat2, aes(Sex, n)) +
+  geom_col(colour = "grey40", fill = "grey40") +
+  labs(y = "Number of\nparticipants")
+p2 <- ggplot(pdat, aes(Sex, p)) +
+  geom_col(aes(fill = who)) +
+  labs(y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("WHO scale", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = F)) +
+  theme(legend.key.size = unit(0.5, "lines"))
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-2-sex.pdf"), p, height = 2.5, width = 6)
+p
+```
+
 ## Oxygen
 
 ```{r}
@@ -371,7 +405,7 @@ pdat <- all_data %>%
   filter_fas_itt() %>%
   filter(!is.na(D28_who)) %>%
   dplyr::count(
-    supp_oxy = fct_explicit_na(factor(supp_oxy, levels = 0:1, labels = c("No", "Yes"))),
+    supp_oxy = fct_explicit_na(factor(supp_oxy2, levels = 0:1, labels = c("Not required", "Required"))),
     who = ordered(D28_who, levels = 1:8), 
     .drop = F) %>%
   group_by(supp_oxy) %>%

@@ -382,6 +382,79 @@ ggsave(file.path(path, "7-5-age.pdf"), p, height = 2.5, width = 6)
 p
 ```
 
+## Sex
+
+```{r}
+#| label: fig-dafv-dist-sex
+#| code-summary: DAFV by sex
+#| fig-cap: |
+#|   Distribution of days alive and free of ventilation by sex.
+#| fig-height: 4
+pdat <- fas_itt_nona_dat %>%
+  dplyr::count(
+    Sex,
+    dafv = ordered(out_dafv, levels = 0:28), 
+    .drop = F) %>%
+  group_by(Sex) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+pdat2 <- pdat %>%
+  group_by(Sex) %>%
+  summarise(n = sum(n))
+p1 <- ggplot(pdat2, aes(Sex, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants")
+p2 <- ggplot(pdat, aes(Sex, p)) +
+  geom_col(aes(fill = fct_rev(dafv))) +
+  labs(x = "Sex", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFV", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.25, "lines"))
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-5-sex.pdf"), p, height = 2.5, width = 6)
+p
+```
+
+## Oxygen
+
+```{r}
+#| label: fig-dafv-dist-oxygen
+#| code-summary: DAFV by oxygen
+#| fig-cap: |
+#|   Distribution of days alive and free of ventilation by oxygen.
+#| fig-height: 4
+pdat <- fas_itt_nona_dat %>%
+  dplyr::count(
+    supp_oxy2 = factor(supp_oxy2, labels = c("Not required", "Required")),
+    dafv = ordered(out_dafv, levels = 0:28), 
+    .drop = F) %>%
+  group_by(supp_oxy2) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+pdat2 <- pdat %>%
+  group_by(supp_oxy2) %>%
+  summarise(n = sum(n))
+p1 <- ggplot(pdat2, aes(supp_oxy2, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Supplemental oxygen")
+p2 <- ggplot(pdat, aes(supp_oxy2, p)) +
+  geom_col(aes(fill = fct_rev(dafv))) +
+  labs(x = "Supplemental oxygen", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFV", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.25, "lines"))
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-5-oxygen.pdf"), p, height = 2.5, width = 6)
+p
+```
+
 ## Country
 
 ```{r}

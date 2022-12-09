@@ -275,6 +275,70 @@ ggsave(file.path(path, "7-6-age.pdf"), p, height = 2, width = 6)
 p
 ```
 
+## Sex
+
+```{r}
+#| label: fig-sex-sob
+#| code-summary: Relationship sex to outcome
+#| fig-cap: Shortness of breath by sex.
+tdat <- fas_itt_dat %>%
+  dplyr::count(Sex, out_sob) %>%
+  group_by(Sex) %>%
+  spread(out_sob, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0` + `<NA>`,
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  )
+p1 <- ggplot(tdat, aes(Sex, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Sex")
+p2 <- ggplot(tdat, aes(Sex, p_1)) +
+  geom_point() +
+    labs(
+      y = "Proportion\nshortness of breath\nday 28", 
+      x = "Sex")  +
+  ylim(0, NA)
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-6-sex.pdf"), p, height = 2, width = 6)
+p
+```
+
+## Oxygen
+
+```{r}
+#| label: fig-oxygen-sob
+#| code-summary: Relationship oxygen to outcome
+#| fig-cap: Shortness of breath by oxygen.
+tdat <- fas_itt_dat %>%
+  dplyr::count(supp_oxy2 = factor(supp_oxy2, labels = c("Not required", "Required")), out_sob) %>%
+  group_by(supp_oxy2) %>%
+  spread(out_sob, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0` + `<NA>`,
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  )
+p1 <- ggplot(tdat, aes(supp_oxy2, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Supplemental oxygen")
+p2 <- ggplot(tdat, aes(supp_oxy2, p_1)) +
+  geom_point() +
+    labs(
+      y = "Proportion\nshortness of breath\nday 28", 
+      x = "Supplemental oxygen")  +
+  ylim(0, NA)
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-6-oxygen.pdf"), p, height = 2, width = 6)
+p
+```
+
 ## Country
 
 ```{r}

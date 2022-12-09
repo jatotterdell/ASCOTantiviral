@@ -512,10 +512,48 @@ p <- tmp_agg %>%
   scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
   scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
   scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
-  labs(x = "Study day", y = "Cumulative proportion", fill = "Status", colour = "Status") +
+  labs(x = "Study day", y = "Cumulative count", fill = "Status", colour = "Status") +
   theme(panel.grid.minor = element_blank())
 path <- file.path("outputs", "figures", "outcomes", "secondary")
 ggsave(file.path(path, "7-1-age.pdf"), p, height = 2, width = 6, device = cairo_pdf)
+p
+```
+
+## Sex
+
+```{r}
+#| label: fig-7-1-sex
+#| fig-cap: |
+#|   Progression to recovery by sex.
+tmp_agg <- fas_itt_outdat %>%
+  complete(Sex, time, fill = list(y = 0)) %>%
+  group_by(Sex, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(Sex) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cy0 = (n[1] - cy1 - cy2),
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup()
+p <- tmp_agg %>% 
+  select(-y1, -y2, -cp1, -cp2, -cpn) %>% 
+  pivot_longer(cy1:cy0) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cy1", "cy2", "cy0"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, fill = name, colour = name)) + 
+  facet_wrap(~Sex, scales = "free_y") + 
+  geom_col(width = 1) +
+  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative count", fill = "Status", colour = "Status") +
+  theme(panel.grid.minor = element_blank())
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-1-sex.pdf"), p, height = 2, width = 6, device = cairo_pdf)
 p
 ```
 
@@ -526,10 +564,10 @@ p
 #| fig-cap: |
 #|   Progression to recovery by oxygen requirement.
 tmp_agg <- fas_itt_outdat %>%
-  complete(supp_oxy, time, fill = list(y = 0)) %>%
-  group_by(supp_oxy, time) %>%
+  complete(supp_oxy2, time, fill = list(y = 0)) %>%
+  group_by(supp_oxy2, time) %>%
   summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
-  group_by(supp_oxy) %>%
+  group_by(supp_oxy2) %>%
   mutate(cy1 = cumsum(y1), 
          cp1 = cy1 / n[1],
          cy2 = cumsum(y2),
@@ -537,7 +575,7 @@ tmp_agg <- fas_itt_outdat %>%
          cy0 = (n[1] - cy1 - cy2),
          cpn = (n[1] - cy1 - cy2) / n[1]) %>%
   ungroup() %>%
-  mutate(supp_oxy = fct_explicit_na(factor(supp_oxy, levels = c(0, 1), labels = c("No oxygen", "Required oxygen"))))
+  mutate(supp_oxy = fct_explicit_na(factor(supp_oxy2, levels = c(0, 1), labels = c("Not required", "Required"))))
 p <- tmp_agg %>% 
   select(-y1, -y2, -cp1, -cp2, -cpn) %>% 
   pivot_longer(cy1:cy0) %>% 
@@ -551,10 +589,10 @@ p <- tmp_agg %>%
   scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
   scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
   scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
-  labs(x = "Study day", y = "Cumulative proportion", fill = "Status", colour = "Status") +
+  labs(x = "Study day", y = "Cumulative count", fill = "Status", colour = "Status") +
   theme(panel.grid.minor = element_blank())
 path <- file.path("outputs", "figures", "outcomes", "secondary")
-ggsave(file.path(path, "7-1-oxygen"), p, height = 2, width = 6, device = cairo_pdf)
+ggsave(file.path(path, "7-1-oxygen.pdf"), p, height = 2, width = 6, device = cairo_pdf)
 p
 ```
 

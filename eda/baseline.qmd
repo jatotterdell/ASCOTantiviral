@@ -29,6 +29,49 @@ theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
 #| label: load-data
 all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
 all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
+pd <- readRDS(file.path(ASCOT_DATA, "pd.rds"))
+
+# FAS-ITT
+fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data)
+fas_itt_nona_dat <- fas_itt_dat |>
+  filter(!is.na(PO))
+
+# ACS-ITT
+acs_itt_dat <- ASCOTr:::make_acs_itt_set(all_data)
+acs_itt_nona_dat <- acs_itt_dat |>
+  filter(!is.na(PO))
+
+# AVS-ITT
+avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_data)
+avs_itt_nona_dat <- avs_itt_dat |>
+  filter(!is.na(PO))
+
+# FAS-ITT Best Case/Worst case
+fas_itt_bc_dat <- fas_itt_dat |>
+  mutate(PO = if_else(is.na(PO), 0, PO))
+fas_itt_wc_dat <- fas_itt_dat |>
+  mutate(PO = if_else(is.na(PO), 1, PO))
+
+# FAS-PP
+fas_pp_dat <- fas_itt_dat |>
+  left_join(pd, by = "StudyPatientID") |>
+  filter(is.na(pd_A), is.na(pd_C))
+fas_pp_nona_dat <- fas_pp_dat |>
+  filter(!is.na(PO))
+
+# ACS-PP
+acs_pp_dat <- acs_itt_dat |>
+  left_join(pd, by = "StudyPatientID") |>
+  filter(is.na(pd_A), is.na(pd_C))
+acs_pp_nona_dat <- acs_pp_dat |>
+  filter(!is.na(PO))
+
+# AVS-PP
+avs_pp_dat <- avs_itt_dat |>
+  left_join(pd, by = "StudyPatientID") |>
+  filter(is.na(pd_A), is.na(pd_C))
+avs_pp_nona_dat <- avs_pp_dat |>
+  filter(!is.na(PO))
 ```
 
 # Enrolment
@@ -187,6 +230,63 @@ savetab <- tab |>
 save_tex_table(
   savetab, 
   fn = file.path("baseline", "avs-itt-interventions")
+)
+tab |>
+  kable("html", align = "lrrrr") |>
+  kable_styling("striped", font_size = 12) |>
+  add_header_above(c(" " = 1, "Antiviral" = 2, " " = 1))
+```
+
+```{r}
+#| label: tbl-interventions-fas-pp
+#| tbl-cap: Distribution of interventions assigned to participants, FAS-PP
+#| cap-location: margin
+tab <- make_intervention_table(fas_pp_dat)
+savetab <- tab |>
+  kable("latex", align = "lrrrr", booktabs = TRUE, linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 10) |>
+  add_header_above(c(" " = 1, "Antiviral" = 3, " " = 1))
+save_tex_table(
+  savetab, 
+  fn = file.path("baseline", "fas-pp-interventions")
+)
+tab |>
+  kable("html", align = "lrrrr") |>
+  kable_styling("striped", font_size = 12) |>
+  add_header_above(c(" " = 1, "Antiviral" = 3, " " = 1))
+```
+
+```{r}
+#| label: tbl-interventions-acs-pp
+#| tbl-cap: Distribution of interventions assigned to participants, ACS-PP.
+#| cap-location: margin
+tab <- make_intervention_table(acs_pp_dat)
+savetab <- tab |>
+  kable("latex", align = "lrrrr", booktabs = TRUE, linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 10) |>
+  add_header_above(c(" " = 1, "Antiviral" = 3, " " = 1))
+save_tex_table(
+  savetab, 
+  fn = file.path("baseline", "acs-pp-interventions")
+)
+tab |>
+  kable("html", align = "lrrrr") |>
+  kable_styling("striped", font_size = 12) |>
+  add_header_above(c(" " = 1, "Antiviral" = 3, " " = 1))
+```
+
+```{r}
+#| label: tbl-interventions-avs-pp
+#| tbl-cap: Distribution of interventions assigned to participants, AVS-PP.
+#| cap-location: margin
+tab <- make_intervention_table(avs_pp_dat)
+savetab <- tab |>
+  kable("latex", align = "lrrrr", booktabs = TRUE, linesep = "") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 10) |>
+  add_header_above(c(" " = 1, "Antiviral" = 2, " " = 1))
+save_tex_table(
+  savetab, 
+  fn = file.path("baseline", "avs-pp-interventions")
 )
 tab |>
   kable("html", align = "lrrrr") |>

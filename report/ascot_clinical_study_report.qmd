@@ -33,11 +33,11 @@ execute:
 
 The trial steering committee (TSC) closed randomisation to the anticoagulation domain on 8 April 2022. The blinded statistical analysis working group prepared a statistical analysis plan (SAP) for reporting the results of the anticoagulation domain. The unblinded team of statisticians undertook the analyses using the relevant records as extracted from the database on 2022-06-06.
 
-Subsequently, the TSC closed randomisation to the antiviral domain on X XXXX 2022.
+Subsequently, the TSC closed randomisation to the antiviral domain on 11 August 2022.
 The blinded statistical analysis group prepared a SAP for reporting the results of the antiviral domain.
-Given all study domains have closed, the unblinded team of statisticians undertook final analyses using the relevant records as extracted from the database on 2022-10-xx
+Given all study domains have closed, the unblinded team of statisticians undertook final analyses using the relevant records as extracted from the database on 2022-10-26.
 
-This report summarises the data and results of the analyses for the ascot trial. 
+This report summarises the data and results of the analyses for the ASCOT trial. 
 The report focuses on the antiviral domain but also reports on the anticoagulation domain for completeness sake.
 
 ## Interventions
@@ -60,7 +60,8 @@ For full details of the interventions, refer to the domain specific appendices t
 
 ## Outcomes
 
-For details on the primary and secondary outcomes, refer to the core protocol. For details on the domain specific outcomes refer to the anticoagulation domain-specific appendix.
+For details on the primary and secondary outcomes, refer to the core protocol. 
+For details on the domain specific outcomes refer to the anticoagulation domain-specific appendix.
 
 ## Modelling
 
@@ -72,7 +73,7 @@ The (pre-specified) primary model for all outcomes included fixed terms for:
 
 - anticoagulation intervention
 - antiviral intervention
-- intervention ineligibility
+- intervention ineligibility (eligible for aspirin, ineligible for aspirin)
 - age group (< 60, $\geq$ 60 years of age)
 - sex (male, female)
 - oxygen requirement (did not require supplemental oxygen, did require supplemental oxygen)
@@ -89,7 +90,7 @@ In general, the reference group (to which the model intercept(s) or baseline haz
 
 - randomised to the anticoagulation domain (equal weighting across all interventions)
 - *not* randomised to the antiviral domain
-- eligible for all anticoagulation interventions
+- eligible for aspirin intervention
 - less than 60 years of age
 - was male
 - did not require supplemental oxygen
@@ -242,6 +243,48 @@ writeLines(tab)
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "baseline", "avs-itt-interventions.tex"))
+writeLines(tab)
+```
+
+#### FAS-PP
+
+```{r}
+#| label: tbl-fas-pp-interventions
+#| tbl-cap: |
+#|   Distribution of intervention assignments for participants in the FAS-PP set.
+#|   Brackets indicate the number of participants in that cell with missing 
+#|   primary outcome due to withdrawal from the study, loss-to-follow-up, or missing data.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "baseline", "fas-pp-interventions.tex"))
+writeLines(tab)
+```
+
+#### ACS-PP
+
+```{r}
+#| label: tbl-acs-pp-interventions
+#| tbl-cap: |
+#|   Distribution of intervention assignments for participants in the ACS-PP set.
+#|   Brackets indicate the number of participants in that cell with missing 
+#|   primary outcome due to withdrawal from the study, loss-to-follow-up, or missing data.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "baseline", "acs-pp-interventions.tex"))
+writeLines(tab)
+```
+
+#### AVS-PP
+
+```{r}
+#| label: tbl-avs-pp-interventions
+#| tbl-cap: |
+#|   Distribution of intervention assignments for participants in the AVS-PP set.
+#|   Brackets indicate the number of participants in that cell with missing 
+#|   primary outcome due to withdrawal from the study, loss-to-follow-up, or missing data.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "baseline", "avs-pp-interventions.tex"))
 writeLines(tab)
 ```
 
@@ -605,6 +648,9 @@ The primary model was a logistic regression model adjusting for anticoagulation 
 
 #### FAS-ITT
 
+The SAP specified that the analysis based on FAS-ITT as secondary.
+However, this analysis is presented first.
+
 - **Model**: logistic regression
 - **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, sex, oxygen requirement, region, site nested within region, and epoch
 - **Set**: FAS-ITT
@@ -657,9 +703,9 @@ knitr::include_graphics(
 The SAP pre-specified that the primary model would be fit using the AVS-ITT including all the pre-specified covariates.
 This analyses deviated from that specified in the SAP for a number of reasons:
 
-- almost all in AVS-ITT were enrolled in Australia/New Zealand, so region was dropped
-- concurrent randomisation to antiviral domain (where available) throughout entire study, so epoch term dropped
-- other covariates dropped due to small number of cases and events.
+- almost all in AVS-ITT were enrolled in Australia/New Zealand, so region was dropped from the model
+- concurrent randomisation to antiviral domain (where available) throughout entire study, so epoch term dropped was dropped from the model
+- other covariates dropped due to small number of cases and events (ineligible for aspirin).
 
 Therefore, the analysis restricted to the AVS-ITT set was based on a antiviral treatment only model.
 Due to the small number of events, the parameter posteriors will be sensitive to the priors.
@@ -746,22 +792,114 @@ knitr::include_graphics(
 )
 ```
 
+\clearpage
+
+#### FAS-PP
+
+- **Model**: logistic regression
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, sex, oxygen requirement, region, site nested within region, and epoch
+- **Set**: FAS-PP
+
+```{r}
+#| label: tbl-primary-composite-summary-anticoagulation-fas-pp
+#| tbl-cap: |
+#|   Summary of primary composite outcome by anticoagulation treatment group, FAS-PP.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "anticoagulation-summary-fas-pp.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-composite-summary-antiviral-fas-pp
+#| tbl-cap: |
+#|   Summary of primary composite outcome by antiviral treatment group, FAS-PP.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "antiviral-summary-fas-pp.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-model-fas-pp-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios)
+#|   for primary outcome model fit to the FAS-PP set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-fas-pp-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-primary-model-fas-pp-site-odds-ratio-densities
+#| fig-cap: |
+#|   Posterior densities for the treatment effect odds ratios, FAS-PP
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-fas-pp-odds-ratio-densities.pdf"
+)
+```
+
+\clearpage
+
+#### AVS-PP
+
+- **Model**: logistic regression
+- **Terms**: antiviral intervention, anticoagulation intervention, age group, sex, oxygen requirement
+- **Set**: AVS-PP
+
+```{r}
+#| label: tbl-primary-composite-summary-anticoagulation-avs-pp
+#| tbl-cap: |
+#|   Summary of primary composite outcome by anticoagulation treatment group, AVS-PP.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "anticoagulation-summary-avs-pp.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-composite-summary-antiviral-avs-pp
+#| tbl-cap: |
+#|   Summary of primary composite outcome by antiviral treatment group, AVS-PP.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "antiviral-summary-avs-pp.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-model-avs-pp-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios)
+#|   for primary outcome model fit to the AVS-PP set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-avs-pp-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-primary-model-avs-pp-site-odds-ratio-densities
+#| fig-cap: |
+#|   Posterior densities for the treatment effect odds ratios, AVS-PP
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-avs-pp-odds-ratio-densities.pdf"
+)
+```
+
+\clearpage
+
 ### Sensitivity Analyses
 
 The SAP outlined a number of sensitivity analyses.
-These are explored below.
+These are explored below for the FAS-ITT set.
 
 #### "Best-case" scenario
 
 #### "Worst-case" scenario
-
-#### Per-Protocol
 
 #### Temporal Variation
 
 \clearpage
 
 ### Subgroups
+
+Given the small number of events in the antiviral domain, there is little data to inform subgroup specific effects for Nafamostat.
 
 <!-- The pre-specified subgroups where treatment effect heterogeneity was to be investigated were: -->
 
@@ -3102,6 +3240,24 @@ knitr::include_graphics(
 ```
 
 ```{r}
+#| label: fig-primary-outcome-sex
+#| fig-cap: |
+#|   Proportion of participants satisfying primary outcome criteria by sex, FAS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/outcome-sex.pdf"
+)
+```
+
+```{r}
+#| label: fig-primary-outcome-oxygen
+#| fig-cap: |
+#|   Proportion of participants satisfying primary outcome criteria by supplemental oxygen requirement, FAS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/outcome-oxygen.pdf"
+)
+```
+
+```{r}
 #| label: fig-primary-outcome-country
 #| fig-cap: |
 #|   Proportion of participants satisfying primary outcome criteria
@@ -3157,6 +3313,26 @@ knitr::include_graphics(
 ```
 
 ```{r}
+#| label: fig-7-1-sex
+#| fig-cap: |
+#|   Time to clinical recovery to day 28
+#|   by sex, FAS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-1-sex.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-1-oxygen
+#| fig-cap: |
+#|   Time to clinical recovery to day 28
+#|   by supplemental oxygen requirement at randomisation, FAS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-1-oxygen.pdf"
+)
+```
+
+```{r}
 #| label: fig-7-1-country
 #| fig-cap: |
 #|   Time to clinical recovery to day 28
@@ -3198,6 +3374,26 @@ knitr::include_graphics(
 #|   pre-specified cut-point of 60 years of age.
 knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/7-2-age.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-2-sex
+#| fig-cap: |
+#|   Distribution of WHO scale at day 28
+#|   by sex, FAS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-2-sex.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-2-oxygen
+#| fig-cap: |
+#|   Distribution of WHO scale at day 28
+#|   by supplemental oxygen requirement at randomisation, FAS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-2-oxygen.pdf"
 )
 ```
 

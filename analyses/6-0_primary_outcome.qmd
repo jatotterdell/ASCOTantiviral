@@ -48,6 +48,7 @@ options(digits = 4)
 #| code-summary: Prepare datasets
 all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
 all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
+pd <- readRDS(file.path(ASCOT_DATA, "pd.rds"))
 
 # FAS-ITT
 fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data)
@@ -62,6 +63,33 @@ acs_itt_nona_dat <- acs_itt_dat |>
 # AVS-ITT
 avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_data)
 avs_itt_nona_dat <- avs_itt_dat |>
+  filter(!is.na(PO))
+
+# FAS-ITT Best Case/Worst case
+fas_itt_bc_dat <- fas_itt_dat |>
+  mutate(PO = if_else(is.na(PO), 0, PO))
+fas_itt_wc_dat <- fas_itt_dat |>
+  mutate(PO = if_else(is.na(PO), 1, PO))
+
+# FAS-PP
+fas_pp_dat <- fas_itt_dat |>
+  left_join(pd, by = "StudyPatientID") |>
+  filter(is.na(pd_A), is.na(pd_C))
+fas_pp_nona_dat <- fas_pp_dat |>
+  filter(!is.na(PO))
+
+# ACS-PP
+acs_pp_dat <- acs_itt_dat |>
+  left_join(pd, by = "StudyPatientID") |>
+  filter(is.na(pd_A), is.na(pd_C))
+acs_pp_nona_dat <- acs_pp_dat |>
+  filter(!is.na(PO))
+
+# AVS-PP
+avs_pp_dat <- avs_itt_dat |>
+  left_join(pd, by = "StudyPatientID") |>
+  filter(is.na(pd_A), is.na(pd_C))
+avs_pp_nona_dat <- avs_pp_dat |>
   filter(!is.na(PO))
 ```
 
@@ -705,6 +733,72 @@ ggsave(file.path(path, "outcome-age.pdf"), p, height = 2, width = 6)
 p
 ```
 
+## Sex
+
+```{r}
+#| label: fig-sex-po
+#| code-summary: Relationship sex to outcome
+#| fig-cap: Primary outcome by sex
+#| fig-height: 2
+tdat <- all_data %>%
+  filter_fas_itt() %>%
+  count(Sex, PO) %>%
+  group_by(Sex) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0` + `<NA>`,
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  )
+p1 <- ggplot(tdat, aes(Sex, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Sex")
+p2 <- ggplot(tdat, aes(Sex, p_1)) +
+  geom_point() +
+    labs(
+      y = "Proportion meeting\nprimary outcome", 
+      x = "Sex")  +
+  ylim(0, NA)
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-sex.pdf"), p, height = 2, width = 6)
+p
+```
+
+## Oxygen requirement
+
+```{r}
+#| label: fig-oxygen-po
+#| code-summary: Relationship supplemental oxygen to outcome
+#| fig-cap: Primary outcome by supplemental oxygen
+#| fig-height: 2
+tdat <- all_data %>%
+  filter_fas_itt() %>%
+  count(`Supplemental oxygen` = factor(supp_oxy2, labels = c("Not required", "Required")), PO) %>%
+  group_by(`Supplemental oxygen`) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0` + `<NA>`,
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  )
+p1 <- ggplot(tdat, aes(`Supplemental oxygen`, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants")
+p2 <- ggplot(tdat, aes(`Supplemental oxygen`, p_1)) +
+  geom_point() +
+    labs(
+      y = "Proportion meeting\nprimary outcome")  +
+  ylim(0, NA)
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-oxygen.pdf"), p, height = 2, width = 6)
+p
+```
+
 ## Country
 
 The following presents the primary outcome rate by country.
@@ -939,6 +1033,7 @@ res <- fit_primary_model(fas_itt_nona_dat, logistic_site_epoch, ctr = contr.equa
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
 names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+saveRDS(res, file.path("outputs", "models", "primary", "fas-itt-default.rds"))
 ```
 
 ```{r}
@@ -1079,6 +1174,38 @@ ggsave(pth, p, width = 6, height = 5.5)
 p
 ```
 
+### Treatment only
+
+```{r}
+res <- fit_primary_model(
+  fas_itt_nona_dat, 
+  logistic_site_epoch, 
+  ctr = contr.equalprior,
+  vars = NULL,
+  beta_sd_var = NULL,
+)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-fas-itt-trt-only
+#| tbl-cap: Posterior summaries for model parameters.
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR))
+```
+
+```{r}
+#| label: odds-ratio-summary-primary-model-fas-itt-trt-only-epoch-site-terms
+p <- plot_epoch_site_terms(
+  res$drws$gamma_epoch, 
+  res$drws$gamma_site,
+  factor(
+    res$dat$region_by_site, 
+    labels = c("India", "Australia\nNew Zealand", "Nepal"))
+)
+p
+```
+
 ### Treatment coding prior
 
 ```{r}
@@ -1172,6 +1299,42 @@ p <- plot_epoch_site_terms(
     labels = c("India", "Australia\nNew Zealand", "Nepal"))
 )
 p
+```
+
+### Best Case
+
+```{r}
+res <- fit_primary_model(fas_itt_bc_dat, logistic_site_epoch, ctr = contr.equalprior)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-fas-itt-best-case
+#| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]), "latex"),
+  "outcomes/primary/primary-model-fas-itt-best-case-summary-table")
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
+```
+
+### Worst Case
+
+```{r}
+res <- fit_primary_model(fas_itt_wc_dat, logistic_site_epoch, ctr = contr.equalprior)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-fas-itt-worst-case
+#| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]), "latex"),
+  "outcomes/primary/primary-model-fas-itt-worst-case-summary-table")
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
 ```
 
 ## ACS-ITT
@@ -1442,3 +1605,202 @@ odds_ratio_summary_table(c(res$drws$AOR, res$drws$OR[-1]))
 ## FAS-PP
 
 Here the primary model is fit to the FAS-PP where per-protocol participants were identified as pre the provided listings.
+
+```{r}
+#| label: tbl-domainC-po-fas-pp
+#| code-summary: Relationship anti-coagulation to outcome
+#| tbl-cap: Primary outcome by anti-coagulation intervention.
+make_po_table_C(fas_pp_dat)
+save_tex_table(
+  make_po_table_C(
+      fas_pp_dat,
+      "latex"), 
+  "outcomes/primary/anticoagulation-summary-fas-pp")
+```
+
+```{r}
+#| label: tbl-domainA-po-fas-pp
+#| code-summary: Relationship anti-viral to outcome
+#| tbl-cap: Primary outcome by anti-viral intervention.
+make_po_table_A(fas_pp_dat)
+save_tex_table(
+  make_po_table_A(
+    fas_pp_dat,
+    "latex"), 
+  "outcomes/primary/antiviral-summary-fas-pp")
+```
+
+```{r}
+res <- fit_primary_model(fas_pp_nona_dat, logistic_site_epoch, ctr = contr.equalprior)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-fas-pp
+#| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]), "latex"),
+  "outcomes/primary/primary-model-fas-pp-summary-table")
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
+```
+
+```{r}
+#| label: fig-or-densities-fas-pp-model
+#| fig-cap: Posterior densities for odds ratio contrasts.
+p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-fas-pp-odds-ratio-densities.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+```{r}
+#| label: odds-ratio-summary-primary-model-fas-pp-epoch-site-terms
+p <- plot_epoch_site_terms(
+  res$drws$gamma_epoch, 
+  res$drws$gamma_site,
+  factor(
+    res$dat$region_by_site, 
+    labels = c("India", "Australia\nNew Zealand", "Nepal"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-fas-pp-epoch-site-terms.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
+## AVS-PP
+
+```{r}
+#| label: tbl-domainC-po-avs-pp
+#| code-summary: Relationship anti-coagulation to outcome
+#| tbl-cap: Primary outcome by anti-coagulation intervention, AVS-PP.
+make_po_table_C(avs_pp_dat)
+save_tex_table(
+  make_po_table_C(
+      avs_pp_dat,
+      "latex"), 
+  "outcomes/primary/anticoagulation-summary-avs-pp")
+```
+
+```{r}
+#| label: tbl-domainA-po-avs-pp
+#| code-summary: Relationship anti-viral to outcome
+#| tbl-cap: Primary outcome by anti-viral intervention.
+make_po_table_A(avs_pp_dat)
+save_tex_table(
+  make_po_table_A(
+    avs_pp_dat,
+    "latex"), 
+  "outcomes/primary/antiviral-summary-avs-pp")
+```
+
+### Pre-specified
+
+In this section the pre-specified model with covariates is fit.
+However, again with no region, epoch or site specific terms.
+
+```{r}
+res <- fit_primary_model(
+  avs_pp_nona_dat,
+  logistic_mod,
+  vars = c("agegte60", "sexF", "supp_oxy2"),
+  beta_sd_var = c(2.5, 2.5, 2.5)
+)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR)[-1] <- c("Age \u2265 60", "Female", "Oxygen requirement")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-avs-pp
+#| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]), "latex"),
+  "outcomes/primary/primary-model-avs-pp-summary-table")
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
+```
+
+```{r}
+#| label: tbl-decision-quantities-avs-pp
+#| tbl-cap: Decision quantity summaries, AVS-PP.
+save_tex_table(
+  decision_quantity_summary_table(c("SoC" = rvar(1), res$drws$AOR), format = "latex") |> 
+    bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR), format = "latex")) |>
+    kable("latex", align = "llrrrr", booktabs = TRUE, escape = FALSE) |>
+    kable_styling(latex_options = "HOLD_position", font_size = 8) |>
+    pack_rows("Antiviral", 1, 2) |>
+    pack_rows("Anticoagulation", 3, 6),
+  "outcomes/primary/primary-model-avs-pp-decision-table")
+
+decision_quantity_summary_table(c("SoC" = rvar(1), res$drws$AOR)) |> 
+  bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR))) |>
+  kable(align = "llrrrr") |>
+  kable_styling("striped", font_size = 12) |>
+  pack_rows("Antiviral", 1, 2) |>
+  pack_rows("Anticoagulation", 3, 6)
+```
+
+```{r}
+#| label: fig-or-densities-avs-pp-model
+#| fig-cap: Posterior densities for odds ratio contrasts.
+p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-avs-pp-odds-ratio-densities.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+### Treatment Only
+
+```{r}
+res <- fit_primary_model(
+  avs_pp_nona_dat,
+  logistic_mod,
+  vars = NULL,
+  beta_sd_var = NULL,
+  includeC = FALSE
+)
+names(res$drws$AOR) <- "Nafamostat"
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-avs-pp-trt-only
+#| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table(c(res$drws$AOR), "latex"),
+  "outcomes/primary/primary-model-avs-pp-summary-table-trt-only")
+odds_ratio_summary_table(res$drws$AOR)
+```
+
+```{r}
+#| label: fig-or-densities-avs-pp-model-trt-only
+#| fig-cap: Posterior densities for odds ratio contrasts.
+p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-avs-pp-odds-ratio-densities-trt-only.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+### Treatment coding
+
+```{r}
+res <- fit_primary_model(
+  avs_pp_nona_dat,
+  logistic_mod,
+  vars = c("agegte60", "sexF", "supp_oxy2"),
+  ctr = contr.treatment,
+  beta_sd_var = c(2.5, 2.5, 2.5)
+)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR)[-1] <- c("Age \u2265 60", "Female", "Oxygen requirement")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-avs-pp-trt-ctr
+#| tbl-cap: Posterior summaries for model parameters, AVS-PP, prior on treatment coding.
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
+```

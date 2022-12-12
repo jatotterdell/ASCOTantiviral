@@ -44,7 +44,6 @@ all_dat <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
 
 # AVS-ITT
 avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_dat) 
-
 ```
 
 ## Descriptive
@@ -52,7 +51,6 @@ avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_dat)
 ```{r}
 #| label: states
 #| code-summary: Derive states
-
 eq5d <- avs_itt_dat %>% select(AAssignment, starts_with("D28_EQ"), D28_death) %>%
   mutate(state = paste0(D28_EQMobility, 
                            D28_EQPersonalCare,
@@ -68,7 +66,6 @@ with(eq5d, table(D28_death, state, useNA = "always"))
 eq5d <- eq5d %>%  
   filter(state != "00000") %>%
   mutate(state = ifelse(state == "NANANANANA", NA, state))
-
 ```
 
 ```{r}

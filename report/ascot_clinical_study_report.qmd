@@ -2979,32 +2979,32 @@ knitr::include_graphics(
 
 The EQ-5D-5L responses are described.
 
-<!-- ```{r} -->
-<!-- #| label: tbl-7-8-counts -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28), AVS-ITT. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_counts.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-7-8-counts
+#| tbl-cap: |
+#|   Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28), AVS-ITT.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_counts.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-7-8-distributions -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Distribution of responses on the EQ-5D-5L (day 28), AVS-ITT. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_distribution.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-7-8-distributions
+#| tbl-cap: |
+#|   Distribution of responses on the EQ-5D-5L (day 28), AVS-ITT.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_distribution.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-7-8-vas-descriptive -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Descriptive summary of EQ-5D VAS (day 28), AVS-ITT. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d_vas.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-7-8-vas-descriptive
+#| tbl-cap: |
+#|   Descriptive summary of EQ-5D VAS (day 28), AVS-ITT.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d_vas.tex"))
+writeLines(tab)
+```
 
 \clearpage
 

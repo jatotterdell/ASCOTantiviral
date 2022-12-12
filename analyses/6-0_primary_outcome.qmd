@@ -1319,6 +1319,30 @@ save_tex_table(
 odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
 ```
 
+```{r}
+#| label: fig-or-densities-fas-itt-best-case-model
+#| fig-cap: Posterior densities for odds ratio contrasts.
+p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-fas-itt-best-case-odds-ratio-densities.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+```{r}
+#| label: odds-ratio-summary-primary-model-fas-itt-best-case-epoch-site-terms
+p <- plot_epoch_site_terms(
+  res$drws$gamma_epoch, 
+  res$drws$gamma_site,
+  factor(
+    res$dat$region_by_site, 
+    labels = c("India", "Australia\nNew Zealand", "Nepal"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-fas-itt-best-case-epoch-site-terms.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
 ### Worst Case
 
 ```{r}
@@ -1335,6 +1359,30 @@ save_tex_table(
   odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]), "latex"),
   "outcomes/primary/primary-model-fas-itt-worst-case-summary-table")
 odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
+```
+
+```{r}
+#| label: fig-or-densities-fas-itt-worst-case-model
+#| fig-cap: Posterior densities for odds ratio contrasts.
+p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-fas-itt-worst-case-odds-ratio-densities.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+```{r}
+#| label: odds-ratio-summary-primary-model-fas-itt-worst-case-epoch-site-terms
+p <- plot_epoch_site_terms(
+  res$drws$gamma_epoch, 
+  res$drws$gamma_site,
+  factor(
+    res$dat$region_by_site, 
+    labels = c("India", "Australia\nNew Zealand", "Nepal"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-fas-itt-worst-case-epoch-site-terms.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
 ```
 
 ## ACS-ITT
@@ -1666,6 +1714,48 @@ p <- plot_epoch_site_terms(
     labels = c("India", "Australia\nNew Zealand", "Nepal"))
 )
 pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-fas-pp-epoch-site-terms.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
+## ACS-PP
+
+```{r}
+res <- fit_primary_model(acs_pp_nona_dat, logistic_site_epoch, ctr = contr.equalprior)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-acs-pp
+#| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]), "latex"),
+  "outcomes/primary/primary-model-acs-pp-summary-table")
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
+```
+
+```{r}
+#| label: fig-or-densities-acs-pp-model
+#| fig-cap: Posterior densities for odds ratio contrasts.
+p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-acs-pp-odds-ratio-densities.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+```{r}
+#| label: odds-ratio-summary-primary-model-acs-pp-epoch-site-terms
+p <- plot_epoch_site_terms(
+  res$drws$gamma_epoch, 
+  res$drws$gamma_site,
+  factor(
+    res$dat$region_by_site, 
+    labels = c("India", "Australia\nNew Zealand", "Nepal"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-acs-pp-epoch-site-terms.pdf")
 ggsave(pth, p, width = 6, height = 4.5)
 p
 ```

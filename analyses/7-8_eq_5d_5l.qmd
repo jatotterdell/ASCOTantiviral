@@ -96,7 +96,7 @@ counts <- do.call(rbind, counts) %>% as_tibble()
 
 make_table <- function(format = "html", fn = NULL)
 {
-out <- counts %>% kable(format = format, digits = 2, booktabs = TRUE, linesep = "", align = "lrrrrr", longtable = TRUE,
+out <- counts %>% kable(format = format, digits = 2, booktabs = TRUE, linesep = "", align = "lrrrrr",
                         col.names = c("Health state", "n", "%", "n", "%"),
                         caption = "Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28).") %>%
   kable_styling(latex_options = "HOLD_position", font_size = 12) %>%
@@ -184,8 +184,6 @@ make_table <- function(format = "html", fn = NULL)
 }
 make_table()  %>% kable_styling()
 make_table(format = "latex", fn = "outcomes/secondary/7-8_eq5d5l_distribution")
-
-
 ```
 
 # Get VAS table.
@@ -233,7 +231,6 @@ make_table <- function(format = "html", fn = NULL)
 
 make_table() %>% kable_styling()
 make_table(format = "latex", fn = "outcomes/secondary/7-8_eq5d_vas")
-
 ```
 
 # Apply value set to derive utilities
@@ -263,7 +260,7 @@ make_table <- function(format = "html", fn = NULL)
 {  
  out <- value %>% kable(
     caption = "Descriptive summary of EQ-5D-5L utilities (day 28).",
-    align = "rrrr", format = format, digits = 2, booktabs = TRUE, linesep = "", longtable = TRUE) %>%  
+    align = "rrrr", format = format, digits = 2, booktabs = TRUE, linesep = "") %>%  
     kable_styling(latex_options = "HOLD_position", font_size = 11) %>%
     collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
        add_footnote(label = "Note: UK EQ-5D-5L crosswalk valueset used", notation = "none", escape = TRUE)

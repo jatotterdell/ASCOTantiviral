@@ -368,6 +368,39 @@ ggsave(file.path(path, "7-7-age.pdf"), p, height = 2.5, width = 6)
 p
 ```
 
+## Sex
+
+```{r}
+#| label: fig-7-7-sex
+#| fig-cap: |
+#|   Distribution of mMRC scale at day 28 by sex, FAS-ITT
+#| fig-height: 4
+pdat <- fas_itt_nona_dat %>%
+  dplyr::count(
+    Sex,
+    mrc = ordered(out_mmrc_scale, levels = 0:5), 
+    .drop = F) %>%
+  group_by(Sex) %>%
+  mutate(p = n / sum(n))
+pdat2 <- pdat %>%
+  group_by(Sex) %>%
+  summarise(n = sum(n))
+p1 <- ggplot(pdat2, aes(Sex, n)) +
+  geom_col(colour = "grey40", fill = "grey40") +
+  labs(y = "Number of\nparticipants",
+       x = "Sex")
+p2 <- ggplot(pdat, aes(Sex, p)) +
+  geom_col(aes(fill = mrc)) +
+  labs(x = "Sex", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("mMRCbs", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = F)) +
+  theme(legend.key.size = unit(0.5, "lines"))
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-7-sex.pdf"), p, height = 2.5, width = 6)
+p
+```
+
 ## Oxygen
 
 ```{r}
@@ -377,19 +410,19 @@ p
 #| fig-height: 4
 pdat <- fas_itt_nona_dat %>%
   dplyr::count(
-    supp_oxy = fct_explicit_na(factor(supp_oxy, levels = 0:1, labels = c("No", "Yes"))),
-    mrc = ordered(out_mmrc_scale, levels = 1:8), 
+    supp_oxy2 = fct_explicit_na(factor(supp_oxy2, levels = 0:1, labels = c("Not required", "Required"))),
+    mrc = ordered(out_mmrc_scale, levels = 0:5), 
     .drop = F) %>%
-  group_by(supp_oxy) %>%
+  group_by(supp_oxy2) %>%
   mutate(p = n / sum(n))
 pdat2 <- pdat %>%
-  group_by(supp_oxy) %>%
+  group_by(supp_oxy2) %>%
   summarise(n = sum(n))
-p1 <- ggplot(pdat2, aes(supp_oxy, n)) +
+p1 <- ggplot(pdat2, aes(supp_oxy2, n)) +
   geom_col(colour = "grey40", fill = "grey40") +
   labs(y = "Number of\nparticipants",
        x = "Supplemental oxygen")
-p2 <- ggplot(pdat, aes(supp_oxy, p)) +
+p2 <- ggplot(pdat, aes(supp_oxy2, p)) +
   geom_col(aes(fill = mrc)) +
   labs(x = "Supplemental oxygen", y = "Cumulative\nproportion") +
   scale_fill_viridis_d("mMRCbs", option = "A", direction = -1) +

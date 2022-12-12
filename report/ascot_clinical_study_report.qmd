@@ -884,6 +884,33 @@ knitr::include_graphics(
 
 \clearpage
 
+#### ACS-PP
+
+- **Model**: logistic regression
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, sex, oxygen requirement, region, site nested within region, and epoch
+- **Set**: ACS-PP
+
+```{r}
+#| label: tbl-primary-model-acs-pp-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios)
+#|   for primary outcome model fit to the ACS-PP set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-pp-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-primary-model-acs-pp-site-odds-ratio-densities
+#| fig-cap: |
+#|   Posterior densities for the treatment effect odds ratios, ACS-PP
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-acs-pp-odds-ratio-densities.pdf"
+)
+```
+
+\clearpage
+
 ### Sensitivity Analyses
 
 The SAP outlined a number of sensitivity analyses.
@@ -891,7 +918,71 @@ These are explored below for the FAS-ITT set.
 
 #### "Best-case" scenario
 
+```{r}
+#| label: tbl-primary-model-fas-itt-bc-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios)
+#|   for primary outcome model fit to the FAS-ITT set assuming missing do not meet primary outcome.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-fas-itt-best-case-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-primary-model-fas-itt-bc-site-odds-ratio-densities
+#| fig-cap: |
+#|   Posterior densities for the treatment effect odds ratios, FAS-ITT set assuming missing do not meet primary outcome.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-fas-itt-best-case-odds-ratio-densities.pdf"
+)
+```
+
+```{r}
+#| label: fig-primary-model-fas-itt-bc-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line 0.95% CrI)
+#|   of odds ratio for epoch and site effects for
+#|   the primary outcome model fit to the FAS-ITT set assuming missing do not meet primary outcome.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-fas-itt-best-case-epoch-site-terms.pdf"
+)
+```
+
+\clearpage
+
 #### "Worst-case" scenario
+
+```{r}
+#| label: tbl-primary-model-fas-itt-wc-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios)
+#|   for primary outcome model fit to the FAS-ITT set assuming missing meet primary outcome.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-fas-itt-worst-case-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-primary-model-fas-itt-wc-site-odds-ratio-densities
+#| fig-cap: |
+#|   Posterior densities for the treatment effect odds ratios, FAS-ITT set assuming missing meet primary outcome.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-fas-itt-worst-case-odds-ratio-densities.pdf"
+)
+```
+
+```{r}
+#| label: fig-primary-model-fas-itt-wc-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line 0.95% CrI)
+#|   of odds ratio for epoch and site effects for
+#|   the primary outcome model fit to the FAS-ITT set assuming missing meet primary outcome.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-fas-itt-worst-case-epoch-site-terms.pdf"
+)
+```
+
+\clearpage
 
 #### Temporal Variation
 
@@ -2888,32 +2979,32 @@ knitr::include_graphics(
 
 The EQ-5D-5L responses are described.
 
-```{r}
-#| label: tbl-7-8-counts
-#| tbl-cap: |
-#|   Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28), AVS-ITT.
-#| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_counts.tex"))
-writeLines(tab)
-```
+<!-- ```{r} -->
+<!-- #| label: tbl-7-8-counts -->
+<!-- #| tbl-cap: | -->
+<!-- #|   Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28), AVS-ITT. -->
+<!-- #| results: asis -->
+<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_counts.tex")) -->
+<!-- writeLines(tab) -->
+<!-- ``` -->
 
-```{r}
-#| label: tbl-7-8-distributions
-#| tbl-cap: |
-#|   Distribution of responses on the EQ-5D-5L (day 28), AVS-ITT.
-#| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_distribution.tex"))
-writeLines(tab)
-```
+<!-- ```{r} -->
+<!-- #| label: tbl-7-8-distributions -->
+<!-- #| tbl-cap: | -->
+<!-- #|   Distribution of responses on the EQ-5D-5L (day 28), AVS-ITT. -->
+<!-- #| results: asis -->
+<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_distribution.tex")) -->
+<!-- writeLines(tab) -->
+<!-- ``` -->
 
-```{r}
-#| label: tbl-7-8-vas-descriptive
-#| tbl-cap: |
-#|   Descriptive summary of EQ-5D VAS (day 28), AVS-ITT.
-#| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d_vas.tex"))
-writeLines(tab)
-```
+<!-- ```{r} -->
+<!-- #| label: tbl-7-8-vas-descriptive -->
+<!-- #| tbl-cap: | -->
+<!-- #|   Descriptive summary of EQ-5D VAS (day 28), AVS-ITT. -->
+<!-- #| results: asis -->
+<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d_vas.tex")) -->
+<!-- writeLines(tab) -->
+<!-- ``` -->
 
 \clearpage
 
@@ -3695,6 +3786,26 @@ knitr::include_graphics(
 #|   by age groups.
 knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/7-7-age.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-7-sex
+#| fig-cap: |
+#|   Distrubtion of Modified Medical Research Council breathlessness scale (mMRCbs) at day 28
+#|   by sex.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-7-sex.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-7-oxygen
+#| fig-cap: |
+#|   Distrubtion of Modified Medical Research Council breathlessness scale (mMRCbs) at day 28
+#|   by oxygen requirement.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-7-oxygen.pdf"
 )
 ```
 

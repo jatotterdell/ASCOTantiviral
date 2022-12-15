@@ -10,6 +10,7 @@ author:
 format:
   pdf:
     documentclass: scrreprt
+    keep-tex: true
     toc: true
     toc-depth: 4
     number-sections: true
@@ -31,9 +32,9 @@ execute:
 
 ## Purpose
 
-The trial steering committee (TSC) closed randomisation to the anticoagulation domain on 8 April 2022. The blinded statistical analysis working group prepared a statistical analysis plan (SAP) for reporting the results of the anticoagulation domain. The unblinded team of statisticians undertook the analyses using the relevant records as extracted from the database on 2022-06-06.
+The trial steering committee (TSC) closed randomisation to the anticoagulation domain on 2022-04-08. The blinded statistical analysis working group prepared a statistical analysis plan (SAP) for reporting the results of the anticoagulation domain. The unblinded team of statisticians undertook the analyses using the relevant records as extracted from the database on 2022-06-06.
 
-Subsequently, the TSC closed randomisation to the antiviral domain on 11 August 2022.
+Subsequently, the TSC closed randomisation to the antiviral domain on 2022-08-11.
 The blinded statistical analysis group prepared a SAP for reporting the results of the antiviral domain.
 Given all study domains have closed, the unblinded team of statisticians undertook final analyses using the relevant records as extracted from the database on 2022-10-26.
 
@@ -556,6 +557,20 @@ knitr::include_graphics(
 
 \clearpage
 
+#### Overall Summary
+
+```{r}
+#| label: tbl-baseline-overall-antiviral
+#| tbl-cap: |
+#|   Baseline summary for participants randomised to the antiviral domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "baseline", "table-1.tex"))
+writeLines(tab)
+```
+
+\clearpage
+
 ### Discharge Summaries
 
 #### Drugs Received During Hospital Stay
@@ -568,7 +583,8 @@ There were 18 participants without a discharge record (due to withdrawal of cons
 #|   Drugs received during hospital stay for participants randomised to
 #|   the anti-coagulation domain.
 #| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "baseline", "drugs-anticoagulation.tex"))
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "baseline", "drugs-anticoagulation.tex"))
 writeLines(tab[-which(grepl("caption", tab))])
 ```
 
@@ -701,13 +717,13 @@ knitr::include_graphics(
 #### AVS-ITT
 
 The SAP pre-specified that the primary model would be fit using the AVS-ITT including all the pre-specified covariates.
-This analyses deviated from that specified in the SAP for a number of reasons:
+This analysis deviated from that specified in the SAP for a number of reasons:
 
-- almost all in AVS-ITT were enrolled in Australia/New Zealand, so region was dropped from the model
-- concurrent randomisation to antiviral domain (where available) throughout entire study, so epoch term dropped was dropped from the model
+- almost all in AVS-ITT were enrolled in Australia/New Zealand, with no events observed in Nepal, so region was dropped from the model
+- there was concurrent randomisation to antiviral domain (where available) throughout the entire study, so epoch term dropped was dropped from the model
 - other covariates dropped due to small number of cases and events (ineligible for aspirin).
 
-Therefore, the analysis restricted to the AVS-ITT set was based on a antiviral treatment only model.
+Therefore, the analysis restricted to the AVS-ITT set was based on a reduced model compared to that specified in the SAP.
 Due to the small number of events, the parameter posteriors will be sensitive to the priors.
 
 In summary, the analysis was based on the following:
@@ -913,10 +929,36 @@ knitr::include_graphics(
 
 ### Sensitivity Analyses
 
-The SAP outlined a number of sensitivity analyses.
-These are explored below for the FAS-ITT set.
+The SAP outlined a number of sensitivity analyses. 
+Any sensitivity analyses not outlined in the SAP will be indicated as post-hoc.
 
-#### "Best-case" scenario
+#### AVS-ITT Treatment Only (Post-hoc)
+
+The SAP pre-specified a number of covariates for the analysis based on the AVS-ITT.
+These were included, but due to the small number of events there may be little data to inform the model parameters.
+Therefore, the AVS-ITT analyses was also undertaken where the model only contained a term for the antiviral intervention received.
+The results of this treatment-only model are reported below.
+
+```{r}
+#| label: tbl-primary-model-avs-itt-summary-trt-only
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios)
+#|   for treatment-only model fit to the AVS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-avs-itt-summary-table-trt-only.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-primary-model-avs-itt-odds-ratio-densities-trt-only
+#| fig-cap: |
+#|   Posterior densities for the treatment effect odds ratios, AVS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-avs-itt-odds-ratio-densities-trt-only.pdf"
+)
+```
+
+#### FAS-ITT "Best-case" scenario
 
 ```{r}
 #| label: tbl-primary-model-fas-itt-bc-summary
@@ -950,7 +992,7 @@ knitr::include_graphics(
 
 \clearpage
 
-#### "Worst-case" scenario
+#### FAS-ITT "Worst-case" scenario
 
 ```{r}
 #| label: tbl-primary-model-fas-itt-wc-summary
@@ -990,312 +1032,386 @@ knitr::include_graphics(
 
 ### Subgroups
 
-Given the small number of events in the antiviral domain, there is little data to inform subgroup specific effects for Nafamostat.
+The pre-specified subgroups where treatment effect heterogeneity with respect to Nafamostat was to be investigated were:
 
-<!-- The pre-specified subgroups where treatment effect heterogeneity was to be investigated were: -->
+- region (India, Australia/New Zealand, Nepal)
+- days since symptom onset ($\leq 7$ or $> 7$ days)
+- age at enrolment ($<60$ or $\geq 60$ years of age)
+- supplemental oxygen or oxygen saturation less than 94% at randomisation (yes or no)
+- receipt of corticosteroid during hospital stay (yes or no)
+- receipt of remdesivir during hospital stay (yes or no)
+- receipt of other agent intended to be antiviral against SARS-CoV-2 during hospital stay (yes or no)
+- vaccination status
 
-<!-- -   region (India, Australia/New Zealand, Nepal) -->
-<!-- -   days since symptom onset ($\leq 7$ or $> 7$ days) -->
-<!-- -   age at enrolment ($<60$ or $\geq 60$ years of age) -->
-<!-- -   supplemental oxygen or oxygen saturation less than 94% at randomisation (yes or no) -->
-<!-- -   receipt of corticosteroid during hospital stay (yes or no) -->
-<!-- -   receipt of remdesivir during hospital stay (yes or no) -->
-<!-- -   receipt of other agent intended to be antiviral against SARS-CoV-2 during hospital stay (yes or no) -->
+Domain-specific subgroups were additionally specified as:
 
-<!-- Domain-specific subgroups were additionally specified as: -->
+- presence of iatrogenic immunosuppression at randomisation
+- D-dimer above upper limit of normal at baseline (yes or no)
 
-<!-- -   weight ($< 120$ or $\geq 120$ kg) -->
-<!-- -   patient on aspirin at baseline (yes or no) -->
-<!-- -   D-dimer above upper limit of normal at baseline (yes or no) -->
+The analysts note that:
 
-<!-- For each sub-group analysis, the primary model was extended to include an interaction term between the covariate of interest and the anticoagulation interventions. In some cases, there may be no information on the subgroup-specific effect (for example, there were no participants in Nepal who were randomised to receive standard dose plus aspirin), but the results are reported in such cases noting that the posterior is driven by the prior. -->
+- The antiviral domain was almost exclusive to participants in Australia/New Zealand (5 were randomised in Nepal, 0 in India), therefore, no subgroup analysis was undertaken for region
+- Given the small number of events in the antiviral domain, there is little data to inform subgroup specific effects for Nafamostat beyond what is assumed in the specified prior.
+- Some of the subgroups relate to post-randomsiation events, which make interpretation of the treatment effects difficult.
 
-<!-- In these subgroup analyses, the reference group was generally taken to be the largest subgroup and the intervention effect in this reference group has a normal prior with mean 0 and standard deviation 2.5. For each additional subgroup, the interaction between each intervention and subgroup level has a normal prior with mean 0 and standard deviation 1. -->
+For each sub-group analysis, the primary model was extended to include an interaction term between the covariate of interest and the antiviral interventions (not randomised and randomised to Nafamostat).
 
-<!-- \clearpage -->
+\clearpage
 
-<!-- #### Region -->
+#### Region
 
-<!-- A subgroup analysis of region is undertaken using the ACS-ITT set. A summary of the primary outcome by country and intervention is reported in @tbl-descriptive-acs-itt-subgroup-region. Note that no participants enrolled in Nepal or New Zealand received standard dose plus aspirin due to the timing of its removal from the domain. Despite this, an interaction term for region and standard dose plus aspirin was retained in the model, however, the associated effect (in Nepal) corresponds to the assumed prior given there is little to no data available. -->
+A summary of the primary outcome by country and intervention is reported in @tbl-descriptive-fas-itt-subgroup-region1 and @tbl-descriptive-fas-itt-subgroup-region2. Note that no participants enrolled in Nepal or New Zealand received standard dose plus aspirin due to the timing of its removal from the domain. Additionally, no participants enrolled in India were randomised to the antiviral domain and very few in Nepal. No subgroup analysis for Nafamostat was undertaken for region as there were no events observed in the antiviral domain outside of Australia/New Zealand.
 
-<!-- ```{r} -->
-<!-- #| label: tbl-descriptive-acs-itt-subgroup-region -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of participant outcomes by region of enrolment in -->
-<!-- #|   the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary",  -->
-<!--   "descriptive-acs-itt-subgroup-country-descriptive.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-region1
+#| tbl-cap: |
+#|   Summary of participant outcomes by region of enrolment in
+#|   the FAS-ITT set, anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-country-descriptive-anticoagulation.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-acs-itt-subgroup-region -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratios for treatment effects by region of enrolment in -->
-<!-- #|   the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "country-odds-ratios.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-region2
+#| tbl-cap: |
+#|   Summary of participant outcomes by region of enrolment in
+#|   the FAS-ITT set, antiviral domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-country-descriptive-antiviral.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-compare-acs-itt-subgroup-region -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratio comparisons of treatment effects by region of enrolment in -->
-<!-- #|   the ACS-ITT set, (reference is India). -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "country-odds-ratios-compare.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+\clearpage
 
-<!-- ```{r} -->
-<!-- #| label: fig-subgroup-acs-itt-region -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior densities of odds ratio for anticoagulation interventions  -->
-<!-- #|   relative to standard dose by region subgroup using ACS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/acs-itt-subgroup-country-hte.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+#### Age group
 
-<!-- \clearpage -->
+A subgroup analysis of age group (< 60 or $\geq$ 60 years of age) was undertaken using the FAS-ITT set. 
+A summary of the primary outcome by age group and intervention is reported in @tbl-descriptive-fas-itt-subgroup-age-anticoagulation.
 
-<!-- #### Age group -->
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-age-anticoagulation
+#| tbl-cap: |
+#|   Summary of participant outcomes by age group at enrolment in
+#|   the FAS-ITT set, anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-age-descriptive-anticoagulation.tex"))
+writeLines(tab)
+```
 
-<!-- A subgroup analysis of age group (< 60 or $\geq$ 60 years of age) was undertaken using the ACS-ITT set. A summary of the primary outcome by age group and intervention is reported in @tbl-descriptive-acs-itt-subgroup-age. -->
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-age-antiviral
+#| tbl-cap: |
+#|   Summary of participant outcomes by age group at enrolment in
+#|   the FAS-ITT set, antiviral domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-age-descriptive-antiviral.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-descriptive-acs-itt-subgroup-age -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of participant outcomes by age group at enrolment in -->
-<!-- #|   the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary",  -->
-<!--   "descriptive-acs-itt-subgroup-age-descriptive.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-odds-ratio-fas-itt-subgroup-age
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by age of enrolment in
+#|   the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "age-odds-ratios.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-acs-itt-subgroup-age -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratios for treatment effects by age of enrolment in -->
-<!-- #|   the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "age-odds-ratios.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-odds-ratio-compare-fas-itt-subgroup-age
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by age of enrolment in
+#|   the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "age-odds-ratios-compare.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-compare-acs-itt-subgroup-age -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratio comparisons of treatment effects by age of enrolment in -->
-<!-- #|   the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "age-odds-ratios-compare.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: fig-subgroup-fas-itt-age
+#| fig-cap: |
+#|   Posterior densities of odds ratio for antiviral interventions
+#|   relative to standard dose by age subgroup using FAS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-age-hte.pdf"
+)
+```
 
-<!-- ```{r} -->
-<!-- #| label: fig-subgroup-acs-itt-age -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior densities of odds ratio for anticoagulation interventions  -->
-<!-- #|   relative to standard dose by age subgroup using ACS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/acs-itt-subgroup-age-hte.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+```{r}
+#| label: fig-subgroup-fas-itt-age-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution of primary outcome proportion for antiviral interventions
+#|   by age subgroup using FAS-ITT set. Red diamonds indicate sample proportions.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-age-hte-ppc.pdf"
+)
+```
 
-<!-- \clearpage -->
+\clearpage
 
-<!-- #### Days since symptom onset -->
+#### Days since symptom onset
 
-<!-- A subgroup analysis of days since first symptoms (DSFS) group ($\leq$ 7 or > 7 days) was undertaken using the ACS-ITT set. A summary of the primary outcome by DSFS group and intervention is reported in @tbl-descriptive-acs-itt-subgroup-dsfs. -->
+A subgroup analysis of days since first symptoms (DSFS) group ($\leq$ 7 or > 7 days) was undertaken using the FAS-ITT set. 
+A summary of the primary outcome by DSFS group and intervention is reported in @tbl-descriptive-fas-itt-subgroup-dsfs-anticoagulation.
 
-<!-- ```{r} -->
-<!-- #| label: tbl-descriptive-acs-itt-subgroup-dsfs -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of participant outcomes by days since symptom onset in -->
-<!-- #|   the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary",  -->
-<!--   "descriptive-acs-itt-subgroup-dsfs-descriptive.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-dsfs-anticoagulation
+#| tbl-cap: |
+#|   Summary of participant outcomes by days since symptom onset in
+#|   the FAS-ITT set, anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-dsfs-descriptive-anticoagulation.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-acs-itt-subgroup-dsfs -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratios for treatment effects by DSFS of enrolment in -->
-<!-- #|   the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "dsfs-odds-ratios.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-dsfs-antiviral
+#| tbl-cap: |
+#|   Summary of participant outcomes by days since symptom onset in
+#|   the FAS-ITT set, antiviral domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-dsfs-descriptive-antiviral.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-compare-acs-itt-subgroup-dsfs -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratio comparisons of treatment effects by DSFS of enrolment in -->
-<!-- #|   the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "dsfs-odds-ratios-compare.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-odds-ratio-fas-itt-subgroup-dsfs
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by DSFS of enrolment in
+#|   the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "dsfs-odds-ratios.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: fig-subgroup-acs-itt-dsfs -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior densities of odds ratio for anticoagulation interventions  -->
-<!-- #|   relative to standard dose by days since first symptoms subgroup using  -->
-<!-- #|   ACS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/acs-itt-subgroup-dsfs-hte.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-odds-ratio-compare-fas-itt-subgroup-dsfs
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by DSFS of enrolment in
+#|   the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "dsfs-odds-ratios-compare.tex"))
+writeLines(tab)
+```
 
-<!-- \clearpage -->
+```{r}
+#| label: fig-subgroup-fas-itt-dsfs
+#| fig-cap: |
+#|   Posterior densities of odds ratio for antiviral interventions
+#|   relative to standard dose by days since first symptoms subgroup using
+#|   FAS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-dsfs-hte.pdf"
+)
+```
 
-<!-- #### On Room Air and Oxygen Saturation -->
+```{r}
+#| label: fig-subgroup-fas-itt-dsfs-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution of primary outcome proportion for antiviral interventions
+#|   by days since first symptoms subgroup using FAS-ITT set. 
+#|   Red diamonds indicate sample proportions.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-dsfs-hte-ppc.pdf"
+)
+```
 
-<!-- A subgroup analysis for supplemental oxygen requirement at baseline (not on room air or oxygen saturation $\geq$ 94% or on room air and oxygen saturation < 94%) was undertaken using the ACS-ITT set. -->
+\clearpage
 
-<!-- ```{r} -->
-<!-- #| label: tbl-descriptive-acs-itt-subgroup-air -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of participant outcomes by room air and oxygen saturation in -->
-<!-- #|   the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary",  -->
-<!--   "descriptive-acs-itt-subgroup-air-descriptive.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+#### Oxygen requirement
 
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-acs-itt-subgroup-air -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratios for treatment effects by room air and oxygen saturation at enrolment in -->
-<!-- #|   the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup", -->
-<!--   "air-odds-ratios.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+A subgroup analysis for supplemental oxygen requirement at baseline was undertaken using the FAS-ITT set.
 
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-compare-acs-itt-subgroup-air -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratio comparisons of treatment effects by room air and oxygen saturation at enrolment -->
-<!-- #|   the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup", -->
-<!--   "air-odds-ratios-compare.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-air-anticoagulation
+#| tbl-cap: |
+#|   Summary of participant outcomes by room air and oxygen saturation in
+#|   the FAS-ITT set, anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-oxygen-descriptive-anticoagulation.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: fig-subgroup-acs-itt-air -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior densities of odds ratio for anticoagulation interventions -->
-<!-- #|   relative to standard dose by room air and oxygen saturation subgroup using -->
-<!-- #|   ACS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/acs-itt-subgroup-air-hte.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-air-antiviral
+#| tbl-cap: |
+#|   Summary of participant outcomes by room air and oxygen saturation in
+#|   the FAS-ITT set, antiviral domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-oxygen-descriptive-antiviral.tex"))
+writeLines(tab)
+```
 
-<!-- \clearpage -->
+```{r}
+#| label: tbl-odds-ratio-fas-itt-subgroup-air
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by room air and oxygen saturation at enrolment in
+#|   the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "oxygen-odds-ratios.tex"))
+writeLines(tab)
+```
 
-<!-- #### Receipt of Corticosteroids -->
+```{r}
+#| label: tbl-odds-ratio-compare-fas-itt-subgroup-air
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by room air and oxygen saturation at enrolment
+#|   the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "oxygen-odds-ratios-compare.tex"))
+writeLines(tab)
+```
 
-<!-- A subgroup analysis by whether patient received corticosteroids (did not receive or did receive) was undertaken using the ACS-ITT set. A summary of the primary outcome by receipt of corticosteroids and intervention is reported in @tbl-descriptive-acs-itt-subgroup-steroids. -->
+```{r}
+#| label: fig-subgroup-fas-itt-air
+#| fig-cap: |
+#|   Posterior densities of odds ratio for antiviral interventions
+#|   relative to standard dose by supplemental oxygen subgroup using
+#|   FAS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/fas-itt-subgroup-oxygen-hte.pdf"
+)
+```
 
-<!-- It is noted that this subgroup analysis was pre-specified, however receipt of corticosteroids is reported on the discharge summary and is a post-randomisation event (any receipt during their index hospital admission). Therefore, interpretation of this subgroup is challenging (more severe patients may have been more likely to receive corticosteroids, availability may be site specific, etc.). -->
+```{r}
+#| label: fig-subgroup-fas-itt-oxygen-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution of primary outcome proportion for antiviral interventions
+#|   by supplemental oxygen subgroup using FAS-ITT set. 
+#|   Red diamonds indicate sample proportions, black points posterior-predictive medians.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-oxygen-hte-ppc.pdf"
+)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-descriptive-acs-itt-subgroup-steroids -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of participant outcomes by receipt of corticosteroids during index -->
-<!-- #|   hospital stay in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary",  -->
-<!--   "descriptive-acs-itt-subgroup-steroids-descriptive.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+\clearpage
 
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-acs-itt-subgroup-steroids -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratios for treatment effects by receipt of corticosteroids  -->
-<!-- #|   in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "steroids-odds-ratios.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+#### Receipt of Corticosteroids
 
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-compare-acs-itt-subgroup-steroids -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratio comparisons of treatment effects by receipt of  -->
-<!-- #|   corticosteroids in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "steroids-odds-ratios-compare.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+A summary of the primary outcome by receipt of corticosteroids and intervention is reported in @tbl-descriptive-fas-itt-subgroup-steroids-anticoagulation and @tbl-descriptive-fas-itt-subgroup-steroids-antiviral.
 
-<!-- ```{r} -->
-<!-- #| label: fig-subgroup-acs-itt-steroids -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior densities of odds ratio for anticoagulation interventions  -->
-<!-- #|   relative to standard dose by receipt of steroids subgroup using  -->
-<!-- #|   ACS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/acs-itt-subgroup-steroids-hte.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+It is noted that this subgroup analysis was pre-specified, however receipt of corticosteroids is reported on the discharge summary and is a post-randomisation event (any receipt during their index hospital admission). Therefore, interpretation of this subgroup is challenging (more severe patients may have been more likely to receive corticosteroids, availability may be site specific, etc.).
 
-<!-- \clearpage -->
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-steroids-anticoagulation
+#| tbl-cap: |
+#|   Summary of participant outcomes by receipt of corticosteroids during index
+#|   hospital stay in the FAS-ITT set, anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-steroids-descriptive-anticoagulation.tex"))
+writeLines(tab)
+```
 
-<!-- #### Receipt of Remdesivir -->
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-steroids-antiviral
+#| tbl-cap: |
+#|   Summary of participant outcomes by receipt of corticosteroids during index
+#|   hospital stay in the FAS-ITT set, antiviral domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-steroids-descriptive-antiviral.tex"))
+writeLines(tab)
+```
 
-<!-- A subgroup analysis by whether patient received remdesivir (did not receive or did receive) was undertaken using the ACS-ITT set. A summary of the primary outcome by receipt of remdesivir and intervention is reported in @tbl-descriptive-acs-itt-subgroup-remdesivir. -->
+```{r}
+#| label: tbl-odds-ratio-fas-itt-subgroup-steroids
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by receipt of corticosteroids
+#|   in the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "steroids-odds-ratios.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-compare-fas-itt-subgroup-steroids
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by receipt of
+#|   corticosteroids in the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "steroids-odds-ratios-compare.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-steroids
+#| fig-cap: |
+#|   Posterior densities of odds ratio for antiviral interventions
+#|   relative to standard dose by receipt of steroids subgroup using
+#|   FAS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/fas-itt-subgroup-steroids-hte.pdf"
+)
+```
+
+\clearpage
+
+#### Receipt of Remdesivir
+
+A summary of the primary outcome by receipt of remdesivir and intervention is reported in @tbl-descriptive-fas-itt-subgroup-remdesivir-anticoagulation and @tbl-descriptive-fas-itt-subgroup-remdesivir-antiviral.
 
 <!-- Similar for corticosteroids, this subgroup analysis was pre-specified, however receipt of remdesivir is reported on the discharge summary and is a post-randomisation event. -->
 
-<!-- ```{r} -->
-<!-- #| label: tbl-descriptive-acs-itt-subgroup-remdesivir -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of participant outcomes by receipt of remdesivir during index -->
-<!-- #|   hospital stay in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary",  -->
-<!--   "descriptive-acs-itt-subgroup-remdesivir-descriptive.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-remdesivir-anticoagulation
+#| tbl-cap: |
+#|   Summary of participant outcomes by receipt of remdesivir during index
+#|   hospital stay in the FAS-ITT set, anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-remdesivir-descriptive-anticoagulation.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-remdesivir-antiviral
+#| tbl-cap: |
+#|   Summary of participant outcomes by receipt of remdesivir during index
+#|   hospital stay in the FAS-ITT set, antiviral domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-remdesivir-descriptive-antiviral.tex"))
+writeLines(tab)
+```
 
 <!-- ```{r} -->
 <!-- #| label: tbl-odds-ratio-acs-itt-subgroup-remdesivir -->
@@ -1332,543 +1448,148 @@ Given the small number of events in the antiviral domain, there is little data t
 <!-- ) -->
 <!-- ``` -->
 
-<!-- \clearpage -->
-
-<!-- #### Receipt of other antiviral agent -->
-
-<!-- A subgroup analysis by whether patient received any other antiviral (other than remdesivir) (did not receive or did receive) was undertaken using the ACS-ITT set. A summary of the primary outcome by receipt of other antiviral and intervention is reported in @tbl-descriptive-acs-itt-subgroup-antiviral. -->
-
-<!-- This subgroup analysis was pre-specified, however receipt of an antiviral is reported on the discharge summary and is a post-randomisation event. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-descriptive-acs-itt-subgroup-antiviral -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of participant outcomes by receipt of other antiviral during index -->
-<!-- #|   hospital stay in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary",  -->
-<!--   "descriptive-acs-itt-subgroup-antiviral-descriptive.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-acs-itt-subgroup-antiviral -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratios for treatment effects by receipt of other antiviral  -->
-<!-- #|   in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "antiviral-odds-ratios.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-compare-acs-itt-subgroup-antiviral -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratio comparisons of treatment effects by receipt of  -->
-<!-- #|   other antiviral in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "antiviral-odds-ratios-compare.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: fig-subgroup-acs-itt-antiviral -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior densities of odds ratio for anticoagulation interventions  -->
-<!-- #|   relative to standard dose by receipt of other antiviral subgroup using  -->
-<!-- #|   ACS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/acs-itt-subgroup-antiviral-hte.pdf" -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- \clearpage -->
-
-<!-- #### D-dimer -->
-
-<!-- A subgroup analysis by whether D-dimer was out of range (D-dimer not out of range, D-dimer out of range, D-dimer unknown) was undertaken using the ACS-ITT set. A summary of the primary outcome by subgroup and intervention is reported in @tbl-descriptive-acs-itt-subgroup-ddimer. Patients with unknown D-dimer at baseline were included as their own subgroup due to the large number with missing values. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-descriptive-acs-itt-subgroup-ddimer -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of participant outcomes by whether D-dimer was out  -->
-<!-- #|   range at enrolment in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary",  -->
-<!--   "descriptive-acs-itt-subgroup-ddimer-descriptive.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-acs-itt-subgroup-ddimer -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratios for treatment effects by whether D-dimer was out  -->
-<!-- #|   range at enrolment  -->
-<!-- #|   in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "ddimer-odds-ratios.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-compare-acs-itt-subgroup-ddimer -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratio comparisons of treatment effects by whether D-dimer was out  -->
-<!-- #|   range at enrolment in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "ddimer-odds-ratios-compare.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: fig-subgroup-acs-itt-ddimer -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior densities of odds ratio for anticoagulation interventions  -->
-<!-- #|   relative to standard dose by D-dimer subgroup using ACS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/acs-itt-subgroup-ddimer-hte.pdf" -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- \clearpage -->
-
-<!-- #### Weight -->
-
-<!-- Due to smaller numbers (18 participants with weight \> 120 kg and zero events), this pre-specified subgroup analysis was not undertaken. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-descriptive-acs-itt-subgroup-weight -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of participant outcomes by weight at baseline in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary",  -->
-<!--   "descriptive-acs-itt-subgroup-weight-descriptive.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- \clearpage -->
-
-<!-- #### Aspirin -->
-
-<!-- A subgroup analysis by whether a patient was taking aspirin at baseline (not taking aspirin, or taking aspirin) was undertaken using the ACS-ITT set. A summary of the primary outcome by subgroup and intervention is reported in @tbl-descriptive-acs-itt-subgroup-aspirin. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-descriptive-acs-itt-subgroup-aspirin -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of participant outcomes by whether patient was taking  -->
-<!-- #|   aspirin at baseline in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary",  -->
-<!--   "descriptive-acs-itt-subgroup-aspirin-descriptive.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-acs-itt-subgroup-aspirin -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratios for treatment effects by by whether patient was taking  -->
-<!-- #|   aspirin at baseline -->
-<!-- #|   in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "aspirin-odds-ratios.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-compare-acs-itt-subgroup-aspirin -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratio comparisons of treatment effects by whether patient was taking  -->
-<!-- #|   aspirin at baseline in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "aspirin-odds-ratios-compare.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: fig-subgroup-acs-itt-aspirin -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior densities of odds ratio for anticoagulation interventions  -->
-<!-- #|   relative to standard dose by whether patient taking aspirin using  -->
-<!-- #|   ACS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/acs-itt-subgroup-aspirin-hte.pdf" -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- #### Vaccination Status -->
-
-<!-- A post-hoc subgroup analysis by whether a patient was vaccinated or not at baseline (vaccinated, not vaccinated, unknown vaccination status) was undertaken using the ACS-ITT set. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-descriptive-acs-itt-subgroup-vax -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of participant outcomes by whether patient -->
-<!-- #|   vaccination status at baseline in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary",  -->
-<!--   "descriptive-acs-itt-subgroup-vax-descriptive.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-acs-itt-subgroup-vax -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratios for treatment effects by patient vaccination status -->
-<!-- #|   at baseline in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "vax-odds-ratios.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-compare-acs-itt-subgroup-vax -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratio comparisons of treatment effects by patient vaccination status -->
-<!-- #|   at baseline in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "vax-odds-ratios-compare.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: fig-subgroup-acs-itt-vax -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior densities of odds ratio for anticoagulation interventions  -->
-<!-- #|   relative to standard dose by patient vaccination status at baseline using  -->
-<!-- #|   ACS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/acs-itt-subgroup-vax-hte.pdf" -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- \clearpage -->
-
-<!-- ### Per-Protocol Analysis -->
-
-<!-- The primary model was re-analysed using the ACS-PP set. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-composite-acs-pp-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of primary composite outcome by treatment group for participants in ACS-PP. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary",  -->
-<!--                            "acs-pp-outcome-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-model-acs-pp-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios)  -->
-<!-- #|   for primary outcome model fit to the ACS-PP set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary",  -->
-<!--                            "primary-model-acs-pp-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: fig-primary-model-acs-pp-site-epoch-parameters -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI)  -->
-<!-- #|   of odds ratio for epoch and site effects for -->
-<!-- #|   the primary outcome model fit to the ACS-PP set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/primary-model-acs-pp-epoch-site-terms.pdf" -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- \clearpage -->
-
-<!-- ### Sensitivity Analyses -->
-
-<!-- #### Sensitivity: FAS-ITT -->
-
-<!-- The primary model was fit to the expanded FAS-ITT set. The model treatment effects were similar to those obtained under the ACS-ITT set. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-model-fas-itt-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios)  -->
-<!-- #|   for primary outcome model fit to the FAS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-fas-itt-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: fig-primary-model-fas-itt-site-epoch-parameters -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI)  -->
-<!-- #|   of odds ratio for epoch and site effects for -->
-<!-- #|   the primary outcome model fit to the FAS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/primary-model-fas-itt-epoch-site-terms.pdf" -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- \clearpage -->
-
-<!-- #### Sensitivity: Concurrent Randomisations -->
-
-<!-- In the following section, analyses are undertaken where the analysis set is restricted to participants who were randomised concurrently amongst the interventions of interest. Three sets are considered, one for each intervention. Given that the intermediate and standard dose interventions were available the entire time the anticoagulation domain was open, that analysis set is restricted to only participants randomised to one of those interventions. The other sets are determined by either a patients calendar time of randomisation or the protocol version under which they were enrolled. Given that RAR was not activated in the domain, the epoch terms are removed from these models as the intervention availability is the only factor varying the allocation probabilities. Additionally, due to smaller sample sizes, site terms and antiviral intervention terms have been dropped from the models. For the definitions of the analysis sets, refer to @sec-analysis-sets. -->
-
-<!-- ##### Intermediate dose -->
-
-<!-- - **Model**: logistic regression -->
-<!-- - **Terms**: anticoagulation intervention, age group, country -->
-<!-- - **Set**: ACS-ITT-intermediate -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-composite-acs-itt-c2-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of primary composite outcome by treatment group for participants in ACS-ITT-intermediate -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "acs-itt-c2-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-model-acs-itt-c2-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios)  -->
-<!-- #|   for primary outcome model fit to the ACS-ITT-intermediate set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c2-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ##### Standard dose plus aspirin -->
-
-<!-- - **Model**: logistic regression -->
-<!-- - **Terms**: anticoagulation intervention, age group, country -->
-<!-- - **Set**: ACS-ITT-aspirin -->
-
-<!-- A summary of the number of participants randomised and the number meeting the primary outcome are reported in @tbl-primary-composite-acs-itt-c3-summary, noting that 35 participants were ineligible for the standard dose plus aspirin intervention. The model parameter summaries are reported in @tbl-primary-model-acs-itt-c3-summary. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-composite-acs-itt-c3-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of primary composite outcome by treatment group for participants in ACS-ITT-aspirin. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "acs-itt-c3-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-model-acs-itt-c3-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios)  -->
-<!-- #|   for primary outcome model fit to the ACS-ITT-aspirin set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c3-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-model-acs-itt-c3-summary-other-contrasts -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios)  -->
-<!-- #|   for primary outcome model fit to the ACS-ITT-aspirin set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c3-summary-table-other-contrasts.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ##### Therapeutic dose -->
-
-<!-- - **Model**: logistic regression -->
-<!-- - **Terms**: anticoagulation intervention, age group, country -->
-<!-- - **Set**: ACS-ITT-therapeutic -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-composite-acs-itt-c4-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of primary composite outcome by treatment group for participants in ACS-ITT-therapeutic. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "acs-itt-c4-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-model-acs-itt-c4-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios)  -->
-<!-- #|   for primary outcome model fit to the ACS-ITT-therapeutic set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c4-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-model-acs-itt-c4-summary-other-contrasts -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios)  -->
-<!-- #|   for primary outcome model fit to the ACS-ITT-therapeutic set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c4-summary-table-other-contrasts.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- \clearpage -->
-
-<!-- #### Sensitivity: Missing meet primary outcome -->
-
-<!-- In this analysis, patients with missing primary outcome data were assumed to have satisfied the primary outcome. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-composite-acs-itt-wost-case-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of primary composite outcome by treatment group for participants in ACS-ITT set -->
-<!-- #|   assuming patients with missing outcomes met the primary outcome. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary",  -->
-<!--                            "acs-itt-worst-case-anticoagulation-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-model-acs-itt-wc-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios)  -->
-<!-- #|   for primary outcome model fit to the ACS-ITT set assuming patients -->
-<!-- #|   with missing data met the primary outcome. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-worst-case-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: fig-primary-model-acs-itt-wc-site-epoch-parameters -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI)  -->
-<!-- #|   of odds ratio for epoch and site effects for -->
-<!-- #|   the primary model fit to the ACS-ITT set assuming patients -->
-<!-- #|   with missing data met the primary outcome. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/primary-model-acs-itt-worst-case-epoch-site-terms.pdf" -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- \clearpage -->
-
-<!-- #### Sensitivity: Missing do not meet primary outcome -->
-
-<!-- In this analysis, patients with missing primary outcome data were assumed to have not satisfied the primary outcome conditions. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-composite-acs-itt-best-case-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of primary composite outcome by treatment group for participants in ACS-ITT set -->
-<!-- #|   assuming patients with missing outcomes did not meet the primary outcome. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary",  -->
-<!--                            "acs-itt-best-case-anticoagulation-summary.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-model-acs-itt-bc-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios)  -->
-<!-- #|   for primary model fit to the ACS-ITT set assuming patients -->
-<!-- #|   with missing data did not meet the primary outcome. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-best-case-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: fig-primary-model-acs-itt-bc-site-epoch-parameters -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI)  -->
-<!-- #|   of odds ratio for epoch and site effects for -->
-<!-- #|   the primary outcome model fit to the ACS-ITT set assuming patients -->
-<!-- #|   with missing data did not meet the primary outcome. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/primary-model-acs-itt-best-case-epoch-site-terms.pdf" -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- \clearpage -->
-
-<!-- ### Post-hoc Sensitivity Analyses -->
-
-<!-- The following sections report on other post-hoc analyses which were undertaken, but not explicitly specified in the SAP. -->
-
-<!-- #### Prior Sensitivity - Treatment Contrasts -->
-
-<!-- The primary analysis model encodes the prior in terms of orthonormal contrasts. As a check of prior sensitivity, the primary model was re-fit with priors specified in terms of the more usual treatment contrasts. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-model-acs-itt-trt-ctr-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios)  -->
-<!-- #|   for primary model fit to the ACS-ITT set with priors on treatment conrasts. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-trt-ctr-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: fig-primary-model-acs-itt-trt-ctr-site-epoch-parameters -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior Summaries (point - median, block - 0.75 CrI, line - 0.95 CrI)  -->
-<!-- #|   of odds ratio for epoch and site effects for -->
-<!-- #|   the primary model fit to the ACS-ITT set with priors on treatment conrasts. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/primary-model-acs-itt-trt-ctr-epoch-site-terms.pdf" -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- \clearpage -->
-
-<!-- #### Prior Sensitivity - Weaker priors on fixed-effects -->
-
-<!-- The primary analyses model was re-fit with weaker priors ($\text{Normal}(0, 10^2)$) on the fixed-effects terms in place of the pre-specified priors. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-primary-model-acs-itt-other-priors-summary -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of model parameters (fixed-effects odds-ratios)  -->
-<!-- #|   for primary model fit to the ACS-ITT set with weaker priors on fixed-effects. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-other-priors-summary-table.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #| label: fig-primary-model-acs-itt-other-priors-site-epoch-parameters -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior Summaries (point - median, block - 0.75 CrI, line - 0.95 CrI)  -->
-<!-- #|   of odds ratio for epoch and site effects for -->
-<!-- #|   the primary model fit to the ACS-ITT set with weaker priors on fixed-effects. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/primary-model-acs-itt-other-priors-epoch-site-terms.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+\clearpage
+
+#### Receipt of other antiviral agent
+
+A summary of the primary outcome by receipt of other antiviral and intervention is reported in @tbl-descriptive-fas-itt-subgroup-antiviral-anticoagulation and @tbl-descriptive-fas-itt-subgroup-antiviral-antiviral.
+
+This subgroup analysis was pre-specified, however receipt of an antiviral is reported on the discharge summary and is a post-randomisation event.
+
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-antiviral-anticoagulation
+#| tbl-cap: |
+#|   Summary of participant outcomes by receipt of other antiviral during index
+#|   hospital stay in the FAS-ITT set, anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-antiviral-descriptive-anticoagulation.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-antiviral-antiviral
+#| tbl-cap: |
+#|   Summary of participant outcomes by receipt of other antiviral during index
+#|   hospital stay in the FAS-ITT set, antiviral domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-antiviral-descriptive-antiviral.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-fas-itt-subgroup-antiviral
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by receipt of other antiviral
+#|   in the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "antiviral-odds-ratios.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-compare-fas-itt-subgroup-antiviral
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by receipt of
+#|   other antiviral in the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "antiviral-odds-ratios-compare.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-antiviral
+#| fig-cap: |
+#|   Posterior densities of odds ratio for antiviral interventions
+#|   relative to standard dose by receipt of other antiviral subgroup using
+#|   FAS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/fas-itt-subgroup-antiviral-hte.pdf"
+)
+```
+
+\clearpage
+
+#### Vaccination Status
+
+There were 8 participants randomised to the antiviral domain who had unknown vaccination status none of whom met the primary outcome conditions.
+Due to small numbers, the effect of Nafamostat amongst those with unknown vaccination status was assumed to be the same as those who were not vaccinated.
+
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-vax-anticoagulation
+#| tbl-cap: |
+#|   Summary of participant outcomes by whether patient
+#|   vaccination status at baseline in the FAS-ITT set, anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-vax-descriptive-anticoagulation.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-vax-antiviral
+#| tbl-cap: |
+#|   Summary of participant outcomes by whether patient
+#|   vaccination status at baseline in the FAS-ITT set, antiviral domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-vax-descriptive-antiviral.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-fas-itt-subgroup-vax
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by patient vaccination status
+#|   at baseline in the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "vax-odds-ratios.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-compare-fas-itt-subgroup-vax
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by patient vaccination status
+#|   at baseline in the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "vax-odds-ratios-compare.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-vax
+#| fig-cap: |
+#|   Posterior densities of odds ratio for anticoagulation interventions
+#|   relative to standard dose by patient vaccination status at baseline using
+#|   FAS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/fas-itt-subgroup-vax-hte.pdf"
+)
+```
+
+\clearpage
+
+#### Iatrogenic immunosuppression
+
+No analysis was undertaken as only 6 participants assigned to the antiviral domain had presence of iatrogenic immunosuppression at baseline.
+
+\clearpage
+
+#### D-Dimer
 
 \clearpage
 

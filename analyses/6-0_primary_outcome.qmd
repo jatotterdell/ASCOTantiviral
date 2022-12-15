@@ -931,13 +931,36 @@ tdat <- all_data %>%
   mutate(
     Total = `1` + `0` + `<NA>`,
     No = sprintf("%i (%.0f)", `0`, 100 * `0` / (`1` + `0`)),
-    Yes = sprintf("%i (%.0f)", `0`, 100 * `1` / (`1` + `0`)),
-    Unknown = sprintf("%i (%.0f)", `0`, 100 * `1` / Total)
+    Yes = sprintf("%i (%.0f)", `1`, 100 * `1` / (`1` + `0`)),
+    Unknown = sprintf("%i (%.0f)", `<NA>`, 100 * `1` / Total)
   ) |>
   select(-`0`, -`1`, -`<NA>`)
 kable(tdat, align = "lrrrr") |>
   kable_styling("striped", font_size = 12)
 ```
+
+## Baseline CRP
+
+```{r}
+#| label: tbl-crp-po
+#| code-summary: Relationship CRP to outcome
+tdat <- avs_itt_dat %>%
+  count(
+    `Baseline CRP` = crp_tertile, 
+    PO) %>%
+  group_by(`Baseline CRP`) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    Total = `1` + `0` + `<NA>`,
+    No = sprintf("%i (%.0f)", `0`, 100 * `0` / (`1` + `0`)),
+    Yes = sprintf("%i (%.0f)", `1`, 100 * `1` / (`1` + `0`)),
+    Unknown = sprintf("%i (%.0f)", `<NA>`, 100 * `1` / Total)
+  ) |>
+  select(-`0`, -`1`, -`<NA>`)
+kable(tdat, align = "lrrrr") |>
+  kable_styling("striped", font_size = 12)
+```
+
 
 ## Days since symptom onset
 
@@ -1560,12 +1583,13 @@ However, again with no region, epoch or site specific terms.
 res <- fit_primary_model(
   avs_itt_nona_dat,
   logistic_mod,
-  vars = c("agegte60", "sexF", "supp_oxy2"),
-  beta_sd_var = c(2.5, 2.5, 2.5)
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5)
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR)[-1] <- c("Age \u2265 60", "Female", "Oxygen requirement")
+names(res$drws$OR)[-1] <- c(
+  "Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
 ```
 
 ```{r}
@@ -1582,25 +1606,25 @@ odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
 #| tbl-cap: Decision quantity summaries, AVS-ITT.
 save_tex_table(
   decision_quantity_summary_table(c("SoC" = rvar(1), res$drws$AOR), format = "latex") |> 
-    bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR), format = "latex")) |>
+    # bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR), format = "latex")) |>
     kable("latex", align = "llrrrr", booktabs = TRUE, escape = FALSE) |>
     kable_styling(latex_options = "HOLD_position", font_size = 8) |>
-    pack_rows("Antiviral", 1, 2) |>
-    pack_rows("Anticoagulation", 3, 6),
+    pack_rows("Antiviral", 1, 2),
+    # pack_rows("Anticoagulation", 3, 6),
   "outcomes/primary/primary-model-avs-itt-decision-table")
 
 decision_quantity_summary_table(c("SoC" = rvar(1), res$drws$AOR)) |> 
-  bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR))) |>
+  # bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR))) |>
   kable(align = "llrrrr") |>
   kable_styling("striped", font_size = 12) |>
-  pack_rows("Antiviral", 1, 2) |>
-  pack_rows("Anticoagulation", 3, 6)
+  pack_rows("Antiviral", 1, 2)
+  # pack_rows("Anticoagulation", 3, 6)
 ```
 
 ```{r}
 #| label: fig-or-densities-avs-itt-model
 #| fig-cap: Posterior densities for odds ratio contrasts.
-p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+p <- plot_or_densities(c(res$drws$AOR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
 pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-avs-itt-odds-ratio-densities.pdf")
 ggsave(pth, p, width = 6, height = 2.5)
@@ -1613,13 +1637,14 @@ p
 res <- fit_primary_model(
   avs_itt_nona_dat,
   logistic_mod,
-  vars = c("agegte60", "sexF", "supp_oxy2"),
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
   ctr = contr.treatment,
-  beta_sd_var = c(2.5, 2.5, 2.5),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5),
   includeC = FALSE
 )
 names(res$drws$AOR) <- "Nafamostat"
-names(res$drws$OR)[-1] <- c("Age \u2265 60", "Female", "Oxygen requirement")
+names(res$drws$OR)[-1] <- c(
+  "Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
 ```
 
 ```{r}
@@ -1634,14 +1659,15 @@ odds_ratio_summary_table(c(res$drws$AOR, res$drws$OR[-1]))
 res <- fit_primary_model(
   avs_itt_nona_dat,
   logistic_mod,
-  vars = c("agegte60", "sexF", "supp_oxy2"),
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
   beta_sd_int = 10,
   beta_sd_trt = 10,
-  beta_sd_var = c(10, 10, 10),
+  beta_sd_var = c(10, 10, 10, 10, 10, 10),
   includeC = FALSE
 )
 names(res$drws$AOR) <- "Nafamostat"
-names(res$drws$OR)[-1] <- c("Age \u2265 60", "Female", "Oxygen requirement")
+names(res$drws$OR)[-1] <- c(
+  "Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
 ```
 
 ```{r}

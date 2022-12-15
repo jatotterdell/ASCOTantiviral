@@ -729,7 +729,7 @@ Due to the small number of events, the parameter posteriors will be sensitive to
 In summary, the analysis was based on the following:
 
 - **Model**: logistic regression
-- **Terms**: antiviral intervention, anticoagulation intervention, age group, sex, oxygen requirement
+- **Terms**: antiviral intervention, anticoagulation intervention, age group, sex, oxygen requirement, CRP tertiles
 - **Set**: AVS-ITT
 
 ```{r}
@@ -1125,7 +1125,7 @@ writeLines(tab)
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", "subgroup",
-  "age-odds-ratios.tex"))
+  "fas-itt-age-odds-ratios.tex"))
 writeLines(tab)
 ```
 
@@ -1137,7 +1137,7 @@ writeLines(tab)
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", "subgroup",
-  "age-odds-ratios-compare.tex"))
+  "fas-itt-age-odds-ratios-compare.tex"))
 writeLines(tab)
 ```
 
@@ -1200,7 +1200,7 @@ writeLines(tab)
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", "subgroup",
-  "dsfs-odds-ratios.tex"))
+  "fas-itt-dsfs-odds-ratios.tex"))
 writeLines(tab)
 ```
 
@@ -1212,7 +1212,7 @@ writeLines(tab)
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", "subgroup",
-  "dsfs-odds-ratios-compare.tex"))
+  "fas-itt-dsfs-odds-ratios-compare.tex"))
 writeLines(tab)
 ```
 
@@ -1276,7 +1276,7 @@ writeLines(tab)
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", "subgroup",
-  "oxygen-odds-ratios.tex"))
+  "fas-itt-oxygen-odds-ratios.tex"))
 writeLines(tab)
 ```
 
@@ -1288,7 +1288,7 @@ writeLines(tab)
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", "subgroup",
-  "oxygen-odds-ratios-compare.tex"))
+  "fas-itt-oxygen-odds-ratios-compare.tex"))
 writeLines(tab)
 ```
 
@@ -1299,7 +1299,7 @@ writeLines(tab)
 #|   relative to standard dose by supplemental oxygen subgroup using
 #|   FAS-ITT set.
 knitr::include_graphics(
-  "../outputs/figures/outcomes/primary/fas-itt-subgroup-oxygen-hte.pdf"
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-oxygen-hte.pdf"
 )
 ```
 
@@ -1354,7 +1354,7 @@ writeLines(tab)
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", "subgroup",
-  "steroids-odds-ratios.tex"))
+  "fas-itt-steroids-odds-ratios.tex"))
 writeLines(tab)
 ```
 
@@ -1366,7 +1366,7 @@ writeLines(tab)
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", "subgroup",
-  "steroids-odds-ratios-compare.tex"))
+  "fas-itt-steroids-odds-ratios-compare.tex"))
 writeLines(tab)
 ```
 
@@ -1377,7 +1377,18 @@ writeLines(tab)
 #|   relative to standard dose by receipt of steroids subgroup using
 #|   FAS-ITT set.
 knitr::include_graphics(
-  "../outputs/figures/outcomes/primary/fas-itt-subgroup-steroids-hte.pdf"
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-steroids-hte.pdf"
+)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-steroids-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution of primary outcome proportion for antiviral interventions
+#|   by receipt of steroids subgroup using FAS-ITT set. 
+#|   Red diamonds indicate sample proportions, black points posterior-predictive medians.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-steroids-hte-ppc.pdf"
 )
 ```
 
@@ -1413,40 +1424,51 @@ tab <- readLines(file.path(
 writeLines(tab)
 ```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-acs-itt-subgroup-remdesivir -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratios for treatment effects by receipt of remdesivir  -->
-<!-- #|   in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "remdesivir-odds-ratios.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-odds-ratio-fas-itt-subgroup-remdesivir
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by receipt of remdesivir
+#|   in the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "fas-itt-remdesivir-odds-ratios.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: tbl-odds-ratio-compare-acs-itt-subgroup-remdesivir -->
-<!-- #| tbl-cap: | -->
-<!-- #|   Summary of odds ratio comparisons of treatment effects by receipt of  -->
-<!-- #|   remdesivir in the ACS-ITT set. -->
-<!-- #| results: asis -->
-<!-- tab <- readLines(file.path( -->
-<!--   "..", "outputs", "tables", "outcomes", "primary", "subgroup",  -->
-<!--   "remdesivir-odds-ratios-compare.tex")) -->
-<!-- writeLines(tab) -->
-<!-- ``` -->
+```{r}
+#| label: tbl-odds-ratio-compare-fas-itt-subgroup-remdesivir
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by receipt of
+#|   remdesivir in the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "fas-itt-remdesivir-odds-ratios-compare.tex"))
+writeLines(tab)
+```
 
-<!-- ```{r} -->
-<!-- #| label: fig-subgroup-acs-itt-remdesivir -->
-<!-- #| fig-cap: | -->
-<!-- #|   Posterior densities of odds ratio for anticoagulation interventions  -->
-<!-- #|   relative to standard dose by receipt of remdesivir subgroup using  -->
-<!-- #|   ACS-ITT set. -->
-<!-- knitr::include_graphics( -->
-<!--   "../outputs/figures/outcomes/primary/acs-itt-subgroup-remdesivir-hte.pdf" -->
-<!-- ) -->
-<!-- ``` -->
+```{r}
+#| label: fig-subgroup-fas-itt-remdesivir
+#| fig-cap: |
+#|   Posterior densities of odds ratio for antiviral interventions
+#|   relative to standard dose by receipt of remdesivir subgroup using
+#|   FAS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-remdesivir-hte.pdf"
+)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-remdesivir-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution of primary outcome proportion for antiviral interventions
+#|   by receipt of remdesivir subgroup using FAS-ITT set. 
+#|   Red diamonds indicate sample proportions, black points posterior-predictive medians.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-remdesivir-hte-ppc.pdf"
+)
+```
 
 \clearpage
 
@@ -1488,7 +1510,7 @@ writeLines(tab)
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", "subgroup",
-  "antiviral-odds-ratios.tex"))
+  "fas-itt-antiviral-odds-ratios.tex"))
 writeLines(tab)
 ```
 
@@ -1500,7 +1522,7 @@ writeLines(tab)
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", "subgroup",
-  "antiviral-odds-ratios-compare.tex"))
+  "fas-itt-antiviral-odds-ratios-compare.tex"))
 writeLines(tab)
 ```
 
@@ -1511,7 +1533,18 @@ writeLines(tab)
 #|   relative to standard dose by receipt of other antiviral subgroup using
 #|   FAS-ITT set.
 knitr::include_graphics(
-  "../outputs/figures/outcomes/primary/fas-itt-subgroup-antiviral-hte.pdf"
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-antiviral-hte.pdf"
+)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-antiviral-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution of primary outcome proportion for antiviral interventions
+#|   by receipt of other antiviral subgroup using FAS-ITT set. 
+#|   Red diamonds indicate sample proportions, black points posterior-predictive medians.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-antiviral-hte-ppc.pdf"
 )
 ```
 
@@ -1554,7 +1587,7 @@ writeLines(tab)
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", "subgroup",
-  "vax-odds-ratios.tex"))
+  "fas-itt-vax-odds-ratios.tex"))
 writeLines(tab)
 ```
 
@@ -1566,18 +1599,29 @@ writeLines(tab)
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", "subgroup",
-  "vax-odds-ratios-compare.tex"))
+  "fas-itt-vax-odds-ratios-compare.tex"))
 writeLines(tab)
 ```
 
 ```{r}
 #| label: fig-subgroup-fas-itt-vax
 #| fig-cap: |
-#|   Posterior densities of odds ratio for anticoagulation interventions
+#|   Posterior densities of odds ratio for antiviral interventions
 #|   relative to standard dose by patient vaccination status at baseline using
 #|   FAS-ITT set.
 knitr::include_graphics(
-  "../outputs/figures/outcomes/primary/fas-itt-subgroup-vax-hte.pdf"
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-vax-hte.pdf"
+)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-vax-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution of primary outcome proportion for antiviral interventions
+#|   by vaccination status subgroup using FAS-ITT set. 
+#|   Red diamonds indicate sample proportions, black points posterior-predictive medians.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-vax-hte-ppc.pdf"
 )
 ```
 
@@ -1587,9 +1631,103 @@ knitr::include_graphics(
 
 No analysis was undertaken as only 6 participants assigned to the antiviral domain had presence of iatrogenic immunosuppression at baseline.
 
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-iatrogenic-anticoagulation
+#| tbl-cap: |
+#|   Summary of participant outcomes by whether patient
+#|   iatrogenic immunosuppression at baseline in the FAS-ITT set, anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-iatrogenic-descriptive-anticoagulation.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-iatrogenic-antiviral
+#| tbl-cap: |
+#|   Summary of participant outcomes by whether patient
+#|   iatrogenic immunosuppression at baseline in the FAS-ITT set, antiviral domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-iatrogenic-descriptive-antiviral.tex"))
+writeLines(tab)
+```
+
 \clearpage
 
 #### D-Dimer
+
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-ddimer-anticoagulation
+#| tbl-cap: |
+#|   Summary of participant outcomes by whether patient
+#|   D-dimer at baseline was above upper limit of normal at baseline in the FAS-ITT set, anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-ddimer-descriptive-anticoagulation.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-ddimer-antiviral
+#| tbl-cap: |
+#|   Summary of participant outcomes by whether patient
+#|   D-dimer at baseline was above upper limit of normal in the FAS-ITT set, antiviral domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-ddimer-descriptive-antiviral.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-fas-itt-subgroup-ddimer
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by D-dimer level
+#|   at baseline in the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "fas-itt-ddimer-odds-ratios.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-compare-fas-itt-subgroup-ddimer
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by D-dimer level
+#|   at baseline in the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "fas-itt-ddimer-odds-ratios-compare.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-ddimer
+#| fig-cap: |
+#|   Posterior densities of odds ratio for antiviral interventions
+#|   relative to standard dose by D-dimer level at baseline using
+#|   FAS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-ddimer-hte.pdf"
+)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-ddimer-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution of primary outcome proportion for antiviral interventions
+#|   by D-dimer level using FAS-ITT set. 
+#|   Red diamonds indicate sample proportions, black points posterior-predictive medians.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-ddimer-hte-ppc.pdf"
+)
+```
 
 \clearpage
 

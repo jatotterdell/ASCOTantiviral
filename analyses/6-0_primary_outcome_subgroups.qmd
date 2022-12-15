@@ -53,13 +53,23 @@ co_list <- list()
 sgroup_labs <- list(
   "Age" = c("Age < 60", "Age ≥ 60"),
   "Days since symptom onset" = c("Days from symptom onset \u2264 7", "Days from symptom onset > 7"),
-  "Supplemental oxygen" = c("Did not require supplemental oxygen", "Required supplemental oxygen")
+  "Supplemental oxygen" = c("Did not require supplemental oxygen", "Required supplemental oxygen"),
+  "Received corticosteroids" = c("Did not receive corticosteroids", "Received corticosteroids"),
+  "Received remdesivir" = c("Did not receive remdesivir", "Received remdesivir"),
+  "Received other antiviral" = c("Did not receive other antiviral", "Received other antiviral"),
+  "Vaccination status" = c("Unvaccinated", "Vaccinated", "Unknown"),
+  "D-dimer out of range" = c("No", "Yes", "Unknown")
 )
 
 sgroup_labs_shrt <- list(
   "Age" = c("< 60 yr", "≥ 60 yr"),
   "DSFS" = c("\u2264 7", "> 7"),
-  "Oxygen" = c("Not required", "Required")
+  "Oxygen" = c("Not required", "Required"),
+  "Steroids" = c("Not received", "Received"),
+  "Remdesivir" = c("Not received", "Received"),
+  "Other antiviral" = c("Not received", "Received"),
+  "Vaccination" = c("Unvaccinated", "Vaccinated"),
+  "D-dimer out of range" = c("No", "Yes", "Unknown")
 )
 ```
 
@@ -75,7 +85,8 @@ logistic_site_epoch <- compile_cmdstanr_mod(
 ```{r}
 #| label: analysis-sets
 #| code-summary: Prepare datasets
-all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds")) |>
+  mutate(iatrogenic = as.integer(BAS_IatrogenicImmuno == "Yes"))
 all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
 
 # FAS-ITT
@@ -704,7 +715,9 @@ y_ppc <- mdrws$y_ppc
 ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
 p <- plot_ppc(grp_ppc(sym("agegte60"), sgroup_labs_shrt$Age), "Age") 
 ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-age-hte-ppc.pdf"),
+  file.path(
+    "outputs", "figures", "outcomes", "primary", "subgroup",
+    "fas-itt-subgroup-age-hte-ppc.pdf"),
   grid.arrange(p), height = 2.5, width = 6, device = cairo_pdf
 )
 grid.arrange(p)
@@ -720,13 +733,13 @@ p
 
 ```{r}
 tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/age-odds-ratios")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-age-odds-ratios")
 make_subgroup_summary_table(ordat)
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/age-odds-ratios-compare")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-age-odds-ratios-compare")
 make_subgroup_summary_table(compdat)
 ```
 
@@ -900,13 +913,13 @@ p
 
 ```{r}
 tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/dsfs-odds-ratios")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-dsfs-odds-ratios")
 make_subgroup_summary_table(ordat)
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/dsfs-odds-ratios-compare")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-dsfs-odds-ratios-compare")
 make_subgroup_summary_table(compdat)
 ```
 
@@ -1072,20 +1085,20 @@ grid.arrange(p)
 ```{r}
 p <- plot_subgroup_or(ordat, sym("Supplemental oxygen"))
 ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "fas-itt-subgroup-oxygen-hte.pdf"),
+  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-oxygen-hte.pdf"),
   p, height = 3, width = 6, device = cairo_pdf)
 p
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/oxygen-odds-ratios")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-oxygen-odds-ratios")
 make_subgroup_summary_table(ordat)
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/oxygen-odds-ratios-compare")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-oxygen-odds-ratios-compare")
 make_subgroup_summary_table(compdat)
 ```
 
@@ -1112,17 +1125,14 @@ make_subgroup_steroids_table()
 
 
 ```{r}
-Xref <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "rec_steroids"), 
-  ctr = contr.treatment)
-Xref <- cbind(Xref, "randA1:rec_steroids" = Xref[, 3] * Xref[, "rec_steroids"])
-
 X <- make_X_design(
   fas_itt_nona_dat, 
   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "rec_steroids"), 
   ctr = contr.equalprior)
-Xint <- cbind(X, "randA1:rec_steroids" = X[, 3] * X[, "rec_steroids"])
+Xint <- cbind(
+  X, 
+  "randA:rec_steroids" = X[, 2] * X[, "rec_steroids"],
+  "randA1:rec_steroids" = X[, 3] * X[, "rec_steroids"])
 attr(Xint, "contrasts") <- attr(X, "contrasts")
 
 epoch <- fas_itt_nona_dat[["epoch"]]
@@ -1145,7 +1155,7 @@ if(diff(range(y_raw)) == 1) {
 
 N <- dim(Xint)[1]
 K <- dim(Xint)[2]
-beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1)
+beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1, 1)
 mdat <- list(
   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
@@ -1237,39 +1247,38 @@ steroidsdat <- fas_itt_dat %>%
     .before = 1
   ) %>%
   select(-rec_steroids, -AAssignment)
+```
 
+```{r}
 y_ppc <- mdrws$y_ppc
 ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-grp_ppc <- function(grp) {
-  ppc_dat %>%
-    group_by(AAssignment, grp = !!grp) %>%
-    summarise(
-      n = n(),
-      y = sum(PO),
-      `y/n` = mean(PO),
-      rvar_mean_y_ppc = rvar_mean(y_ppc)
-    )
-}
-grp_ppc(sym("rec_steroids"))
+p <- plot_ppc(grp_ppc(sym("rec_steroids"), labs2), "Corticosteroids") 
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "primary", "subgroup", 
+    "fas-itt-subgroup-steroids-hte-ppc.pdf"),
+  grid.arrange(p), height = 2, width = 6, device = cairo_pdf
+)
+grid.arrange(p)
 ```
 
 ```{r}
 p <- plot_subgroup_or(ordat, sym("Received corticosteroids"))
 ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "fas-itt-subgroup-steroids-hte.pdf"),
+  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-steroids-hte.pdf"),
   p, height = 3, width = 6, device = cairo_pdf)
 p
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/steroids-odds-ratios")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-steroids-odds-ratios")
 make_subgroup_summary_table(ordat)
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/steroids-odds-ratios-compare")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-steroids-odds-ratios-compare")
 make_subgroup_summary_table(compdat)
 ```
 
@@ -1296,12 +1305,6 @@ make_subgroup_remdesivir_table()
 ```
 
 ```{r}
-Xref <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "rec_remdesivir"), 
-  ctr = contr.treatment)
-Xref <- cbind(Xref, "randA1:rec_remdesivir" = Xref[, 3] * Xref[, "rec_remdesivir"])
-
 X <- make_X_design(
   fas_itt_nona_dat, 
   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "rec_remdesivir"), 
@@ -1424,52 +1427,40 @@ remdat <- fas_itt_dat %>%
     .before = 1
   ) %>%
   select(-rec_remdesivir, -AAssignment)
+```
 
+```{r}
 y_ppc <- mdrws$y_ppc
 ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-grp_ppc <- function(grp) {
-  ppc_dat %>%
-    group_by(AAssignment, grp = !!grp) %>%
-    summarise(
-      n = n(),
-      y = sum(PO),
-      `y/n` = mean(PO),
-      rvar_mean_y_ppc = rvar_mean(y_ppc)
-    )
-}
-grp_ppc(sym("rec_remdesivir"))
-
-dd <- grp_ppc(sym("rec_remdesivir")) |>
-  mutate("Received remdesivir" = factor(grp, labels = c("No", "Yes")),
-         "Antiviral" = factor(AAssignment, levels = c("A0", "A1", "A2"), labels = intervention_labels_short()$AAssignment))
-dd %>%
-    ggplot(aes(y = `Received remdesivir`, xdist = rvar_mean_y_ppc)) +
-    facet_grid(Antiviral ~ .) +
-    stat_interval(size = 2) +
-    geom_point(aes(x = `y/n`, y = `Received remdesivir`), colour = "red", shape = 23) +
-    labs(x = "Posterior predictive\nproportion")  
+p <- plot_ppc(grp_ppc(sym("rec_remdesivir"), labs2), "Remdesivir") 
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "primary", "subgroup", 
+    "fas-itt-subgroup-remdesivir-hte-ppc.pdf"),
+  grid.arrange(p), height = 2, width = 6, device = cairo_pdf
+)
+grid.arrange(p)
 ```
 
 ```{r}
 p <- plot_subgroup_or(ordat, sym("Received remdesivir"))
 ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "fas-itt-subgroup-remdesivir-hte.pdf"),
+  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-remdesivir-hte.pdf"),
   p, height = 3, width = 6, device = cairo_pdf)
 p
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/remdesivir-odds-ratios")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-remdesivir-odds-ratios")
 make_subgroup_summary_table(ordat)
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/remdesivir-odds-ratios-compare")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-remdesivir-odds-ratios-compare")
 make_subgroup_summary_table(compdat)
 ```
-
 
 ### Receipt of other agent intended to be an antiviral agent against SARS-CoV-2
 
@@ -1492,17 +1483,14 @@ make_subgroup_antiviral_table()
 ```
 
 ```{r}
-Xref <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "rec_antiviral"), 
-  ctr = contr.treatment)
-Xref <- cbind(Xref, "randA1:rec_antiviral" = Xref[, 3] * Xref[, "rec_antiviral"])
-
 X <- make_X_design(
   fas_itt_nona_dat, 
   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "rec_antiviral"), 
   ctr = contr.equalprior)
-Xint <- cbind(X, "randA1:rec_antiviral" = X[, 3] * X[, "rec_antiviral"])
+Xint <- cbind(
+  X, 
+  "randA:rec_antiviral" = X[, 2] * X[, "rec_antiviral"],
+  "randA1:rec_antiviral" = X[, 3] * X[, "rec_antiviral"])
 attr(Xint, "contrasts") <- attr(X, "contrasts")
 
 epoch <- fas_itt_nona_dat[["epoch"]]
@@ -1525,7 +1513,7 @@ if(diff(range(y_raw)) == 1) {
 
 N <- dim(Xint)[1]
 K <- dim(Xint)[2]
-beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 10)
+beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1, 1)
 mdat <- list(
   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
@@ -1617,50 +1605,41 @@ antiviraldat <- fas_itt_dat %>%
     .before = 1
   ) %>%
   select(-rec_antiviral, -AAssignment)
-
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-grp_ppc <- function(grp) {
-  ppc_dat %>%
-    group_by(AAssignment, grp = !!grp) %>%
-    summarise(
-      n = n(),
-      y = sum(PO),
-      `y/n` = mean(PO),
-      rvar_mean_y_ppc = rvar_mean(y_ppc)
-    )
-}
-
-dd <- grp_ppc(sym("rec_antiviral")) |>
-  mutate("Received antiviral" = factor(grp, labels = c("No", "Yes")),
-         "Antiviral" = factor(AAssignment, levels = c("A0", "A1", "A2"), labels = intervention_labels_short()$AAssignment))
-dd %>%
-    ggplot(aes(y = `Received antiviral`, xdist = rvar_mean_y_ppc)) +
-    facet_grid(Antiviral ~ .) +
-    stat_interval(size = 2) +
-    geom_point(aes(x = `y/n`, y = `Received antiviral`), colour = "red", shape = 23) +
-    labs(x = "Posterior predictive\nproportion")  
 ```
 
 ```{r}
+y_ppc <- mdrws$y_ppc
+ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
+p <- plot_ppc(grp_ppc(sym("rec_antiviral"), labs2), "Other antiviral") 
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "primary", "subgroup", 
+    "fas-itt-subgroup-antiviral-hte-ppc.pdf"),
+  grid.arrange(p), height = 2, width = 6, device = cairo_pdf
+)
+grid.arrange(p)
+```
+
+```{r}
+library(scales)
 p <- plot_subgroup_or(ordat, sym("Received other antiviral")) + 
   scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x), 
                 labels = trans_format("log10", scales::math_format(10^.x)))
 ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "fas-itt-subgroup-antiviral-hte.pdf"),
+  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-antiviral-hte.pdf"),
   p, height = 3, width = 6, device = cairo_pdf)
 p
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/antiviral-odds-ratios")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-antiviral-odds-ratios")
 make_subgroup_summary_table(ordat)
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/antiviral-odds-ratios-compare")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-antiviral-odds-ratios-compare")
 make_subgroup_summary_table(compdat)
 ```
 
@@ -1687,17 +1666,14 @@ make_subgroup_vax_table()
 ```
 
 ```{r}
-Xref <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "vaxfac"), 
-  ctr = contr.treatment)
-Xref <- cbind(Xref, "randA1:vaxfac" = Xref[, 3] * Xref[, "vaxfacYes"])
-
 X <- make_X_design(
   fas_itt_nona_dat, 
   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "vaxfac"), 
   ctr = contr.equalprior)
-Xint <- cbind(X, "randA1:vaxYes" = X[, 3] * X[, "vaxfacYes"])
+Xint <- cbind(
+  X, 
+  "randA:vaxfacYes" = X[, 2] * X[, "vaxfacYes"],
+  "randA1:vaxfacYes" = X[, 3] * X[, "vaxfacYes"])
 attr(Xint, "contrasts") <- attr(X, "contrasts")
 
 epoch <- fas_itt_nona_dat[["epoch"]]
@@ -1720,7 +1696,7 @@ if(diff(range(y_raw)) == 1) {
 
 N <- dim(Xint)[1]
 K <- dim(Xint)[2]
-beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 2.5, 1)
+beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 2.5, 1, 1)
 mdat <- list(
   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
@@ -1763,7 +1739,7 @@ Cc <- attr(mdat$X, "contrasts")$randC
 
 seff <- rbind(
   diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:vaxYes"]),
+  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:vaxfacYes"]),
   diff(Ca) %**% (mdrws$beta["randA1"])
 )
 labs <- c("Not vaccinated", "Vaccinated", "Unknown")
@@ -1814,63 +1790,132 @@ vaxdat <- fas_itt_dat %>%
     .before = 1
   ) %>%
   select(-vaxfac, -AAssignment)
+```
 
+```{r}
 y_ppc <- mdrws$y_ppc
 ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-grp_ppc <- function(grp) {
-  ppc_dat %>%
-    group_by(AAssignment, grp = !!grp) %>%
-    summarise(
-      n = n(),
-      y = sum(PO),
-      `y/n` = mean(PO),
-      rvar_mean_y_ppc = rvar_mean(y_ppc)
-    )
-}
-grp_ppc(sym("vaxfac"))
+p <- plot_ppc(grp_ppc(sym("vaxfac"), labs2), "Vaccination status") 
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "primary", "subgroup", 
+    "fas-itt-subgroup-vax-hte-ppc.pdf"),
+  grid.arrange(p), height = 2, width = 6, device = cairo_pdf
+)
+grid.arrange(p)
 ```
 
 ```{r}
 p <- plot_subgroup_or(ordat, sym("Vaccination status"))
 ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "fas-itt-subgroup-vax-hte.pdf"),
+  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-vax-hte.pdf"),
   p, height = 3, width = 6, device = cairo_pdf)
 p
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/vax-odds-ratios")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-vax-odds-ratios")
 make_subgroup_summary_table(ordat)
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/vax-odds-ratios-compare")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-vax-odds-ratios-compare")
 make_subgroup_summary_table(compdat)
 ```
 
+### Iatrogenic immunosuppression
 
-## AVS-ITT
-
-### Age
+Due to small numbers, no modelling was run.
 
 ```{r}
-X <- model.matrix( ~ randA * agegte60, data = avs_itt_nona_dat, contrasts.arg = list(randA = contr.equalprior))
-N <- dim(X)[1]
-K <- dim(X)[2]
-y <- avs_itt_nona_dat[["PO"]]
-beta_sd <- c(2.5, 1, 2.5, 1)
+#| tbl-cap: Primary outcome by anti-viral intervention by immunosuppression status
+make_subgroup_iatrogenic_table <- function(format = "html") {
+  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, iatrogenic, format = format)  %>%
+    pack_rows("No iatrogenic immunosuppression", 1, 5) %>%
+    pack_rows("Iatrogenic immunosuppression", 6, 10)
+  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, iatrogenic, format = format)  %>%
+    pack_rows("No iatrogenic immunosuppression", 1, 3) %>%
+    pack_rows("Iatrogenic immunosuppression", 4, 6)
+  return(list(t1, t2))
+}
+tab <- make_subgroup_iatrogenic_table("latex")
+save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-iatrogenic-descriptive-anticoagulation")
+save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-iatrogenic-descriptive-antiviral")
+make_subgroup_iatrogenic_table()
+```
+
+### D-dimer
+
+```{r}
+#| tbl-cap: Primary outcome by anti-viral intervention by immunosuppression status
+make_subgroup_ddimer_table <- function(format = "html") {
+  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, ddimer_oor, format = format)  %>%
+    pack_rows("D-dimer below upper limit of normal", 1, 5) %>%
+    pack_rows("D-dimer above upper limit of normal", 6, 10) %>%
+    pack_rows("Unknown", 11, 15)
+  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, ddimer_oor, format = format)  %>%
+    pack_rows("D-dimer below upper limit of normal", 1, 3) %>%
+    pack_rows("D-dimer above upper limit of normal", 4, 6) %>%
+    pack_rows("Unknown", 7, 9)
+  return(list(t1, t2))
+}
+tab <- make_subgroup_ddimer_table("latex")
+save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-ddimer-descriptive-anticoagulation")
+save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-ddimer-descriptive-antiviral")
+make_subgroup_ddimer_table()
+```
+
+
+```{r}
+X <- make_X_design(
+  fas_itt_nona_dat, 
+  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "ddimer_oor"), 
+  ctr = contr.equalprior)
+Xint <- cbind(
+  X, 
+  "randA:ddimer_oorYes" = X[, 2] * X[, "ddimer_oorYes"],
+  "randA1:ddimer_oorYes" = X[, 3] * X[, "ddimer_oorYes"], 
+  "randA:ddimer_oorUnknown" = X[, 2] * X[, "ddimer_oorUnknown"],
+  "randA1:ddimer_oorUnknown" = X[, 3] * X[, "ddimer_oorUnknown"])
+attr(Xint, "contrasts") <- attr(X, "contrasts")
+
+epoch <- fas_itt_nona_dat[["epoch"]]
+M_epoch <- max(epoch)
+region <- fas_itt_nona_dat[["ctry_num"]]
+M_region <- max(region)
+site <- fas_itt_nona_dat[["site_num"]]
+M_site <- max(site)
+region_by_site <- region_by_site <- fas_itt_nona_dat |>
+  dplyr::count(ctry_num, site_num) |>
+  pull(ctry_num)
+
+y_raw <- fas_itt_nona_dat[["PO"]]
+if(diff(range(y_raw)) == 1) {
+  y_mod <- y_raw
+} else {
+  y_raw <- ordered(y_raw)
+  y_mod <- as.integer(ordered(y_raw))
+}
+
+N <- dim(Xint)[1]
+K <- dim(Xint)[2]
+beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 2.5, 1, 1, 1, 1)
 mdat <- list(
-  N = N, K = K, 
-  X = X, y = y,
+  N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
+  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
+  M_region = M_region, region = region,
+  M_site = M_site, site = site,
+  M_epoch = M_epoch, epoch = epoch,
+  region_by_site = region_by_site,
   beta_sd = beta_sd
 )
 
 snk <- capture.output(
-  mfit <- logistic_mod[["sample"]](
+  mfit <- logistic_site_epoch[["sample"]](
     data = mdat,
-    seed = 123,
+    seed = 77821,
     adapt_delta = 0.99,
     refresh = 0,
     iter_warmup = 500,
@@ -1885,36 +1930,53 @@ keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
 mdrws <- as_draws_rvars(mfit$draws(keep))
 names(mdrws$beta) <- colnames(mdat$X)
 
+if(any(grepl("site", keep))) {
+  site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)  
+  names(mdrws$gamma_site) <- site_map$site
+}
+if(any(grepl("epoch", keep))) {
+  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
+  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+}
+# Transformed samples
 Ca <- attr(mdat$X, "contrasts")$randA
+Cc <- attr(mdat$X, "contrasts")$randC
+
 seff <- rbind(
   diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:agegte60"])
+  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:ddimer_oorYes"]),
+  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:ddimer_oorUnknown"])
 )
-
 mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- sgroup_labs$Age
+rownames(mdrws$OR) <- sgroup_labs$`D-dimer out of range`
 colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-OR_age <- mdrws$OR
-rownames(OR_age) <- sgroup_labs_shrt$Age
 mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
+
+OR_list[["D-dimer out of range"]] <- mdrws$OR %>% 
+  as_tibble(rownames = "Levels") %>% 
+  pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>%
+  mutate(Subgroup = "D-dimer\nout of range", .before = 1)
 
 # Summarise subgroup effects
 ordat <- expand_grid(
   Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  Age = sgroup_labs$Age,
+  `D-dimer out of range` = fct_inorder(sgroup_labs$`D-dimer out of range`),
 ) %>%
   mutate(Posterior = c(mdrws$OR)) %>%
   summarise_posterior()
+# Summarise comparison of effects (reference is India)
 compdat <- expand_grid(
   Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  Age = sgroup_labs$Age
+  `D-dimer out of range` = fct_inorder(sgroup_labs$`D-dimer out of range`)
 ) %>%
   mutate(Posterior = c(mdrws$compare)) %>%
   summarise_posterior() %>%
   select(-`Pr(OR > 1/1.1)`)
 
-agedat <- avs_itt_dat %>% 
-  group_by(agegte60, AAssignment) %>% 
+OR_ddimer <- mdrws$OR
+rownames(OR_ddimer) <- sgroup_labs_shrt$`D-dimer out of range`
+ddimerdat <- fas_itt_dat %>% 
+  group_by(ddimer_oor, AAssignment) %>% 
   summarise("events/patients" = sprintf(
     "%i/%i (%.2f)", 
     sum(PO, na.rm = TRUE), 
@@ -1923,203 +1985,319 @@ agedat <- avs_itt_dat %>%
   ) %>%
   ungroup() %>%
   mutate(
-    Subgroup = "Age",
-    Variable = factor(agegte60, labels = labs2),
+    Subgroup = "D-dimer",
+    Variable = as.character(factor(as.numeric(ddimer_oor), levels = 1:3, labels = sgroup_labs_shrt$`D-dimer out of range`)),
     Intervention = as.character(factor(
       AAssignment, 
-      labels = intervention_labels_short()$AAssignment[-1])),
+      labels = intervention_labels_short()$AAssignment)),
     .before = 1
   ) %>%
-  select(-agegte60, -AAssignment)
-
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(avs_itt_nona_dat, tibble(y_ppc = y_ppc))
-plot_ppc(grp_ppc(sym("agegte60"), sgroup_labs_shrt$Age), "Age") 
-```
-
-### Days since symptom onset
-
-```{r}
-X <- model.matrix( ~ randA * dsfsgt7, data = avs_itt_nona_dat, contrasts.arg = list(randA = contr.equalprior))
-N <- dim(X)[1]
-K <- dim(X)[2]
-y <- avs_itt_nona_dat[["PO"]]
-beta_sd <- c(2.5, 1, 2.5, 1)
-mdat <- list(
-  N = N, K = K, 
-  X = X, y = y,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mfit <- logistic_mod[["sample"]](
-    data = mdat,
-    seed = 123,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mfit$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-mdrws <- as_draws_rvars(mfit$draws(keep))
-names(mdrws$beta) <- colnames(mdat$X)
-Ca <- attr(mdat$X, "contrasts")$randA
-
-seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:dsfsgt7"])
-)
-
-mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- sgroup_labs[["Days since symptom onset"]]
-colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
-OR_dsfs <- mdrws$OR
-
-# Summarise subgroup effects
-ordat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Days since symptom onset` = sgroup_labs$`Days since symptom onset`,
-) %>%
-  mutate(Posterior = c(mdrws$OR)) %>%
-  summarise_posterior()
-compdat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Days since symptom onset` = sgroup_labs$`Days since symptom onset`
-) %>%
-  mutate(Posterior = c(mdrws$compare)) %>%
-  summarise_posterior() %>%
-  select(-`Pr(OR > 1/1.1)`)
-
-dsfsdat <- avs_itt_dat %>% 
-  group_by(dsfsgt7, AAssignment) %>% 
-  summarise("events/patients" = sprintf(
-    "%i/%i (%.2f)", 
-    sum(PO, na.rm = TRUE), 
-    sum(!is.na(PO)), 
-    mean(PO, na.rm = T))
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Subgroup = "Days since symptom onset",
-    Variable = factor(dsfsgt7, labels = sgroup_labs_shrt[["DSFS"]]),
-    Intervention = as.character(factor(
-      AAssignment, 
-      labels = intervention_labels_short()$AAssignment[-1])),
-    .before = 1
-  ) %>%
-  select(-dsfsgt7, -AAssignment)
-
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(avs_itt_nona_dat, tibble(y_ppc = y_ppc))
-plot_ppc(grp_ppc(sym("dsfsgt7"), sgroup_labs_shrt$DSFS), "DSFS")
-```
-
-
-### Oxygen
-
-```{r}
-X <- model.matrix( ~ randA * supp_oxy2, data = avs_itt_nona_dat, contrasts.arg = list(randA = contr.equalprior))
-N <- dim(X)[1]
-K <- dim(X)[2]
-y <- avs_itt_nona_dat[["PO"]]
-beta_sd <- c(2.5, 1, 2.5, 1)
-mdat <- list(
-  N = N, K = K, 
-  X = X, y = y,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mfit <- logistic_mod[["sample"]](
-    data = mdat,
-    seed = 123,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mfit$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-mdrws <- as_draws_rvars(mfit$draws(keep))
-names(mdrws$beta) <- colnames(mdat$X)
-Ca <- attr(mdat$X, "contrasts")$randA
-
-seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:supp_oxy2"])
-)
-
-mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- sgroup_labs[["Supplemental oxygen"]]
-colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
-OR_oxygen <- mdrws$OR
-
-# Summarise subgroup effects
-ordat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Supplemental oxygen` = sgroup_labs$`Supplemental oxygen`,
-) %>%
-  mutate(Posterior = c(mdrws$OR)) %>%
-  summarise_posterior()
-compdat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Supplemental oxygen` = sgroup_labs$`Supplemental oxygen`
-) %>%
-  mutate(Posterior = c(mdrws$compare)) %>%
-  summarise_posterior() %>%
-  select(-`Pr(OR > 1/1.1)`)
-
-oxydat <- avs_itt_dat %>% 
-  group_by(supp_oxy2, AAssignment) %>% 
-  summarise("events/patients" = sprintf(
-    "%i/%i (%.2f)", 
-    sum(PO, na.rm = TRUE), 
-    sum(!is.na(PO)), 
-    mean(PO, na.rm = T))
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Subgroup = "Days since symptom onset",
-    Variable = factor(supp_oxy2, labels = sgroup_labs_shrt[["Oxygen"]]),
-    Intervention = as.character(factor(
-      AAssignment, 
-      labels = intervention_labels_short()$AAssignment[-1])),
-    .before = 1
-  ) %>%
-  select(-supp_oxy2, -AAssignment)
-
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(avs_itt_nona_dat, tibble(y_ppc = y_ppc))
-plot_ppc(grp_ppc(sym("supp_oxy2"), sgroup_labs_shrt$Oxygen), "Oxygen")
+  select(-ddimer_oor, -AAssignment)
 ```
 
 ```{r}
-p <- plot_subgroup_or(ordat, sym("Supplemental oxygen"))
+y_ppc <- mdrws$y_ppc
+ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
+p <- plot_ppc(grp_ppc(sym("ddimer_oor"), sgroup_labs_shrt$`D-dimer out of range`), "D-dimer out of range") 
 ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "avs-itt-subgroup-oxygen-hte.pdf"),
+  file.path(
+    "outputs", "figures", "outcomes", "primary", "subgroup", 
+    "fas-itt-subgroup-ddimer-hte-ppc.pdf"),
+  grid.arrange(p), height = 2, width = 6, device = cairo_pdf
+)
+grid.arrange(p)
+```
+
+```{r}
+p <- plot_subgroup_or(ordat, sym("D-dimer out of range"))
+ggsave(
+  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-ddimer-hte.pdf"),
   p, height = 3, width = 6, device = cairo_pdf)
 p
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/avs-itt-oxygen-odds-ratios")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-ddimer-odds-ratios")
 make_subgroup_summary_table(ordat)
 ```
 
 ```{r}
 tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/avs-itt-oxygen-odds-ratios-compare")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-ddimer-odds-ratios-compare")
 make_subgroup_summary_table(compdat)
 ```
+
+
+<!-- ## AVS-ITT -->
+
+<!-- ### Age -->
+
+<!-- ```{r} -->
+<!-- X <- model.matrix( ~ randA * agegte60, data = avs_itt_nona_dat, contrasts.arg = list(randA = contr.equalprior)) -->
+<!-- N <- dim(X)[1] -->
+<!-- K <- dim(X)[2] -->
+<!-- y <- avs_itt_nona_dat[["PO"]] -->
+<!-- beta_sd <- c(2.5, 1, 2.5, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K,  -->
+<!--   X = X, y = y, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_mod[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 123, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:agegte60"]) -->
+<!-- ) -->
+
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- sgroup_labs$Age -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- OR_age <- mdrws$OR -->
+<!-- rownames(OR_age) <- sgroup_labs_shrt$Age -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   Age = sgroup_labs$Age, -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   Age = sgroup_labs$Age -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- agedat <- avs_itt_dat %>%  -->
+<!--   group_by(agegte60, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "Age", -->
+<!--     Variable = factor(agegte60, labels = sgroup_labs_shrt$Age), -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment[-1])), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-agegte60, -AAssignment) -->
+
+<!-- y_ppc <- mdrws$y_ppc -->
+<!-- ppc_dat <- bind_cols(avs_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
+<!-- plot_ppc(grp_ppc(sym("agegte60"), sgroup_labs_shrt$Age), "Age")  -->
+<!-- ``` -->
+
+<!-- ### Days since symptom onset -->
+
+<!-- ```{r} -->
+<!-- X <- model.matrix( ~ randA * dsfsgt7, data = avs_itt_nona_dat, contrasts.arg = list(randA = contr.equalprior)) -->
+<!-- N <- dim(X)[1] -->
+<!-- K <- dim(X)[2] -->
+<!-- y <- avs_itt_nona_dat[["PO"]] -->
+<!-- beta_sd <- c(2.5, 1, 2.5, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K,  -->
+<!--   X = X, y = y, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_mod[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 123, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:dsfsgt7"]) -->
+<!-- ) -->
+
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- sgroup_labs[["Days since symptom onset"]] -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+<!-- OR_dsfs <- mdrws$OR -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Days since symptom onset` = sgroup_labs$`Days since symptom onset`, -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Days since symptom onset` = sgroup_labs$`Days since symptom onset` -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- dsfsdat <- avs_itt_dat %>%  -->
+<!--   group_by(dsfsgt7, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "Days since symptom onset", -->
+<!--     Variable = factor(dsfsgt7, labels = sgroup_labs_shrt[["DSFS"]]), -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment[-1])), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-dsfsgt7, -AAssignment) -->
+
+<!-- y_ppc <- mdrws$y_ppc -->
+<!-- ppc_dat <- bind_cols(avs_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
+<!-- plot_ppc(grp_ppc(sym("dsfsgt7"), sgroup_labs_shrt$DSFS), "DSFS") -->
+<!-- ``` -->
+
+
+<!-- ### Oxygen -->
+
+<!-- ```{r} -->
+<!-- X <- model.matrix( ~ randA * supp_oxy2, data = avs_itt_nona_dat, contrasts.arg = list(randA = contr.equalprior)) -->
+<!-- N <- dim(X)[1] -->
+<!-- K <- dim(X)[2] -->
+<!-- y <- avs_itt_nona_dat[["PO"]] -->
+<!-- beta_sd <- c(2.5, 1, 2.5, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K,  -->
+<!--   X = X, y = y, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_mod[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 123, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:supp_oxy2"]) -->
+<!-- ) -->
+
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- sgroup_labs[["Supplemental oxygen"]] -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+<!-- OR_oxygen <- mdrws$OR -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Supplemental oxygen` = sgroup_labs$`Supplemental oxygen`, -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Supplemental oxygen` = sgroup_labs$`Supplemental oxygen` -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- oxydat <- avs_itt_dat %>%  -->
+<!--   group_by(supp_oxy2, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "Days since symptom onset", -->
+<!--     Variable = factor(supp_oxy2, labels = sgroup_labs_shrt[["Oxygen"]]), -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment[-1])), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-supp_oxy2, -AAssignment) -->
+
+<!-- y_ppc <- mdrws$y_ppc -->
+<!-- ppc_dat <- bind_cols(avs_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
+<!-- plot_ppc(grp_ppc(sym("supp_oxy2"), sgroup_labs_shrt$Oxygen), "Oxygen") -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- p <- plot_subgroup_or(ordat, sym("Supplemental oxygen")) -->
+<!-- ggsave( -->
+<!--   file.path("outputs", "figures", "outcomes", "primary", "subgroup", "avs-itt-subgroup-oxygen-hte.pdf"), -->
+<!--   p, height = 3, width = 6, device = cairo_pdf) -->
+<!-- p -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(ordat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/avs-itt-oxygen-odds-ratios") -->
+<!-- make_subgroup_summary_table(ordat) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(compdat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/avs-itt-oxygen-odds-ratios-compare") -->
+<!-- make_subgroup_summary_table(compdat) -->
+<!-- ``` -->

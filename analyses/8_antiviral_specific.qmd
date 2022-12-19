@@ -37,6 +37,9 @@ saes <- readxl::read_excel(
 sars <- readxl::read_excel(
   file.path(ASCOT_DATA, "explanation", "ASCOT_ADAPT_ListofSARs.xlsx")) |>
   arrange(`Date of SAE onset`)
+
+bleed <- readxl::read_excel(
+  file.path(ASCOT_DATA, "explanation", "Bleeds.xlsx"))
 ```
 
 
@@ -849,6 +852,38 @@ sars |>
   column_spec(4, width = "9cm") |>
   save_tex_table("outcomes/safety/sars-non-major-bleed")
 ```
+
+For the other non-major bleeds, follow-up with sites was conducted and summaries provided.
+
+```{r}
+all_data |>
+  filter_avs_itt() |>
+  filter(D28_ABNonMajorBleeding == "Yes" | DIS_NonMajorBleeding == "Yes") |>
+  select(StudyPatientID, AAssignment, CAssignment) |>
+  mutate(
+    Antiviral = factor(AAssignment, 
+                       levels = c("A0", "A1", "A2"), 
+                       labels = intervention_labels2()$AAssignment),
+    Anticoagulation = factor(CAssignment,
+                             levels = c("C0", "C1", "C2", "C3", "C4"),
+                             labels = intervention_labels2()$CAssignment)) |>
+  select(-AAssignment, -CAssignment) |>
+  left_join(
+    bleed |> select(`Patient ID`, `Notes from Site`), by = c("StudyPatientID" = "Patient ID")
+  ) |>
+  filter(!is.na(`Notes from Site`)) |>
+  kable(
+    "latex",
+    booktabs = TRUE, 
+    align = "l"
+  ) |>
+  kable_styling(latex_options = "HOLD_position", font_size = 5.5) |>
+  column_spec(1:2, width = "1cm") |>
+  column_spec(3, width = "2cm") |>
+  column_spec(4, width = "9cm") |>
+  save_tex_table("outcomes/safety/non-major-bleed-other")
+```
+
 
 ```{r}
 nmb_dat <- all_data |>

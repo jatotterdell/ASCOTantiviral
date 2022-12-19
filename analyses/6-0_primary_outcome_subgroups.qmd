@@ -2029,91 +2029,121 @@ make_subgroup_summary_table(compdat)
 ```
 
 
-<!-- ## AVS-ITT -->
+## AVS-ITT
 
-<!-- ### Age -->
+### Age
 
-<!-- ```{r} -->
-<!-- X <- model.matrix( ~ randA * agegte60, data = avs_itt_nona_dat, contrasts.arg = list(randA = contr.equalprior)) -->
-<!-- N <- dim(X)[1] -->
-<!-- K <- dim(X)[2] -->
-<!-- y <- avs_itt_nona_dat[["PO"]] -->
-<!-- beta_sd <- c(2.5, 1, 2.5, 1) -->
-<!-- mdat <- list( -->
-<!--   N = N, K = K,  -->
-<!--   X = X, y = y, -->
-<!--   beta_sd = beta_sd -->
-<!-- ) -->
+```{r}
+X <- model.matrix( ~ randA * agegte60, data = avs_itt_nona_dat, contrasts.arg = list(randA = contr.equalprior))
+N <- dim(X)[1]
+K <- dim(X)[2]
+y <- avs_itt_nona_dat[["PO"]]
+beta_sd <- c(2.5, 1, 2.5, 1)
+mdat <- list(
+  N = N, K = K,
+  X = X, y = y,
+  beta_sd = beta_sd
+)
 
-<!-- snk <- capture.output( -->
-<!--   mfit <- logistic_mod[["sample"]]( -->
-<!--     data = mdat, -->
-<!--     seed = 123, -->
-<!--     adapt_delta = 0.99, -->
-<!--     refresh = 0, -->
-<!--     iter_warmup = 500, -->
-<!--     iter_sampling = 2500, -->
-<!--     chains = 4, -->
-<!--     parallel_chains = min(4, parallel::detectCores()) -->
-<!--   ) -->
-<!-- ) -->
+snk <- capture.output(
+  mfit <- logistic_mod[["sample"]](
+    data = mdat,
+    seed = 123,
+    adapt_delta = 0.99,
+    refresh = 0,
+    iter_warmup = 500,
+    iter_sampling = 2500,
+    chains = 4,
+    parallel_chains = min(4, parallel::detectCores())
+  )
+)
 
-<!-- mpars <- mfit$metadata()$model_params -->
-<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
-<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
-<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+mpars <- mfit$metadata()$model_params
+keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
+mdrws <- as_draws_rvars(mfit$draws(keep))
+names(mdrws$beta) <- colnames(mdat$X)
 
-<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
-<!-- seff <- rbind( -->
-<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
-<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:agegte60"]) -->
-<!-- ) -->
+Ca <- attr(mdat$X, "contrasts")$randA
+seff <- rbind(
+  diff(Ca) %**% (mdrws$beta["randA1"]),
+  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:agegte60"])
+)
 
-<!-- mdrws$OR <- exp(seff) -->
-<!-- rownames(mdrws$OR) <- sgroup_labs$Age -->
-<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
-<!-- OR_age <- mdrws$OR -->
-<!-- rownames(OR_age) <- sgroup_labs_shrt$Age -->
-<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+mdrws$OR <- exp(seff)
+rownames(mdrws$OR) <- sgroup_labs$Age
+colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
+OR_age <- mdrws$OR
+rownames(OR_age) <- sgroup_labs_shrt$Age
+mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
 
-<!-- # Summarise subgroup effects -->
-<!-- ordat <- expand_grid( -->
-<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
-<!--   Age = sgroup_labs$Age, -->
-<!-- ) %>% -->
-<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
-<!--   summarise_posterior() -->
-<!-- compdat <- expand_grid( -->
-<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
-<!--   Age = sgroup_labs$Age -->
-<!-- ) %>% -->
-<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
-<!--   summarise_posterior() %>% -->
-<!--   select(-`Pr(OR > 1/1.1)`) -->
+# Summarise subgroup effects
+ordat <- expand_grid(
+  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
+  Age = sgroup_labs$Age,
+) %>%
+  mutate(Posterior = c(mdrws$OR)) %>%
+  summarise_posterior()
+compdat <- expand_grid(
+  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
+  Age = sgroup_labs$Age
+) %>%
+  mutate(Posterior = c(mdrws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
 
-<!-- agedat <- avs_itt_dat %>%  -->
-<!--   group_by(agegte60, AAssignment) %>%  -->
-<!--   summarise("events/patients" = sprintf( -->
-<!--     "%i/%i (%.2f)",  -->
-<!--     sum(PO, na.rm = TRUE),  -->
-<!--     sum(!is.na(PO)),  -->
-<!--     mean(PO, na.rm = T)) -->
-<!--   ) %>% -->
-<!--   ungroup() %>% -->
-<!--   mutate( -->
-<!--     Subgroup = "Age", -->
-<!--     Variable = factor(agegte60, labels = sgroup_labs_shrt$Age), -->
-<!--     Intervention = as.character(factor( -->
-<!--       AAssignment,  -->
-<!--       labels = intervention_labels_short()$AAssignment[-1])), -->
-<!--     .before = 1 -->
-<!--   ) %>% -->
-<!--   select(-agegte60, -AAssignment) -->
+agedat <- avs_itt_dat %>%
+  group_by(agegte60, AAssignment) %>%
+  summarise("events/patients" = sprintf(
+    "%i/%i (%.2f)",
+    sum(PO, na.rm = TRUE),
+    sum(!is.na(PO)),
+    mean(PO, na.rm = T))
+  ) %>%
+  ungroup() %>%
+  mutate(
+    Subgroup = "Age",
+    Variable = factor(agegte60, labels = sgroup_labs_shrt$Age),
+    Intervention = as.character(factor(
+      AAssignment,
+      labels = intervention_labels_short()$AAssignment[-1])),
+    .before = 1
+  ) %>%
+  select(-agegte60, -AAssignment)
+```
 
-<!-- y_ppc <- mdrws$y_ppc -->
-<!-- ppc_dat <- bind_cols(avs_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
-<!-- plot_ppc(grp_ppc(sym("agegte60"), sgroup_labs_shrt$Age), "Age")  -->
-<!-- ``` -->
+```{r}
+y_ppc <- mdrws$y_ppc
+ppc_dat <- bind_cols(avs_itt_nona_dat, tibble(y_ppc = y_ppc))
+p <- plot_ppc(grp_ppc(sym("agegte60"), sgroup_labs_shrt$Age), "Age") 
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "primary", "subgroup",
+    "avs-itt-subgroup-age-hte-ppc.pdf"),
+  grid.arrange(p), height = 2.5, width = 6, device = cairo_pdf
+)
+grid.arrange(p)
+```
+
+```{r}
+p <- plot_subgroup_or(ordat, sym("Age"))
+ggsave(
+  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "avs-itt-subgroup-age-hte.pdf"),
+  p, height = 2.5, width = 6, device = cairo_pdf)
+p
+```
+
+```{r}
+tab <- make_subgroup_summary_table(ordat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/avs-itt-age-odds-ratios")
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+tab <- make_subgroup_summary_table(compdat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/avs-itt-age-odds-ratios-compare")
+make_subgroup_summary_table(compdat)
+```
+
 
 <!-- ### Days since symptom onset -->
 

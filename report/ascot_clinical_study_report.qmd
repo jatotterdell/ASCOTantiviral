@@ -660,12 +660,12 @@ writeLines(tab)
 
 ### Primary Analysis
 
-The primary model was a logistic regression model adjusting for anticoagulation treatment, antiviral treatment, age ($\geq 60$ or not), oxygen requirement (required supplemental oxygen or not), and region (India (ref), Australia/New Zealand, and Nepal), with random effects for site (nested within country) and epoch (calendar time 4 week intervals, most recent epoch as reference). The three most recent epochs were combined due to small numbers, and the two earliest epochs were combined for the same reason. Sites with fewer than 5 enrolments were combined within region into an "other sites" category. The primary analysis was based on the FAS-ITT set using the full model as specified in the statistical appendix to the core protocol.  An odds ratio less than 1 implies a benefit (reduction in the odds of primary outcome).
+The primary model was a logistic regression model adjusting for anticoagulation treatment, antiviral treatment, age ($\geq 60$ or not), oxygen requirement (required supplemental oxygen or not), and region (India (ref), Australia/New Zealand, and Nepal), with random effects for site (nested within country) and epoch (calendar time 4 week intervals, most recent epoch as reference). The three most recent epochs were combined due to small numbers, and the two earliest epochs were combined for the same reason. Sites with fewer than 5 enrolments were combined within region into an "other sites" category. An odds ratio less than 1 implies a benefit (reduction in the odds of primary outcome).
 
 #### FAS-ITT
 
 The SAP specified that the analysis based on FAS-ITT as secondary.
-However, this analysis is presented first.
+However, this analysis using all the available platform data is presented first.
 
 - **Model**: logistic regression
 - **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, sex, oxygen requirement, region, site nested within region, and epoch
@@ -721,7 +721,7 @@ This analysis deviated from that specified in the SAP for a number of reasons:
 
 - almost all in AVS-ITT were enrolled in Australia/New Zealand, with no events observed in Nepal, so region was dropped from the model
 - there was concurrent randomisation to antiviral domain (where available) throughout the entire study, so epoch term dropped was dropped from the model
-- other covariates dropped due to small number of cases and events (ineligible for aspirin).
+- other covariates dropped due to small number of cases and events (ineligible for aspirin, site).
 
 Therefore, the analysis restricted to the AVS-ITT set was based on a reduced model compared to that specified in the SAP.
 Due to the small number of events, the parameter posteriors will be sensitive to the priors.
@@ -3104,6 +3104,15 @@ writeLines(tab)
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "safety", "sars-non-major-bleed.tex"))
 writeLines(tab)
 ```
+
+```{r}
+#| label: tbl-sar-listing-non-major-bleed-other
+#| tbl-cap: Non-major bleeding details for non SAR/SAE events.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "safety", "non-major-bleed-other.tex"))
+writeLines(tab)
+```
+
 
 \clearpage
 

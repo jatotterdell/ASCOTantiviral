@@ -100,6 +100,8 @@ logistic_mod <- compile_cmdstanr_mod(
   file.path("binary", "logistic"), dir = "stan")
 logistic_site_epoch <- compile_cmdstanr_mod(
   file.path("binary", "logistic_site_epoch"), dir = "stan")
+logistic_site <- compile_cmdstanr_mod(
+  file.path("binary", "logistic_site"), dir = "stan")
 ```
 
 # Primary Outcome Definition
@@ -1574,7 +1576,7 @@ ggsave(pth, p, width = 6, height = 2.5)
 p
 ```
 
-### Pre-specified
+### Pre-specified - without site
 
 In this section the pre-specified model with covariates is fit.
 However, again with no region, epoch or site specific terms.
@@ -1631,6 +1633,77 @@ ggsave(pth, p, width = 6, height = 2.5)
 p
 ```
 
+
+### Pre-specified - with site
+
+In this section the pre-specified model with covariates is fit.
+However, again with no region, epoch or site specific terms.
+
+```{r}
+res <- fit_primary_model(
+  avs_itt_nona_dat,
+  logistic_site,
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5)
+)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR)[-1] <- c(
+  "Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-avs-itt-with-site
+#| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]), "latex"),
+  "outcomes/primary/primary-model-avs-itt-with-site-summary-table")
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
+```
+
+```{r}
+#| label: tbl-decision-quantities-avs-itt-wth-site
+#| tbl-cap: Decision quantity summaries, AVS-ITT.
+save_tex_table(
+  decision_quantity_summary_table(c("SoC" = rvar(1), res$drws$AOR), format = "latex") |> 
+    # bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR), format = "latex")) |>
+    kable("latex", align = "llrrrr", booktabs = TRUE, escape = FALSE) |>
+    kable_styling(latex_options = "HOLD_position", font_size = 8) |>
+    pack_rows("Antiviral", 1, 2),
+    # pack_rows("Anticoagulation", 3, 6),
+  "outcomes/primary/primary-model-avs-itt-with-site-decision-table")
+
+decision_quantity_summary_table(c("SoC" = rvar(1), res$drws$AOR)) |> 
+  # bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR))) |>
+  kable(align = "llrrrr") |>
+  kable_styling("striped", font_size = 12) |>
+  pack_rows("Antiviral", 1, 2)
+  # pack_rows("Anticoagulation", 3, 6)
+```
+
+```{r}
+#| label: fig-or-densities-avs-itt-model-wth-site
+#| fig-cap: Posterior densities for odds ratio contrasts.
+p <- plot_or_densities(c(res$drws$AOR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-avs-itt-with-site-odds-ratio-densities.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+```{r}
+#| label: odds-ratio-summary-primary-model-avs-itt-epoch-site-terms-with-site
+p <- plot_site_terms(
+  res$drws$gamma_site,
+  factor(
+    res$dat$region_by_site, 
+    labels = c("Australia\nNew Zealand", "Nepal"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-avs-itt-epoch-site-terms-with-site.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
 ### Treatment coding
 
 ```{r}
@@ -1663,6 +1736,30 @@ res <- fit_primary_model(
   beta_sd_int = 10,
   beta_sd_trt = 10,
   beta_sd_var = c(10, 10, 10, 10, 10, 10),
+  includeC = FALSE
+)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$OR)[-1] <- c(
+  "Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-avs-itt-diffuse
+#| tbl-cap: Posterior summaries for model parameters, AVS-ITT.
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$OR[-1]))
+```
+
+
+### Sceptical prior
+
+```{r}
+res <- fit_primary_model(
+  avs_itt_nona_dat,
+  logistic_mod,
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
+  beta_sd_int = 10,
+  beta_sd_trt = 0.4,
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5),
   includeC = FALSE
 )
 names(res$drws$AOR) <- "Nafamostat"
@@ -1821,12 +1918,13 @@ However, again with no region, epoch or site specific terms.
 res <- fit_primary_model(
   avs_pp_nona_dat,
   logistic_mod,
-  vars = c("agegte60", "sexF", "supp_oxy2"),
-  beta_sd_var = c(2.5, 2.5, 2.5)
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5)
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR)[-1] <- c("Age \u2265 60", "Female", "Oxygen requirement")
+names(res$drws$OR)[-1] <- c(
+  "Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
 ```
 
 ```{r}
@@ -1843,25 +1941,25 @@ odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
 #| tbl-cap: Decision quantity summaries, AVS-PP.
 save_tex_table(
   decision_quantity_summary_table(c("SoC" = rvar(1), res$drws$AOR), format = "latex") |> 
-    bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR), format = "latex")) |>
+    # bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR), format = "latex")) |>
     kable("latex", align = "llrrrr", booktabs = TRUE, escape = FALSE) |>
     kable_styling(latex_options = "HOLD_position", font_size = 8) |>
-    pack_rows("Antiviral", 1, 2) |>
-    pack_rows("Anticoagulation", 3, 6),
+    pack_rows("Antiviral", 1, 2),
+    # pack_rows("Anticoagulation", 3, 6),
   "outcomes/primary/primary-model-avs-pp-decision-table")
 
 decision_quantity_summary_table(c("SoC" = rvar(1), res$drws$AOR)) |> 
-  bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR))) |>
+  # bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR))) |>
   kable(align = "llrrrr") |>
   kable_styling("striped", font_size = 12) |>
-  pack_rows("Antiviral", 1, 2) |>
-  pack_rows("Anticoagulation", 3, 6)
+  pack_rows("Antiviral", 1, 2)
+  # pack_rows("Anticoagulation", 3, 6)
 ```
 
 ```{r}
 #| label: fig-or-densities-avs-pp-model
 #| fig-cap: Posterior densities for odds ratio contrasts.
-p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+p <- plot_or_densities(c(res$drws$AOR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
 pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-avs-pp-odds-ratio-densities.pdf")
 ggsave(pth, p, width = 6, height = 2.5)

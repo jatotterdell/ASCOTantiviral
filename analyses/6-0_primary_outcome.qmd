@@ -673,9 +673,9 @@ tdat <- all_data %>%
   group_by(Antiviral) %>%
   spread(PO, n, fill = 0) %>%
   mutate(
-    n = `1` + `0` + `<NA>`,
+    n = `1` + `0`,
     p_1 = `1` / (`1` + `0`),
-    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+    p_miss = 0 / (`1` + `0`)
   )
 p1 <- ggplot(tdat, aes(Antiviral, n)) +
   geom_col() +
@@ -801,6 +801,29 @@ ggsave(file.path(path, "outcome-oxygen.pdf"), p, height = 2, width = 6)
 p
 ```
 
+
+```{r}
+#| label: tbl-oxy-po
+#| code-summary: Relationship oxygen requirement to outcome
+tdat <- all_data %>%
+  filter_fas_itt() %>%
+  count(
+    `Oxygen requirement` = fct_explicit_na(factor(supp_oxy, levels = 0:1, labels = c("No", "Yes"))), 
+    PO) %>%
+  group_by(`Oxygen requirement`) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    Total = `1` + `0` + `<NA>`,
+    No = sprintf("%i (%.0f)", `0`, 100 * `0` / (`1` + `0`)),
+    Yes = sprintf("%i (%.0f)", `1`, 100 * `1` / (`1` + `0`)),
+    Unknown = sprintf("%i (%.0f)", `<NA>`, 100 * `1` / Total)
+  ) |>
+  select(-`0`, -`1`, -`<NA>`)
+kable(tdat, align = "lrrrr") |>
+  kable_styling("striped", font_size = 12)
+```
+
+
 ## Country
 
 The following presents the primary outcome rate by country.
@@ -918,27 +941,65 @@ ggsave(file.path(path, "outcome-calendar-time.pdf"), p, height = 2, width = 6)
 p
 ```
 
-## Oxygen requirement
+There was interest in investigating a cut-point of calendar time due to changes in the predominant circulating variant.
+A proposed cut-point was 2021-12-20.
 
 ```{r}
-#| label: tbl-oxy-po
-#| code-summary: Relationship oxygen requirement to outcome
-tdat <- all_data %>%
-  filter_fas_itt() %>%
-  count(
-    `Oxygen requirement` = fct_explicit_na(factor(supp_oxy, levels = 0:1, labels = c("No", "Yes"))), 
-    PO) %>%
-  group_by(`Oxygen requirement`) %>%
-  spread(PO, n, fill = 0) %>%
-  mutate(
-    Total = `1` + `0` + `<NA>`,
-    No = sprintf("%i (%.0f)", `0`, 100 * `0` / (`1` + `0`)),
-    Yes = sprintf("%i (%.0f)", `1`, 100 * `1` / (`1` + `0`)),
-    Unknown = sprintf("%i (%.0f)", `<NA>`, 100 * `1` / Total)
-  ) |>
-  select(-`0`, -`1`, -`<NA>`)
-kable(tdat, align = "lrrrr") |>
-  kable_styling("striped", font_size = 12)
+#| label: fig-cal-po-grp-fas-itt
+#| code-summary: Relationship calendar date to outcome by cut-point, FAS-ITT
+#| fig-cap: |
+#|   Relationship between calendar date and the primary outcome by cut-point, FAS-ITT.
+#| fig-height: 2
+caldat <- fas_itt_dat %>%
+  dplyr::count(PO, grp = factor(
+    RandDate >= as.Date("2021-12-20"), labels = c("< 2021-12-20", "\u2265 2021-12-20"))) %>% 
+  spread(PO, n, fill = 0) %>% 
+  mutate(p = `1` / (`1` + `0`),
+         n = `1` + `0`)
+p1 <- ggplot(caldat, aes(grp, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Randomisation date")
+p2 <- ggplot(caldat, aes(grp, p)) +
+  geom_point() +
+    labs(
+      y = "Proportion meeting\nprimary outcome", 
+      x = "Randomisation date")  +
+  ylim(0, NA)
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-calendar-time-group-fas-itt.pdf"), p, height = 2, width = 6, device = cairo_pdf)
+p
+```
+
+```{r}
+#| label: fig-cal-po-grp-avs-itt
+#| code-summary: Relationship calendar date to outcome by cut-point, AVS-ITT
+#| fig-cap: |
+#|   Relationship between calendar date and the primary outcome by cut-point, AVS-ITT.
+#| fig-height: 2
+caldat <- avs_itt_dat %>%
+  dplyr::count(PO, grp = factor(
+    RandDate >= as.Date("2021-12-20"), labels = c("< 2021-12-20", "\u2265 2021-12-20"))) %>% 
+  spread(PO, n, fill = 0) %>% 
+  mutate(p = `1` / (`1` + `0`),
+         n = `1` + `0`)
+p1 <- ggplot(caldat, aes(grp, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Randomisation date")
+p2 <- ggplot(caldat, aes(grp, p)) +
+  geom_point() +
+    labs(
+      y = "Proportion meeting\nprimary outcome", 
+      x = "Randomisation date")  +
+  ylim(0, NA)
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-calendar-time-group-avs-itt.pdf"), p, height = 2, width = 6, device = cairo_pdf)
+p
 ```
 
 ## Baseline CRP
@@ -946,6 +1007,7 @@ kable(tdat, align = "lrrrr") |>
 ```{r}
 #| label: tbl-crp-po
 #| code-summary: Relationship CRP to outcome
+#| tbl-cap: Relationship between CRP and primary outcome, AVS-ITT.
 tdat <- avs_itt_dat %>%
   count(
     `Baseline CRP` = crp_tertile, 
@@ -953,12 +1015,12 @@ tdat <- avs_itt_dat %>%
   group_by(`Baseline CRP`) %>%
   spread(PO, n, fill = 0) %>%
   mutate(
-    Total = `1` + `0` + `<NA>`,
+    Total = `1` + `0`,
     No = sprintf("%i (%.0f)", `0`, 100 * `0` / (`1` + `0`)),
     Yes = sprintf("%i (%.0f)", `1`, 100 * `1` / (`1` + `0`)),
-    Unknown = sprintf("%i (%.0f)", `<NA>`, 100 * `1` / Total)
+    Unknown = sprintf("%i (%.0f)", 0, 100 * `1` / Total)
   ) |>
-  select(-`0`, -`1`, -`<NA>`)
+  select(-`0`, -`1`)
 kable(tdat, align = "lrrrr") |>
   kable_styling("striped", font_size = 12)
 ```
@@ -1049,6 +1111,26 @@ tidy(avs_itt_mle, conf.int = TRUE, exponentiate = TRUE) |>
 
 # Analyses
 
+The SAP specified the primary analyses as using the AVS-ITT set with terms for:
+
+- all treatments (including ineligibilities and not-randomised terms)
+- region
+- site
+- epoch
+- age
+- sex
+- oxygen requirement
+- C-reactive protein.
+
+This was to be repeated for FAS-ITT.
+
+Some general notes:
+
+- there were concerns with the accuracy of C-reactive protein values reported in India (incorrect units reported, unrealistic values), therefore CRP is treated as unknown for Indian participants (most participants). Therefore, CRP is included for models using AVS-ITT but excluded for models using FAS-ITT.
+- all interventions in AVS-ITT were concurrently randomised. Therefore, epoch is excluded from the AVS-ITT model.
+- due to insufficient data, there are concerns that too many model parameters are included when restricting to AVS-ITT. The model parameters will be largely driven by the pre-specified priors for many of the adjustment variables. Therefore, an antiviral-treatment only model was also investigated
+- to assess prior sensitivity analyses are repeated with diffuse and sceptical priors on treatment variances, and assuming treatment coding on the effect terms rather than orthonormal coding.
+
 ## FAS-ITT
 
 ### Pre-specified prior
@@ -1060,6 +1142,8 @@ names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
 names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 saveRDS(res, file.path("outputs", "models", "primary", "fas-itt-default.rds"))
 ```
+
+Using FAS-ITT (excluding participants with missing primary outcome) and the pre-specified primary model (excluding baseline CRP) the conditional odds ratio for Nafamostat versus standard of care was [median (95% CrI), Pr(OR<1)] `r sprintf("%.2f (%.2f, %.2f), %.2f", median(res$drws$AOR), quantile(res$drws$AOR, 0.025), quantile(res$drws$AOR, 0.975), Pr(res$drws$AOR < 1))`.
 
 ```{r}
 #| label: odds-ratio-summary-table-primary-model-fas-itt
@@ -1085,7 +1169,7 @@ save_tex_table(
 decision_quantity_summary_table(c("SoC" = rvar(1), res$drws$AOR)) |> 
   bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR))) |>
   kable(align = "llrrrr") |>
-  kable_styling("striped", font_size = 12) |>
+  kable_styling("striped", font_size = 10) |>
   pack_rows("Antiviral", 1, 2) |>
   pack_rows("Anticoagulation", 3, 6)
 ```
@@ -1201,6 +1285,8 @@ p
 
 ### Treatment only
 
+In this model, we investigate Nafamostat as the only fixed covariate, but still include site (not nested within region) and epoch as random effects.
+
 ```{r}
 res <- fit_primary_model(
   fas_itt_nona_dat, 
@@ -1233,8 +1319,10 @@ p
 
 ### Treatment coding prior
 
+The primary model is re-fit assuming a prior specified on the treatment indicator variables rather than on the orthonormal terms. Note that the prior scales need to be adjusted. The prior $\text{Normal}(0,1)$ on the orthonormal terms imply $\text{Normal}(0,2)$ on the pair-wise differences. Therefore, for the treatment coding we specify a prior standard deviation of $\sqrt{2}$ instead of 1.
+
 ```{r}
-res <- fit_primary_model(fas_itt_nona_dat, logistic_site_epoch, ctr = contr.treatment)
+res <- fit_primary_model(fas_itt_nona_dat, logistic_site_epoch, ctr = contr.treatment, beta_sd_trt = sqrt(2))
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
 names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
@@ -1477,7 +1565,12 @@ p
 ### Treatment coding prior
 
 ```{r}
-res <- fit_primary_model(acs_itt_nona_dat, logistic_site_epoch, ctr = contr.treatment)
+res <- fit_primary_model(
+  acs_itt_nona_dat, 
+  logistic_site_epoch, 
+  ctr = contr.treatment, 
+  beta_sd_trt = sqrt(2)
+)
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
 names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
@@ -1637,19 +1730,19 @@ p
 ### Pre-specified - with site
 
 In this section the pre-specified model with covariates is fit.
-However, again with no region, epoch or site specific terms.
+Again with no epoch terms, but we do include region and site.
 
 ```{r}
 res <- fit_primary_model(
-  avs_itt_nona_dat,
+  avs_itt_nona_dat |> mutate(ctry = droplevels(ctry)),
   logistic_site,
-  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
-  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5)
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile", "ctry"),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 1)
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
 names(res$drws$OR)[-1] <- c(
-  "Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
+  "Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)", "Nepal")
 ```
 
 ```{r}
@@ -1712,8 +1805,9 @@ res <- fit_primary_model(
   logistic_mod,
   vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
   ctr = contr.treatment,
+  beta_sd_trt = sqrt(2),
   beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5),
-  includeC = FALSE
+  includeC = TRUE
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$OR)[-1] <- c(
@@ -1757,7 +1851,7 @@ res <- fit_primary_model(
   avs_itt_nona_dat,
   logistic_mod,
   vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
-  beta_sd_int = 10,
+  beta_sd_int = 2.5,
   beta_sd_trt = 0.4,
   beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5),
   includeC = FALSE
@@ -1768,7 +1862,7 @@ names(res$drws$OR)[-1] <- c(
 ```
 
 ```{r}
-#| label: odds-ratio-summary-table-primary-model-avs-itt-diffuse
+#| label: odds-ratio-summary-table-primary-model-avs-itt-sceptical
 #| tbl-cap: Posterior summaries for model parameters, AVS-ITT.
 odds_ratio_summary_table(c(res$drws$AOR, res$drws$OR[-1]))
 ```
@@ -1916,15 +2010,15 @@ However, again with no region, epoch or site specific terms.
 
 ```{r}
 res <- fit_primary_model(
-  avs_pp_nona_dat,
-  logistic_mod,
-  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
-  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5)
+  avs_pp_nona_dat |> mutate(ctry = droplevels(ctry)),
+  logistic_site,
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile", "ctry"),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 1)
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
 names(res$drws$OR)[-1] <- c(
-  "Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
+  "Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)", "Nepal")
 ```
 
 ```{r}
@@ -2002,19 +2096,62 @@ p
 
 ```{r}
 res <- fit_primary_model(
-  avs_pp_nona_dat,
-  logistic_mod,
-  vars = c("agegte60", "sexF", "supp_oxy2"),
+  avs_pp_nona_dat |> mutate(ctry = droplevels(ctry)),
+  logistic_site,
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile", "ctry"),
   ctr = contr.treatment,
-  beta_sd_var = c(2.5, 2.5, 2.5)
+  beta_sd_trt = sqrt(2),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 1)
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR)[-1] <- c("Age \u2265 60", "Female", "Oxygen requirement")
+names(res$drws$OR)[-1] <- c(
+  "Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)", "Nepal")
 ```
 
 ```{r}
 #| label: odds-ratio-summary-table-primary-model-avs-pp-trt-ctr
 #| tbl-cap: Posterior summaries for model parameters, AVS-PP, prior on treatment coding.
 odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
+```
+
+### Sceptical
+
+```{r}
+res <- fit_primary_model(
+  avs_pp_nona_dat |> mutate(ctry = droplevels(ctry)),
+  logistic_site,
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile", "ctry"),
+  beta_sd_trt = 0.4,
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 1)
+)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR)[-1] <- c(
+  "Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)", "Nepal")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-avs-pp-sceptical
+#| tbl-cap: Posterior summaries for model parameters.
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
+```
+
+```{r}
+#| label: tbl-decision-quantities-avs-pp-sceptical
+#| tbl-cap: Decision quantity summaries, AVS-PP.
+decision_quantity_summary_table(c("SoC" = rvar(1), res$drws$AOR)) |> 
+  # bind_rows(decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$COR))) |>
+  kable(align = "llrrrr") |>
+  kable_styling("striped", font_size = 12) |>
+  pack_rows("Antiviral", 1, 2)
+  # pack_rows("Anticoagulation", 3, 6)
+```
+
+```{r}
+#| label: fig-or-densities-avs-pp-model-sceptical
+#| fig-cap: Posterior densities for odds ratio contrasts.
+p <- plot_or_densities(c(res$drws$AOR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+p
 ```

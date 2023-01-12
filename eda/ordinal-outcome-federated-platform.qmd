@@ -1,0 +1,250 @@
+---
+title: "Proposed Ordinal Outcome"
+subtitle: "ASCOT Data"
+description: |
+  Investigate the proposed primary outcome for the combined ASCOT/REMAP CAP federated platform trial.
+author: "James Totterdell"
+date: today
+date-format: "YYYY-MM-DD"
+format: pdf
+execute: 
+  echo: false
+  message: false
+  warning: false
+---
+
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(ASCOTr)
+library(tidyverse)
+library(lubridate)
+library(kableExtra)
+library(patchwork)
+library(cmdstanr)
+library(posterior)
+library(bayesplot)
+library(ggdist)
+library(lme4)
+library(broom)
+library(broom.mixed)
+library(bayestestR)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+
+color_scheme_set("red")
+options(digits = 4)
+```
+
+# Background
+
+Proposed outcome of moderate and severe for federated platform: *Severe and Moderate: 90-day mortality + 28-day OSFDs*.
+The scale proposed was:
+
+- -1: Dead by 90 days
+- 0: 28 Organ support days
+- 1-28: Duration of qualifying organ support (irrespective of location)
+- 29: Receive >10 days of oxygen, no organ support
+- 30: Receive 3-10 days of oxygen, no organ support
+- 31: Receive 1-3 days of oxygen, no organ support
+- 33: Never receive oxygen or OFS
+
+Aim to investigate this outcome in the ASCOT data.
+
+A few comments:
+
+- I assumed *33: Never receive oxygen or OFS* should be *32: Never receive oxygen or OFS*
+- I assumed *1-3 days* is inclusive, so that:
+  - 31 is {1, 2, 3} days on oxygen, no organ support
+  - 30 is {4, 5, ..., 9, 10} days on oxygen, no organ support
+  - 29 is {11, 12, ..., 27, 28} days on oxygen, no organ support
+- I used death at *28 days* rather than *90 days* due to readiness of the outcome, wouldn't be too much more to actually look at day 90, but will be much more missingness (25 unknown status) with few additional known deaths (6), and have not performed quality/consistency checks of day 90 dataset to date
+- in ASCOT we only have daily data collected on the index admission, so after discharge we don't know duration of organ support/oxygen if readmitted. So the following data is based on the index admission only. Readmissions appear to be few.
+
+Per email correspondence, in terms of the daily WHO scale:
+
+- 1-4: no oxygen and no organ support
+- 5: oxygen
+- 6.3: oxygen
+- 6.1, 6.2, 6.4: organ support
+- 7: organ support
+- vasopressor/inotropic use: organ support
+
+Oxygen days were counted as any day where WHO scale was at least 5.
+Organ support days were counted as any day where WHO scale was 6.1, 6.2, 6.4, 7, or which had vasopressor/inotropic use.
+
+Variables used from the daily dataset:
+
+- `StudyPatientID`
+- `DD_StudyDay`
+- `DD_ParticipantDailyStatus`
+- `DD_O2`
+- `DD_O2VasopressorsInotropes`
+
+From the day 28 dataset:
+
+- `StudyPatientID`
+- `D28_PatientStatusDay28`
+
+```{r}
+#| label: analysis-sets
+#| code-summary: Prepare datasets
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
+```
+
+\clearpage
+
+# Outcomes
+
+## All Platform Participants
+
+```{r}
+dat <- all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  select(StudyPatientID, DD_StudyDay, DD_ParticipantDailyStatus, DD_O2, DD_O2VasopressorsInotropes) |>
+  mutate(DD_s1 = as.numeric(substr(DD_ParticipantDailyStatus, 1, 1)),
+         DD_s2 = as.numeric(substr(DD_O2, 1, 1)),
+         DD_vi = as.numeric(DD_O2VasopressorsInotropes == "Yes"))
+datd28 <- all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0) |>
+  select(StudyPatientID, D28_Status, D28_PatientStatusDay28) |>
+  mutate(d28_death = as.integer(D28_PatientStatusDay28 == "Dead"))
+
+sdat <- dat |>
+  group_by(StudyPatientID) |>
+  summarise(
+    days = n(),
+    days_oxygen = sum(DD_s1 >= 5),
+    days_organ = sum((DD_s1 == 6 & DD_s2 %in% c(1, 2, 4)) | (DD_s1 == 7) | (DD_vi == 1), na.rm = T),
+    days_vi = sum(DD_vi == 1),
+    y = case_when(
+      days_organ == 0 & days_oxygen == 0 ~ 32L,
+      days_organ == 0 & days_oxygen < 4 ~ 31L,
+      days_organ == 0 & days_oxygen < 10 ~ 30L,
+      days_organ == 0 & days_oxygen >= 10 ~ 29L,
+      TRUE ~ days_organ
+    )
+  )
+sdat <- sdat |>
+  left_join(datd28 |> select(StudyPatientID, d28_death)) |>
+  mutate(yy = if_else(d28_death == 1, -1L, y))
+```
+
+@fig-overall presents the ordinal outcome for all platform participants.
+In total, 
+
+- `r sprintf("%i", nrow(sdat))` randomised without study withdrawal
+- `r sprintf("%i (%.2f)", sum(sdat$days_oxygen > 0), mean(sdat$days_oxygen > 0))` participants had at least 1 day where oxygen was received.
+- `r sprintf("%i (%.2f)", sum(sdat$days_organ > 0), mean(sdat$days_organ > 0))` participants had at least 1 day where organ support was received. 
+- `r sprintf("%i (%.2f)", sum(sdat$d28_death == 1), mean(sdat$d28_death == 1))` participants had died by day 28.
+- `r sprintf("%i (%.2f)", sum(sdat$yy == 32), mean(sdat$yy == 32))` participants received no oxygen and no organ support.
+
+```{r}
+#| label: fig-overall
+#| fig-width: 5
+#| fig-height: 5
+#| fig-cap: Distribution of days in hospital, days requiring oxygen, days requiring organ support, and the proposed ordinal outcome, for all platform participants. Note that scales vary.
+
+p0 <- sdat |>
+  ggplot(aes(days)) +
+  geom_bar(aes(y = after_stat(prop))) +
+  scale_x_continuous("Days in hospital (index, censored 28 days)", breaks = seq(0, 28, 7)) +
+  scale_y_continuous("Proportion")
+p1 <- sdat |>
+  ggplot(aes(days_oxygen)) +
+  geom_bar(aes(y = after_stat(prop))) +
+  scale_x_continuous("Days requiring oxygen", breaks = seq(0, 28, 7)) +
+  scale_y_continuous("Proportion")
+p2 <- sdat |>
+  ggplot(aes(days_organ)) +
+  geom_bar(aes(y = after_stat(prop))) +
+  scale_x_continuous("Days requiring organ support", breaks = seq(0, 28, 7)) +
+  scale_y_continuous("Proportion")
+p3 <- sdat |>
+  ggplot(aes(yy)) +
+  geom_bar(aes(y = after_stat(prop))) +
+  scale_x_continuous("Ordinal outcome", breaks = c(-1, seq(0, 28, 7), 29, 30, 31, 32)) +
+  scale_y_continuous("Proportion")
+p <- p0 / p1  / p2 / p3
+p
+```
+
+## Australia/New Zealand
+
+```{r}
+dat <- all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, Country %in% c("AU", "NZ")) |>
+  select(StudyPatientID, DD_StudyDay, DD_ParticipantDailyStatus, DD_O2, DD_O2VasopressorsInotropes) |>
+  mutate(DD_s1 = as.numeric(substr(DD_ParticipantDailyStatus, 1, 1)),
+         DD_s2 = as.numeric(substr(DD_O2, 1, 1)),
+         DD_vi = as.numeric(DD_O2VasopressorsInotropes == "Yes"))
+datd28 <- all_data |>
+  filter(ENR_rec == 1, WTH_FU == 0, Country %in% c("AU", "NZ")) |>
+  select(StudyPatientID, D28_Status, D28_PatientStatusDay28) |>
+  mutate(d28_death = as.integer(D28_PatientStatusDay28 == "Dead"))
+
+sdat <- dat |>
+  group_by(StudyPatientID) |>
+  summarise(
+    days = n(),
+    days_oxygen = sum(DD_s1 >= 5),
+    days_organ = sum((DD_s1 == 6 & DD_s2 %in% c(1, 2, 4)) | (DD_s1 == 7) | (DD_vi == 1), na.rm = T),
+    days_vi = sum(DD_vi == 1),
+    y = case_when(
+      days_organ == 0 & days_oxygen == 0 ~ 32L,
+      days_organ == 0 & days_oxygen < 4 ~ 31L,
+      days_organ == 0 & days_oxygen < 10 ~ 30L,
+      days_organ == 0 & days_oxygen >= 10 ~ 29L,
+      TRUE ~ days_organ
+    )
+  )
+sdat <- sdat |>
+  left_join(datd28 |> select(StudyPatientID, d28_death)) |>
+  mutate(yy = if_else(d28_death == 1, -1L, y))
+```
+
+@fig-aus-nz presents the ordinal outcome for Australia and New Zealand platform participants only.
+In total, 
+
+- `r sprintf("%i", nrow(sdat))` randomised without study withdrawal
+- `r sprintf("%i (%.2f)", sum(sdat$days_oxygen > 0), mean(sdat$days_oxygen > 0))` participants had at least 1 day where oxygen was received. 
+- `r sprintf("%i (%.2f)", sum(sdat$days_organ > 0), mean(sdat$days_organ > 0))` participants had at least 1 day where organ support was received. 
+- `r sprintf("%i (%.2f)", sum(sdat$d28_death == 1), mean(sdat$d28_death == 1))` participants had died by day 28.
+- `r sprintf("%i (%.2f)", sum(sdat$yy == 32), mean(sdat$yy == 32))` participants received no oxygen and no organ support.
+
+```{r}
+#| label: fig-aus-nz
+#| fig-width: 5
+#| fig-height: 5
+#| fig-cap: Distribution of days in hospital, days requiring oxygen, days requiring organ support, and the proposed ordinal outcome for Australia and New Zealand participants. Note that scales vary.
+p0 <- sdat |>
+  ggplot(aes(days)) +
+  geom_bar(aes(y = after_stat(prop))) +
+  scale_x_continuous("Days in hospital (index, censored 28 days)", breaks = seq(0, 28, 7)) +
+  scale_y_continuous("Proportion")
+p1 <- sdat |>
+  ggplot(aes(days_oxygen)) +
+  geom_bar(aes(y = after_stat(prop))) +
+  scale_x_continuous("Days requiring oxygen", breaks = seq(0, 28, 7)) +
+  scale_y_continuous("Proportion")
+p2 <- sdat |>
+  ggplot(aes(days_organ)) +
+  geom_bar(aes(y = after_stat(prop))) +
+  scale_x_continuous("Days requiring organ support", breaks = seq(0, 28, 7)) +
+  scale_y_continuous("Proportion")
+p3 <- sdat |>
+  ggplot(aes(yy)) +
+  geom_bar(aes(y = after_stat(prop))) +
+  scale_x_continuous("Ordinal outcome", breaks = c(-1, seq(0, 28, 7), 29, 30, 31, 32)) +
+  scale_y_continuous("Proportion")
+p <- p0 / p1 / p2 / p3
+p
+```

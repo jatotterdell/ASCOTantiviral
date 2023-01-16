@@ -658,6 +658,229 @@ save_tex_table(make_po_table_A(
 
 ## By Interim Analysis
 
+```{r}
+intdatC <- fas_itt_dat |>
+  mutate(
+    interim = as.character(case_when(
+      RandDate < get_interim_dates()$meet_date[1] ~ 1,
+      RandDate < get_interim_dates()$meet_date[2] ~ 2,
+      RandDate < get_interim_dates()$meet_date[3] ~ 3,
+      RandDate < get_interim_dates()$meet_date[4] ~ 4,
+      RandDate < get_interim_dates()$meet_date[5] ~ 5,
+      TRUE ~ 5
+    )),
+    CAssignment = factor(
+      CAssignment, labels = intervention_labels_short_break()$CAssignment)
+  )
+intcounts <- intdat %>% 
+  dplyr::count(interim) %>% 
+  mutate(label = paste0("Interim ", interim, " (n = ", n, ")"))
+trtcountsC <- intdat %>% dplyr::count(CAssignment)
+ovrtabC <- intdatC %>%
+  group_by(interim = "Overall", CAssignment) %>%
+  summarise(
+    Randomised = 
+      sprintf("%i", n()),
+    Known = 
+      sprintf("%i (%.0f)", sum(!is.na(PO)), 100 * mean(!is.na(PO))),
+    `Met primary outcome` = 
+      sprintf("%i (%.0f)", sum(PO, na.rm = T), 100 * mean(PO, na.rm = T)),
+    `Death` = 
+      sprintf("%i (%.0f)", sum(D28_death, na.rm = T), 100 * sum(D28_death, na.rm = T) / sum(!is.na(PO))),
+    `Vasopressor/inotropic support` = 
+      sprintf("%i (%.0f)", sum(ANY_vasop, na.rm = T), 100 * sum(ANY_vasop, na.rm = T) / sum(!is.na(PO))),
+    `Intensive respiratory support` = 
+      sprintf("%i (%.0f)", sum(ANY_vent, na.rm = T), 100 * sum(ANY_vent, na.rm = T) / sum(!is.na(PO)))
+  ) %>%
+  pivot_longer(`Randomised`:`Intensive respiratory support`, names_to = "Outcome") %>%
+  pivot_wider(names_from = CAssignment, values_from = value, values_fill = "-")
+inttabC <- intdatC %>%
+  group_by(interim, CAssignment) %>%
+  summarise(
+    Randomised = 
+      sprintf("%i", n()),
+    Known = 
+      sprintf("%i (%.0f)", sum(!is.na(PO)), 100 * mean(!is.na(PO))),
+    `Met primary outcome` = 
+      sprintf("%i (%.0f)", sum(PO, na.rm = T), 100 * mean(PO, na.rm = T)),
+    `Death` = 
+      sprintf("%i (%.0f)", sum(D28_death, na.rm = T), 100 * sum(D28_death, na.rm = T) / sum(!is.na(PO))),
+    `Vasopressor/inotropic support` = 
+      sprintf("%i (%.0f)", sum(ANY_vasop, na.rm = T), 100 * sum(ANY_vasop, na.rm = T) / sum(!is.na(PO))),
+    `Intensive respiratory support` = 
+      sprintf("%i (%.0f)", sum(ANY_vent, na.rm = T), 100 * sum(ANY_vent, na.rm = T) / sum(!is.na(PO)))
+  ) %>%
+  pivot_longer(`Randomised`:`Intensive respiratory support`, names_to = "Outcome") %>%
+  pivot_wider(names_from = CAssignment, values_from = value, values_fill = "-")
+tabC <- bind_rows(ovrtabC, inttabC)
+colnames(tabC) <- linebreak(colnames(tabC), align = "c")
+savetab <- kable(
+  tabC[, -1],
+  format = "latex",
+  align = "lrrrr",
+  booktabs = TRUE
+) %>%
+  kable_styling(
+    font_size = 9,
+    latex_options = "HOLD_position"
+  ) %>%
+  group_rows(paste0("Overall (n = ", sum(intcounts$n), ")"), 1, 6) %>%
+  group_rows(intcounts$label[1], 7, 12) %>%
+  group_rows(intcounts$label[2], 13, 18) %>%
+  group_rows(intcounts$label[3], 19, 24) %>%
+  group_rows(intcounts$label[4], 25, 30) %>%
+  group_rows(intcounts$label[5], 31, 36)
+save_tex_table(savetab, fn = "outcomes/primary/primary-composite-interims-anticoagulation")
+kable(
+  tabC[, -1],
+  format = "html",
+  align = "lrrrr",
+) %>%
+  kable_styling(
+    font_size = 9,
+    latex_options = "HOLD_position"
+  ) %>%
+  group_rows(paste0("Overall (n = ", sum(intcounts$n), ")"), 1, 6) %>%
+  group_rows(intcounts$label[1], 7, 12) %>%
+  group_rows(intcounts$label[2], 13, 18) %>%
+  group_rows(intcounts$label[3], 19, 24) %>%
+  group_rows(intcounts$label[4], 25, 30) %>%
+  group_rows(intcounts$label[5], 31, 36)
+```
+
+
+
+```{r}
+intdatA <- fas_itt_dat |>
+  mutate(
+    interim = as.character(case_when(
+      RandDate < get_interim_dates()$meet_date[1] ~ 1,
+      RandDate < get_interim_dates()$meet_date[2] ~ 2,
+      RandDate < get_interim_dates()$meet_date[3] ~ 3,
+      RandDate < get_interim_dates()$meet_date[4] ~ 4,
+      RandDate < get_interim_dates()$meet_date[5] ~ 5,
+      TRUE ~ 5
+    )),
+    AAssignment = factor(
+      AAssignment, labels = intervention_labels_short_break()$AAssignment)
+  )
+intcounts <- intdat %>% 
+  dplyr::count(interim) %>% 
+  mutate(label = paste0("Interim ", interim, " (n = ", n, ")"))
+trtcountsA <- intdatA %>% dplyr::count(AAssignment)
+ovrtabA <- intdatA %>%
+  group_by(interim = "Overall", AAssignment) %>%
+  summarise(
+    Randomised = 
+      sprintf("%i", n()),
+    Known = 
+      sprintf("%i (%.0f)", sum(!is.na(PO)), 100 * mean(!is.na(PO))),
+    `Met primary outcome` = 
+      sprintf("%i (%.0f)", sum(PO, na.rm = T), 100 * mean(PO, na.rm = T)),
+    `Death` = 
+      sprintf("%i (%.0f)", sum(D28_death, na.rm = T), 100 * sum(D28_death, na.rm = T) / sum(!is.na(PO))),
+    `Vasopressor/inotropic support` = 
+      sprintf("%i (%.0f)", sum(ANY_vasop, na.rm = T), 100 * sum(ANY_vasop, na.rm = T) / sum(!is.na(PO))),
+    `Intensive respiratory support` = 
+      sprintf("%i (%.0f)", sum(ANY_vent, na.rm = T), 100 * sum(ANY_vent, na.rm = T) / sum(!is.na(PO)))
+  ) %>%
+  pivot_longer(`Randomised`:`Intensive respiratory support`, names_to = "Outcome") %>%
+  pivot_wider(names_from = AAssignment, values_from = value, values_fill = "-")
+inttabA <- intdatA %>%
+  group_by(interim, AAssignment) %>%
+  summarise(
+    Randomised = 
+      sprintf("%i", n()),
+    Known = 
+      sprintf("%i (%.0f)", sum(!is.na(PO)), 100 * mean(!is.na(PO))),
+    `Met primary outcome` = 
+      sprintf("%i (%.0f)", sum(PO, na.rm = T), 100 * mean(PO, na.rm = T)),
+    `Death` = 
+      sprintf("%i (%.0f)", sum(D28_death, na.rm = T), 100 * sum(D28_death, na.rm = T) / sum(!is.na(PO))),
+    `Vasopressor/inotropic support` = 
+      sprintf("%i (%.0f)", sum(ANY_vasop, na.rm = T), 100 * sum(ANY_vasop, na.rm = T) / sum(!is.na(PO))),
+    `Intensive respiratory support` = 
+      sprintf("%i (%.0f)", sum(ANY_vent, na.rm = T), 100 * sum(ANY_vent, na.rm = T) / sum(!is.na(PO)))
+  ) %>%
+  pivot_longer(`Randomised`:`Intensive respiratory support`, names_to = "Outcome") %>%
+  pivot_wider(names_from = AAssignment, values_from = value, values_fill = "-")
+tabA <- bind_rows(ovrtabA, inttabA)
+colnames(tabA) <- linebreak(colnames(tabA), align = "c")
+savetab <- kable(
+  tabA[, -1],
+  format = "latex",
+  align = "lrrrr",
+  booktabs = TRUE
+) %>%
+  kable_styling(
+    font_size = 9,
+    latex_options = "HOLD_position"
+  ) %>%
+  group_rows(paste0("Overall (n = ", sum(intcounts$n), ")"), 1, 6) %>%
+  group_rows(intcounts$label[1], 7, 12) %>%
+  group_rows(intcounts$label[2], 13, 18) %>%
+  group_rows(intcounts$label[3], 19, 24) %>%
+  group_rows(intcounts$label[4], 25, 30) %>%
+  group_rows(intcounts$label[5], 31, 36)
+save_tex_table(savetab, fn = "outcomes/primary/primary-composite-interims-antiviral")
+kable(
+  tabA[, -1],
+  format = "html",
+  align = "lrrrr",
+) %>%
+  kable_styling(
+    font_size = 9,
+    latex_options = "HOLD_position"
+  ) %>%
+  group_rows(paste0("Overall (n = ", sum(intcounts$n), ")"), 1, 6) %>%
+  group_rows(intcounts$label[1], 7, 12) %>%
+  group_rows(intcounts$label[2], 13, 18) %>%
+  group_rows(intcounts$label[3], 19, 24) %>%
+  group_rows(intcounts$label[4], 25, 30) %>%
+  group_rows(intcounts$label[5], 31, 36)
+```
+
+
+```{r}
+tab <- bind_cols(tabA, tabC[, -(1:2)])
+savetab <- kable(
+  tab[, -1],
+  format = "latex",
+  align = "lrrrrrrrr",
+  booktabs = TRUE,
+    escape = FALSE
+) %>%
+  kable_styling(
+    font_size = 7,
+    latex_options = "HOLD_position"
+  ) %>%
+  group_rows(paste0("Overall (n = ", sum(intcounts$n), ")"), 1, 6) %>%
+  group_rows(intcounts$label[1], 7, 12) %>%
+  group_rows(intcounts$label[2], 13, 18) %>%
+  group_rows(intcounts$label[3], 19, 24) %>%
+  group_rows(intcounts$label[4], 25, 30) %>%
+  group_rows(intcounts$label[5], 31, 36) %>%
+  add_header_above(c(" " = 1, "Domain A" = 3, "Domain C" = 5))
+save_tex_table(savetab, fn = "outcomes/primary/primary-composite-interims")
+kable(
+  tab[, -1],
+  format = "html",
+  align = "lrrrrrrrr",
+  escape = F
+) %>%
+  kable_styling(
+    font_size = 9,
+    latex_options = "HOLD_position"
+  ) %>%
+  group_rows(paste0("Overall (n = ", sum(intcounts$n), ")"), 1, 6) %>%
+  group_rows(intcounts$label[1], 7, 12) %>%
+  group_rows(intcounts$label[2], 13, 18) %>%
+  group_rows(intcounts$label[3], 19, 24) %>%
+  group_rows(intcounts$label[4], 25, 30) %>%
+  group_rows(intcounts$label[5], 31, 36) %>%
+  add_header_above(c(" " = 1, "Domain A" = 3, "Domain C" = 5))
+```
+
 ## Intervention
 
 The following presents the primary outcome rate by antiviral intervention

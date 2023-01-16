@@ -33,6 +33,7 @@ library(bayestestR)
 library(grid)
 library(gridExtra)
 library(gtable)
+library(scales)
 
 theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
   theme(panel.grid = element_blank(),
@@ -58,7 +59,8 @@ sgroup_labs <- list(
   "Received remdesivir" = c("Did not receive remdesivir", "Received remdesivir"),
   "Received other antiviral" = c("Did not receive other antiviral", "Received other antiviral"),
   "Vaccination status" = c("Unvaccinated", "Vaccinated", "Unknown"),
-  "D-dimer out of range" = c("No", "Yes", "Unknown")
+  "D-dimer out of range" = c("No", "Yes", "Unknown"),
+  "Randomisation date" = c("Randomisation < 2021-12-20", "Randomisation \u2265 2021-12-20")
 )
 
 sgroup_labs_shrt <- list(
@@ -69,7 +71,8 @@ sgroup_labs_shrt <- list(
   "Remdesivir" = c("Not received", "Received"),
   "Other antiviral" = c("Not received", "Received"),
   "Vaccination" = c("Unvaccinated", "Vaccinated"),
-  "D-dimer out of range" = c("No", "Yes", "Unknown")
+  "D-dimer out of range" = c("No", "Yes", "Unknown"),
+  "Randomisation date" = c("< 2021-12-20", "\u2265 2021-12-20")
 )
 ```
 
@@ -90,17 +93,20 @@ all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds")) |>
 all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
 
 # FAS-ITT
-fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data)
+fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data) |>
+  mutate(calgrp = if_else(RandDate < as.Date("2021-12-20"), "< 2021-12-20", "\u2265 2021-12-20"))
 fas_itt_nona_dat <- fas_itt_dat |>
   filter(!is.na(PO))
 
 # ACS-ITT
-acs_itt_dat <- ASCOTr:::make_acs_itt_set(all_data)
+acs_itt_dat <- ASCOTr:::make_acs_itt_set(all_data) |>
+  mutate(calgrp = if_else(RandDate < as.Date("2021-12-20"), "< 2021-12-20", "\u2265 2021-12-20"))
 acs_itt_nona_dat <- acs_itt_dat |>
   filter(!is.na(PO))
 
 # AVS-ITT
-avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_data)
+avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_data) |>
+  mutate(calgrp = if_else(RandDate < as.Date("2021-12-20"), "< 2021-12-20", "\u2265 2021-12-20"))
 avs_itt_nona_dat <- avs_itt_dat |>
   filter(!is.na(PO))
 ```
@@ -2028,6 +2034,184 @@ save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-ddimer-odds-ratios-compar
 make_subgroup_summary_table(compdat)
 ```
 
+### Calendar Time
+
+```{r}
+#| tbl-cap: Primary outcome by anti-coagulation intervention by age group
+make_subgroup_cal_table <- function(format = "html") {
+  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, calgrp, format = format)  %>%
+    pack_rows("Randomisation < 2021-12-20", 1, 5) %>%
+    pack_rows("Randomisation \u2265 2021-12-20", 6, 10)
+  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, calgrp, format = format)  %>%
+    pack_rows("Randomisation < 2021-12-20", 1, 3) %>%
+    pack_rows("Randomisation \u2265 2021-12-20", 4, 6)
+  return(list(t1, t2))
+}
+tab <- make_subgroup_cal_table("latex")
+save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-cal-descriptive-anticoagulation")
+save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-cal-descriptive-antiviral")
+make_subgroup_cal_table()
+```
+
+```{r}
+X <- make_X_design(
+  fas_itt_nona_dat, 
+  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "calgrp"), 
+  ctr = contr.equalprior)
+Xint <- cbind(
+  X, 
+  "randA:calgrp≥ 2021-12-20" = X[, 2] * X[, "calgrp≥ 2021-12-20"],
+  "randA1:calgrp≥ 2021-12-20" = X[, 3] * X[, "calgrp≥ 2021-12-20"])
+attr(Xint, "contrasts") <- attr(X, "contrasts")
+
+epoch <- fas_itt_nona_dat[["epoch"]]
+M_epoch <- max(epoch)
+region <- fas_itt_nona_dat[["ctry_num"]]
+M_region <- max(region)
+site <- fas_itt_nona_dat[["site_num"]]
+M_site <- max(site)
+region_by_site <- region_by_site <- fas_itt_nona_dat |>
+  dplyr::count(ctry_num, site_num) |>
+  pull(ctry_num)
+
+y_raw <- fas_itt_nona_dat[["PO"]]
+if(diff(range(y_raw)) == 1) {
+  y_mod <- y_raw
+} else {
+  y_raw <- ordered(y_raw)
+  y_mod <- as.integer(ordered(y_raw))
+}
+
+N <- dim(Xint)[1]
+K <- dim(Xint)[2]
+beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1, 1)
+mdat <- list(
+  N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
+  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
+  M_region = M_region, region = region,
+  M_site = M_site, site = site,
+  M_epoch = M_epoch, epoch = epoch,
+  region_by_site = region_by_site,
+  beta_sd = beta_sd
+)
+
+snk <- capture.output(
+  mfit <- logistic_site_epoch[["sample"]](
+    data = mdat,
+    seed = 77821,
+    adapt_delta = 0.99,
+    refresh = 0,
+    iter_warmup = 500,
+    iter_sampling = 2500,
+    chains = 4,
+    parallel_chains = min(4, parallel::detectCores())
+  )
+)
+
+mpars <- mfit$metadata()$model_params
+keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
+mdrws <- as_draws_rvars(mfit$draws(keep))
+names(mdrws$beta) <- colnames(mdat$X)
+
+if(any(grepl("site", keep))) {
+  site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)  
+  names(mdrws$gamma_site) <- site_map$site
+}
+if(any(grepl("epoch", keep))) {
+  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
+  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+}
+# Transformed samples
+Ca <- attr(mdat$X, "contrasts")$randA
+Cc <- attr(mdat$X, "contrasts")$randC
+
+seff <- rbind(
+  diff(Ca) %**% (mdrws$beta["randA1"]),
+  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:calgrp≥ 2021-12-20"])
+)
+labs <- c("Randomisation < 2021-12-20", "Randomisation \u2265 2021-12-20")
+labs2 <- c("< 2021-12-20", "\u2265 2021-12-20")
+mdrws$OR <- exp(seff)
+rownames(mdrws$OR) <- labs
+colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
+mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
+
+OR_list[["Date"]] <- mdrws$OR %>% 
+  as_tibble(rownames = "Levels") %>% 
+  pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>%
+  mutate(Subgroup = "Randomisation date", .before = 1)
+
+# Summarise subgroup effects
+ordat <- expand_grid(
+  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
+  `Randomisation date` = labs,
+) %>%
+  mutate(Posterior = c(mdrws$OR)) %>%
+  summarise_posterior()
+compdat <- expand_grid(
+  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
+  `Randomisation date` = labs
+) %>%
+  mutate(Posterior = c(mdrws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
+
+OR_date <- mdrws$OR
+rownames(OR_date) <- labs2
+datedat <- fas_itt_dat %>% 
+  group_by(calgrp, AAssignment) %>% 
+  summarise("events/patients" = sprintf(
+    "%i/%i (%.2f)", 
+    sum(PO, na.rm = TRUE), 
+    sum(!is.na(PO)), 
+    mean(PO, na.rm = T))
+  ) %>%
+  ungroup() %>%
+  mutate(
+    Subgroup = "Randomisation date",
+    Variable = calgrp,
+    Intervention = as.character(factor(
+      AAssignment, 
+      labels = intervention_labels_short()$AAssignment)),
+    .before = 1
+  ) %>%
+  select(-calgrp, -AAssignment)
+```
+
+```{r}
+y_ppc <- mdrws$y_ppc
+ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
+p <- plot_ppc(grp_ppc(sym("calgrp"), sgroup_labs_shrt$`Randomisation date`), "Randomisation") 
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "primary", "subgroup",
+    "fas-itt-subgroup-date-hte-ppc.pdf"),
+  grid.arrange(p), height = 2.5, width = 6, device = cairo_pdf
+)
+grid.arrange(p)
+```
+
+```{r}
+p <- plot_subgroup_or(ordat, sym("Randomisation date")) + 
+  scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x),
+                labels = trans_format("log10", math_format(10^.x)))
+ggsave(
+  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-date-hte.pdf"),
+  p, height = 2.5, width = 6, device = cairo_pdf)
+p
+```
+
+```{r}
+tab <- make_subgroup_summary_table(ordat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-date-odds-ratios")
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+tab <- make_subgroup_summary_table(compdat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-date-odds-ratios-compare")
+make_subgroup_summary_table(compdat)
+```
 
 ## AVS-ITT
 

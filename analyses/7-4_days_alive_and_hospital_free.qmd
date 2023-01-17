@@ -46,7 +46,10 @@ options(digits = 4)
 ```{r}
 #| label: analysis-sets
 #| code-summary: Prepare datasets
-all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds")) |>
+  mutate(
+    out_dafh2 = if_else(D28_death == 0 & is.na(out_dafh), 28 - DD_total_days, out_dafh)
+  )
 
 # FAS-ITT
 fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data)
@@ -71,6 +74,8 @@ ordmod0 <- compile_cmdstanr_mod(
   file.path("ordinal", "logistic_cumulative"), dir = "stan")
 ordmod <- compile_cmdstanr_mod(
   file.path("ordinal", "logistic_cumulative_epoch_site"), dir = "stan")
+ordmod_site <- compile_cmdstanr_mod(
+  file.path("ordinal", "logistic_cumulative_site"), dir = "stan")
 logistic <- compile_cmdstanr_mod(
   file.path("binary", "logistic_site_epoch"), dir = "stan")
 ```
@@ -181,6 +186,9 @@ The outcome is calculated for a patient as:
 
 As a cross check, @fig-dis-day-vs-days-hospitalised plots the number of days hospitalised (as reported in `D28_OutcomeTotalDaysHospitalised`) against the day of discharge from the index admission.
 
+There are some participants who were known to be alive at day 28, but had unknown total number of days hospitalised.
+We may choose to assume that these patients were not re-admitted, and so their total number of days free of hospital is imputed as 28 - `DD_total_days`, that is, 28 minus the number of days spent in hospital during their index admission.
+
 ```{r}
 #| label: fig-dis-day-vs-days-hospitalised
 #| code-summary: Compare D28_OutcomeTotalDaysHospitalised to days hospitalised per dischage date.
@@ -202,7 +210,7 @@ ggplot(pdat, aes(D28_day, DIS_day)) +
 
 # Descriptive {#descriptive}
 
-The overall distribution of days alive and free of hospital (DAFH) are reported in @fig-dafh-dist for all participants in the ACS-ITT set.
+The overall distribution of days alive and free of hospital (DAFH) are reported in @fig-dafh-dist for all participants in the AVS-ITT set.
 
 ```{r}
 #| label: fig-dafh-dist
@@ -675,6 +683,8 @@ ggplot(trt_logit, aes(out_dafh, rel_clogit)) +
 
 ## FAS-ITT
 
+The full platform model (excluding baseline CRP) is fit to the FAS-ITT dataset.
+
 ```{r}
 #| label: fit-model-fas-itt
 #| code-summary: Fit primary model
@@ -860,6 +870,63 @@ p
 
 ## AVS-ITT
 
+### Pre-Specified Model
+
+- excluding epoch
+
+```{r}
+#| label: fit-model-avs-itt-pre-spec
+#| code-summary: Fit primary model - AVS-ITT
+res <- fit_primary_model(
+  avs_itt_nona_dat |> mutate(ctry = droplevels(ctry)),
+  ordmod_site,
+  outcome = "out_dafh",
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile", "ctry"),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 1),
+  intercept = FALSE
+)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)", "Nepal")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-avs-itt-pre-spec
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects), AVS-ITT.
+save_tex_table(
+  odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  "outcomes/secondary/7-4-primary-model-avs-itt-summary-table-pre-spec")
+odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+```
+
+```{r}
+#| label: fig-or-densities-avs-itt-model-pre-spec
+#| fig-cap: Posterior densities for odds ratio contrasts, AVS-ITT.
+p <- plot_or_densities(c(res$drws$AOR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "7-4-primary-model-avs-itt-odds-ratio-densities-pre-spec.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+```{r}
+#| code-summary: Odds ratio summary for epoch and site
+#| fig-cap: Summary of epoch and site posterior odds ratios.
+p <- plot_site_terms(
+  res$drws$gamma_site,
+  factor(res$dat$region_by_site, 
+         labels = c("Australia\nNew Zealand", "Nepal"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-4-primary-model-site-terms-avs-itt-pre-spec.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
+### Reduced Model
+
+- excluding epoch, site, and country due to small sample size
+
 ```{r}
 #| label: fit-model-avs-itt
 #| code-summary: Fit primary model - AVS-ITT
@@ -867,13 +934,13 @@ res <- fit_primary_model(
   avs_itt_nona_dat,
   ordmod0,
   outcome = "out_dafh",
-  vars = c("agegte60", "sexF", "supp_oxy2"),
-  beta_sd_var = c(2.5, 2.5, 2.5),
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5),
   intercept = FALSE
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Age \u2265 60", "Female", "Oxygen requirement")
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
 ```
 
 ```{r}
@@ -889,10 +956,76 @@ odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR))
 ```{r}
 #| label: fig-or-densities-avs-itt-model
 #| fig-cap: Posterior densities for odds ratio contrasts, AVS-ITT.
-p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+p <- plot_or_densities(c(res$drws$AOR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
 pth <- file.path("outputs", "figures", "outcomes", "primary", "7-4-primary-model-avs-itt-odds-ratio-densities.pdf")
 ggsave(pth, p, width = 6, height = 2.5)
 p
 ```
 
+<!-- ### Re-analyse using imputed when outcome was missing -->
+
+<!-- Impute missing values assuming no readmissions occurred. -->
+
+<!-- ```{r} -->
+<!-- #| label: fit-model-avs-itt-impute -->
+<!-- #| code-summary: Fit primary model - AVS-ITT -->
+<!-- res <- fit_primary_model( -->
+<!--   avs_itt_dat |> filter(!is.na(out_dafh2)), -->
+<!--   ordmod0, -->
+<!--   outcome = "out_dafh2", -->
+<!--   vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"), -->
+<!--   beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5), -->
+<!--   intercept = FALSE -->
+<!-- ) -->
+<!-- names(res$drws$AOR) <- "Nafamostat" -->
+<!-- names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)] -->
+<!-- names(res$drws$OR) <- c("Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)") -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: odds-ratio-summary-table-avs-itt-impute -->
+<!-- #| code-summary: Odds ratio summary table -->
+<!-- #| tbl-cap: Posterior summaries for model parameters (fixed-effects), AVS-ITT. -->
+<!-- odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR)) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: fig-or-densities-avs-itt-model-impute -->
+<!-- #| fig-cap: Posterior densities for odds ratio contrasts, AVS-ITT. -->
+<!-- p <- plot_or_densities(c(res$drws$AOR)) + -->
+<!--   labs(x = "Odds ratio (log scale)", y = "Comparison") -->
+<!-- p -->
+<!-- ``` -->
+
+### Treatment-only
+
+```{r}
+#| label: fit-model-avs-itt-trt-only
+#| code-summary: Fit primary model - AVS-ITT
+res <- fit_primary_model(
+  avs_itt_nona_dat,
+  ordmod0,
+  outcome = "out_dafh",
+  vars = NULL,
+  beta_sd_var = NULL,
+  intercept = FALSE,
+  includeC = FALSE
+)
+names(res$drws$AOR) <- "Nafamostat"
+```
+
+```{r}
+#| label: odds-ratio-summary-table-avs-itt-trt-only
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects), AVS-ITT.
+odds_ratio_summary_table_rev(c(res$drws$AOR))
+```
+
+```{r}
+#| label: fig-or-densities-avs-itt-model-trt-only
+#| fig-cap: Posterior densities for odds ratio contrasts, AVS-ITT.
+p <- plot_or_densities(c(res$drws$AOR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+p
+```

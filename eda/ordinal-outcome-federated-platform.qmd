@@ -49,12 +49,12 @@ Proposed outcome of moderate and severe for federated platform: *Severe and Mode
 The scale proposed was:
 
 - -1: Dead by 90 days
-- 0: 28 Organ support days
-- 1-28: Duration of qualifying organ support (irrespective of location)
+- 0: 28 Organ support days (0 organ support free days)
+- 1-28: Number of organ support free days
 - 29: Receive >10 days of oxygen, no organ support
 - 30: Receive 3-10 days of oxygen, no organ support
 - 31: Receive 1-3 days of oxygen, no organ support
-- 33: Never receive oxygen or OFS
+- 33: Never receive oxygen or organ support
 
 Aim to investigate this outcome in the ASCOT data.
 
@@ -130,7 +130,7 @@ sdat <- dat |>
       days_organ == 0 & days_oxygen < 4 ~ 31L,
       days_organ == 0 & days_oxygen < 10 ~ 30L,
       days_organ == 0 & days_oxygen >= 10 ~ 29L,
-      TRUE ~ days_organ
+      TRUE ~ 28L - days_organ
     )
   )
 sdat <- sdat |>
@@ -203,7 +203,7 @@ sdat <- dat |>
       days_organ == 0 & days_oxygen < 4 ~ 31L,
       days_organ == 0 & days_oxygen < 10 ~ 30L,
       days_organ == 0 & days_oxygen >= 10 ~ 29L,
-      TRUE ~ days_organ
+      TRUE ~ 28L - days_organ
     )
   )
 sdat <- sdat |>

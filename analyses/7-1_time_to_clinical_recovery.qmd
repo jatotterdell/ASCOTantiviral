@@ -752,7 +752,7 @@ denotes conditional survival (i.e not event).
 
 ```{r}
 #| code-summary: Prepare data
-X <- make_X_design(fas_itt_outdat, c("inelgc3", "agegte60", "supp_oxy2", "ctry"))
+X <- make_X_design(fas_itt_outdat, c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry"))
 Xm <- X[, -1]
 epoch <- fas_itt_outdat$epoch
 M_epoch <- max(fas_itt_outdat$epoch)
@@ -777,7 +777,7 @@ sdat <- list(
   epoch = epoch,
   X = Xm,
   y = as.matrix(fas_itt_outdat[, c("y0", "y1", "y2")]),
-  beta_sd = c(1, 1, 1, 1, 1, 1, 10, 2.5, 2.5, 1, 1)
+  beta_sd = c(1, 1, 1, 1, 1, 1, 10, 2.5, 2.5, 2.5, 1, 1)
 )
 ```
 
@@ -809,10 +809,10 @@ rownames(drws$Acon) <- c("SoC", "Nafamostat")
 rownames(drws$Ccon) <- c("Low", "Intermediate", "Low with aspirin", "Therapeutic")
 drws$Atrt <- drws$Acon[-1, ] - drws$Acon[1, ]
 drws$Ctrt <- drws$Ccon[-1, ] - drws$Ccon[1, ]
-drws$shift <- rvar_apply(sweep(drws$beta[7:11, ], 1, colMeans(sdat$X)[7:11], "*"), 2, rvar_sum)
+drws$shift <- rvar_apply(sweep(drws$beta[7:12, ], 1, colMeans(sdat$X)[7:12], "*"), 2, rvar_sum)
 drws$alpha_shift <- sweep(drws$alpha, 2, drws$shift, "+")
 drws$OR <- exp(rbind(drws$Atrt, drws$Ctrt, drws$beta[-(1:6), ]))
-rownames(drws$OR)[-(1:4)] <- c("Ineligible aspirin", "Age \u2265 60", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+rownames(drws$OR)[-(1:4)] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 colnames(drws$OR) <- c("Recovery", "Death")
 ```
 
@@ -822,6 +822,7 @@ save_tex_table(
   "outcomes/secondary/7-1-primary-model-fas-itt-summary-table"
 )
 make_odds_ratio_table(drws)
+
 ```
 
 ```{r}
@@ -976,7 +977,7 @@ p
 
 ```{r}
 #| code-summary: Prepare data
-X <- make_X_design(avs_itt_outdat, c("agegte60", "supp_oxy2"))
+X <- make_X_design(avs_itt_outdat, c("agegte60", "sexF", "supp_oxy2", "crp_tertile"))
 Xm <- X[, -1]
 sdat <- list(
   N = nrow(avs_itt_outdat),
@@ -986,7 +987,7 @@ sdat <- list(
   time = avs_itt_outdat$time,
   X = Xm,
   y = as.matrix(avs_itt_outdat[, c("y0", "y1", "y2")]),
-  beta_sd = c(1, 1, 1, 1, 1, 2.5, 2.5)
+  beta_sd = c(1, 1, 1, 1, 1, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5)
 )
 ```
 
@@ -1016,10 +1017,10 @@ rownames(drws$Acon) <- c("SoC", "Nafamostat")
 rownames(drws$Ccon) <- c("Low", "Intermediate", "Low with aspirin", "Therapeutic")
 drws$Atrt <- drws$Acon[-1, ] - drws$Acon[1, ]
 drws$Ctrt <- drws$Ccon[-1, ] - drws$Ccon[1, ]
-drws$shift <- rvar_apply(sweep(drws$beta[6:7, ], 1, colMeans(sdat$X)[6:7], "*"), 2, rvar_sum)
+drws$shift <- rvar_apply(sweep(drws$beta[6:11, ], 1, colMeans(sdat$X)[6:11], "*"), 2, rvar_sum)
 drws$alpha_shift <- sweep(drws$alpha, 2, drws$shift, "+")
 drws$OR <- exp(rbind(drws$Atrt, drws$Ctrt, drws$beta[-(1:5), ]))
-rownames(drws$OR)[-(1:4)] <- c("Age \u2265 60", "Oxygen requirement")
+rownames(drws$OR)[-(1:4)] <- c("Age \u2265 60", "Female", "Oxygen requirement", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
 colnames(drws$OR) <- c("Recovery", "Death")
 ```
 

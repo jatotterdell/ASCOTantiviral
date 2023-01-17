@@ -68,6 +68,8 @@ avs_itt_nona_dat <- avs_itt_dat |>
 #| code-summary: Load models
 logistic_mod <- compile_cmdstanr_mod(
   file.path("binary", "logistic"), dir = "stan")
+logisitc_site <- compile_cmdstanr_mod(
+  file.path("binary", "logistic_site"), dir = "stan")
 logistic_site_epoch <- compile_cmdstanr_mod(
   file.path("binary", "logistic_site_epoch"), dir = "stan")
 ```
@@ -584,19 +586,106 @@ mcmc_trace(res$drws["gamma_epoch"])
 
 ## AVS-ITT
 
+### Pre-specified
+
+- excludes epoch
+
+```{r}
+res <- fit_primary_model(
+  avs_itt_nona_dat, 
+  logisitc_site, 
+  ctr = contr.equalprior, 
+  outcome = "D28_death", 
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile", "ctry"), 
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 1)
+)
+res$drws$OR <- res$drws$OR[-1]
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Oxygen requirement", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)", "Nepal")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-avs-itt-pre-spec
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects), AVS-ITT.
+save_tex_table(
+  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  "outcomes/secondary/7-3-primary-model-avs-itt-summary-table-pre-spec")
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+```
+
+```{r}
+#| fig-cap: Posterior densities for treatment comparisons.
+p <- plot_or_densities(c(res$drws$AOR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-3-primary-model-avs-itt-odds-ratio-densities-pre-spec.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+::: {.callout-caution collapse="true"}
+#### Diagnostics
+
+```{r}
+res$fit$diagnostic_summary()
+```
+:::
+
+::: {.callout-caution collapse="true"}
+#### Trace plots
+
+```{r}
+mcmc_trace(res$drws["beta"])
+mcmc_trace(res$drws["gamma_site"])
+mcmc_trace(res$drws["tau_site"])
+```
+:::
+
+### Reduced Model
+
+- excludes epoch, region, and site
+
 ```{r}
 res <- fit_primary_model(
   avs_itt_nona_dat, 
   logistic_mod, 
   ctr = contr.equalprior, 
   outcome = "D28_death", 
-  vars = c("agegte60", "sexF", "supp_oxy2"), 
-  beta_sd_var = c(2.5, 2.5, 2.5)
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"), 
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5)
 )
 res$drws$OR <- res$drws$OR[-1]
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Age \u2265 60", "Female", "Oxygen requirement")
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Oxygen requirement", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
+```
+
+```{r}
+#| eval: false
+XX <- res$dat$X
+XX_m <- colMeans(XX)
+XX <- cbind(XX[, 1:6], sweep(XX[, 7:12], 2, XX_m[7:12]))
+mdat <- res$dat
+mdat$X <- XX
+snk <- capture.output(
+  mfit <- logistic_mod[["sample"]](
+    data = mdat,
+    seed = 1234,
+    adapt_delta = 0.95,
+    refresh = 0,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    chains = 4,
+    parallel_chains = min(4, parallel::detectCores())
+  )
+)
+mpars <- mfit$metadata()$model_params
+keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
+mdrws <- as_draws_rvars(mfit$draws(keep))
+names(mdrws$beta) <- colnames(mdat$X)
+mdrws$OR <- exp(mdrws$beta[!grepl("(Intercept|rand)", names(mdrws$beta))])
+median(mdrws$beta)
 ```
 
 ```{r}
@@ -611,7 +700,7 @@ odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
 
 ```{r}
 #| fig-cap: Posterior densities for treatment comparisons.
-p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+p <- plot_or_densities(c(res$drws$AOR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
 pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-3-primary-model-avs-itt-odds-ratio-densities.pdf")
 ggsave(pth, p, width = 6, height = 2.5)
@@ -619,7 +708,7 @@ p
 ```
 
 ::: {.callout-caution collapse="true"}
-### Diagnostics
+#### Diagnostics
 
 ```{r}
 res$fit$diagnostic_summary()
@@ -627,7 +716,7 @@ res$fit$diagnostic_summary()
 :::
 
 ::: {.callout-caution collapse="true"}
-### Trace plots
+#### Trace plots
 
 ```{r}
 mcmc_trace(res$drws["beta"])

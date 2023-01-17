@@ -620,7 +620,7 @@ res <- fit_primary_model(
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Sex", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
@@ -792,7 +792,7 @@ res <- fit_primary_model(
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Sex", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
@@ -883,13 +883,13 @@ res <- fit_primary_model(
   avs_itt_nona_dat %>% mutate(out_mmrc_scale = out_mmrc_scale + 1),
   ordmod0,
   outcome = "out_mmrc_scale",
-  vars = c("agegte60", "sexF", "supp_oxy2"),
-  beta_sd_var = c(2.5, 2.5, 2.5),
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5),
   intercept = FALSE
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Age \u2265 60", "Sex", "Oxygen requirement")
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Oxygen requirement", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
 ```
 
 ```{r}
@@ -906,7 +906,7 @@ odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
 #| label: fig-or-densities-avs-itt-model
 #| code-summary: Odds ratio posterior densities
 #| fig-cap: Posterior densities for odds ratio contrasts, AVS-ITT.
-p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+p <- plot_or_densities(c(res$drws$AOR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
 pth <- file.path("outputs", "figures", "outcomes", "primary", "7-7-primary-model-avs-itt-odds-ratio-densities.pdf")
 ggsave(pth, p, width = 6, height = 2.5)

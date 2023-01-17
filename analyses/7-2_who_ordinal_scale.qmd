@@ -45,6 +45,18 @@ options(digits = 4)
 #| code-summary: Prepare datasets
 all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
 
+# Create censored D28 outcome for the two participants
+all_data <- all_data |> mutate(
+  D28_who_low = case_when(
+    StudyPatientID %in% c("ALF00006", "ALF00012") ~ 1L,
+    TRUE ~ D28_who
+  ),
+  D28_who_high = case_when(
+    StudyPatientID %in% c("ALF00006", "ALF00012") ~ 2L,
+    TRUE ~ D28_who
+  )
+)
+
 # FAS-ITT
 fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data)
 fas_itt_nona_dat <- fas_itt_dat |>
@@ -66,8 +78,14 @@ avs_itt_nona_dat <- avs_itt_dat |>
 #| code-summary: Load models
 ordmod0 <- compile_cmdstanr_mod(
   file.path("ordinal", "logistic_cumulative"), dir = "stan")
+ordmodcens0 <- compile_cmdstanr_mod(
+  file.path("ordinal", "logit_cumulative_cens"), dir = "stan")
+ordmod_site <- compile_cmdstanr_mod(
+  file.path("ordinal", "logistic_cumulative_site"), dir = "stan")
 ordmod <- compile_cmdstanr_mod(
   file.path("ordinal", "logistic_cumulative_epoch_site"), dir = "stan")
+ordmodcens <- compile_cmdstanr_mod(
+  file.path("ordinal", "logit_cumulative_epoch_site_cens"), dir = "stan")
 logistic <- compile_cmdstanr_mod(
   file.path("binary", "logistic_site_epoch"), dir = "stan")
 ```
@@ -75,6 +93,126 @@ logistic <- compile_cmdstanr_mod(
 ```{r}
 #| label: helpers
 #| code-summary: Helper functions
+ make_primary_model_data2 <- function(dat,
+                                    outcome = "PO",
+                                    vars = c("inelgc3", "agegte60", "ctry"),
+                                    beta_sd_int = 2.5,
+                                    beta_sd_var = c(10, 2.5, 1, 1),
+                                    beta_sd_trt = 1,
+                                    ctr = contr.equalprior,
+                                    includeA = TRUE,
+                                    includeC = TRUE,
+                                    intercept = TRUE,
+                                    ...) {
+  X <- make_X_design(dat, vars = vars, ctr = ctr, includeA = includeA, includeC = includeC, intercept = intercept)
+  nXtrt <- sum(grepl("rand", colnames(X)))
+  epoch <- dat[["epoch"]]
+  M_epoch <- max(epoch)
+  region <- dat[["ctry_num"]]
+  M_region <- max(region)
+  site <- dat[["site_num"]]
+  M_site <- max(site)
+  region_by_site <- region_by_site <- dat |>
+    dplyr::count(ctry_num, site_num) |>
+    pull(ctry_num)
+  y_raw <- as.matrix(dat[, outcome])
+  y_mod <- y_raw
+  N <- dim(X)[1]
+  K <- dim(X)[2]
+  beta_sd <- c(rep(beta_sd_trt, nXtrt), beta_sd_var)
+  if (intercept) {
+    beta_sd <- c(beta_sd_int, beta_sd)
+  }
+  out <- list(
+    N = N, K = K, X = X, y = y_mod, y_raw = y_raw,
+    J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
+    M_region = M_region, region = region,
+    M_site = M_site, site = site,
+    M_epoch = M_epoch, epoch = epoch,
+    region_by_site = region_by_site,
+    beta_sd = beta_sd
+  )
+  if (includeA) {
+    out <- c(out, list(ctrA = attr(X, "contrasts")[["randA"]]))
+  }
+  if (includeC) {
+    out <- c(out, list(ctrC = attr(X, "contrasts")[["randC"]]))
+  }
+  return(out)
+ }
+
+fit_primary_model2 <- function(dat = NULL,
+                              model = NULL,
+                              outcome = "PO",
+                              vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry"),
+                              beta_sd_int = 2.5,
+                              beta_sd_var = c(10, 2.5, 2.5, 2.5, 1, 1),
+                              beta_sd_trt = 1,
+                              ctr = contr.equalprior,
+                              includeA = TRUE,
+                              includeC = TRUE,
+                              intercept = TRUE,
+                              seed = 32915,
+                              adapt_delta = 0.99,
+                              iter_sampling = 2500,
+                              chains = 8,
+                              ...) {
+  mdat <- make_primary_model_data2(
+    dat,
+    outcome = outcome,
+    vars = vars,
+    beta_sd_int = beta_sd_int,
+    beta_sd_var = beta_sd_var,
+    beta_sd_trt = beta_sd_trt,
+    ctr = ctr,
+    includeA = includeA,
+    includeC = includeC,
+    intercept = intercept,
+    ...
+  )
+  snk <- capture.output(
+    mfit <- model[["sample"]](
+      data = mdat,
+      seed = seed,
+      adapt_delta = adapt_delta,
+      refresh = 0,
+      iter_warmup = 1000,
+      iter_sampling = iter_sampling,
+      chains = chains,
+      parallel_chains = min(chains, parallel::detectCores())
+    )
+  )
+  mpars <- mfit$metadata()$model_params
+  keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
+  mdrws <- as_draws_rvars(mfit$draws(keep))
+  names(mdrws$beta) <- colnames(mdat$X)
+  if (any(grepl("site", keep))) {
+    site_map <- dat %>% dplyr::count(site_num, site)
+    names(mdrws$gamma_site) <- site_map$site
+  }
+  if (any(grepl("epoch", keep))) {
+    epoch_map <- dat %>% dplyr::count(epoch, epoch_lab)
+    names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+  }
+
+  if (includeA) {
+    Ca <- mdat$ctrA
+    mdrws$Acon <- as.vector(Ca %**% mdrws$beta[grepl("randA[0-9]", names(mdrws$beta))])
+    names(mdrws$Acon) <- rownames(Ca)
+    mdrws$Atrt <- mdrws$Acon[-1] - mdrws$Acon[1]
+    mdrws$AOR <- exp(mdrws$Atrt)
+  }
+  if (includeC) {
+    Cc <- mdat$ctrC
+    mdrws$Ccon <- as.vector(Cc %**% mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))])
+    names(mdrws$Ccon) <- rownames(Cc)
+    mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+    mdrws$COR <- exp(mdrws$Ctrt)
+  }
+  mdrws$OR <- exp(mdrws$beta[!grepl("(Intercept|rand)", names(mdrws$beta))])
+  return(list(dat = mdat, fit = mfit, drws = mdrws))
+}
+
 make_summary_table_anticoagulation <- function(dat, format = "html") {
   tdat <- dat %>%
   group_by(
@@ -253,6 +391,10 @@ p2
 ```
 
 ## Antiviral
+
+There were two participants randomised to the antiviral domain who had unknown day 28 status on the WHO scale.
+For these two participants it was known that they were alive and out of hospital, but not whether they were grade 1 or grade 2.
+In the models, these participants are treated as censored.
 
 ```{r}
 #| label: tbl-7-2-summary-antiviral
@@ -617,6 +759,12 @@ res <- fit_primary_model(
   outcome = "D28_who",
   intercept = FALSE
 )
+# res2 <- fit_primary_model2(
+#   fas_itt_dat |> filter(!is.na(D28_who_low)),
+#   ordmodcens,
+#   outcome = c("D28_who_low", "D28_who_high"),
+#   intercept = FALSE
+# )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
 names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
@@ -851,18 +999,100 @@ ggsave(file.path(pth, "7-2-anticoagulation-avs-itt.pdf"), p2, height = 3, width 
 p2
 ```
 
+### Pre-specified model
+
+- excludes epoch
+
 ```{r}
+#| label: fit-model-avs-itt-pre-spec
+#| code-summary: Fit primary model - AVS-ITT
 res <- fit_primary_model(
   avs_itt_nona_dat,
-  ordmod0,
+  ordmod_site,
   outcome = "D28_who",
-  vars = c("agegte60", "sexF", "supp_oxy2"),
-  beta_sd_var = c(2.5, 2.5, 2.5),
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile", "ctry"),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 1),
   intercept = FALSE
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Age \u2265 60", "Female", "Oxygen requirement")
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)", "Nepal")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-avs-itt-pre-spec
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects), AVS-ITT.
+save_tex_table(
+  odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  "outcomes/secondary/7-2-primary-model-avs-itt-summary-table-pre-spec")
+odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+```
+
+```{r}
+#| label: fig-or-densities-avs-itt-model-pre-spec
+#| fig-cap: Posterior densities for odds ratio contrasts, AVS-ITT.
+p <- plot_or_densities(c(res$drws$AOR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "7-2-primary-model-avs-itt-odds-ratio-densities-pre-spec.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+```{r}
+#| code-summary: Odds ratio summary for epoch and site
+#| fig-cap: Summary of epoch and site posterior odds ratios.
+p <- plot_site_terms(
+  res$drws$gamma_site,
+  factor(res$dat$region_by_site, 
+         labels = c("Australia\nNew Zealand", "Nepal"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-2-primary-model-site-terms-avs-itt-pre-spec.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
+:::{.callout-caution collapse="true"}
+#### Diagnostics
+```{r}
+res$fit$summary(c("beta", "gamma_site", "tau_site")) |> print(n = Inf)
+res$fit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+#### Trace plots
+```{r}
+mcmc_trace(res$drws["beta"])
+mcmc_trace(res$drws["gamma_site"])
+mcmc_trace(res$drws["tau_site"])
+```
+:::
+
+### Reduced Model
+
+- excludes epoch, region, and site
+
+```{r}
+res <- ASCOTr::fit_primary_model(
+  avs_itt_nona_dat,
+  ordmod0,
+  outcome = "D28_who",
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5),
+  intercept = FALSE
+)
+# res2 <- fit_primary_model2(
+#   avs_itt_dat |> filter(!is.na(D28_who_low)),
+#   ordmodcens0,
+#   outcome = c("D28_who_low", "D28_who_high"),
+#   vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
+#   beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5),
+#   intercept = FALSE
+# )
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Oxygen requirement", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
 ```
 
 ```{r}
@@ -879,9 +1109,99 @@ odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
 #| label: fig-or-densities-avs-itt-model
 #| code-summary: Odds ratio posterior densities
 #| fig-cap: Posterior densities for odds ratio contrasts, AVS-ITT.
-p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+p <- plot_or_densities(c(res$drws$AOR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
 pth <- file.path("outputs", "figures", "outcomes", "primary", "7-2-primary-model-avs-itt-odds-ratio-densities.pdf")
 ggsave(pth, p, width = 6, height = 2.5)
 p
 ```
+
+:::{.callout-caution collapse="true"}
+#### Diagnostics
+```{r}
+res$fit$summary(c("beta"))
+res$fit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+#### Trace plots
+```{r}
+mcmc_trace(res$drws["beta"])
+```
+:::
+
+
+### Country
+
+Rather than group Australia and New Zealand, keep them as separate countries in the model.
+
+- excludes epoch
+
+```{r}
+#| label: fit-model-avs-itt-ctry2
+#| code-summary: Fit primary model - AVS-ITT
+res <- fit_primary_model(
+  avs_itt_nona_dat,
+  ordmod_site,
+  outcome = "D28_who",
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile", "ctry2"),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 1, 1),
+  intercept = FALSE,
+  ctry_var = "ctry2_num",
+  site_var = "site2_num"
+)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)", "Nepal", "New Zealand")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-avs-itt-ctry2
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects), AVS-ITT.
+save_tex_table(
+  odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  "outcomes/secondary/7-2-primary-model-avs-itt-summary-table-ctry2")
+odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+```
+
+```{r}
+#| label: fig-or-densities-avs-itt-model-ctry2
+#| fig-cap: Posterior densities for odds ratio contrasts, AVS-ITT.
+p <- plot_or_densities(c(res$drws$AOR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "7-2-primary-model-avs-itt-odds-ratio-densities-ctry2.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+```{r}
+#| code-summary: Odds ratio summary for epoch and site
+#| fig-cap: Summary of epoch and site posterior odds ratios.
+p <- plot_site_terms(
+  res$drws$gamma_site,
+  factor(res$dat$region_by_site, 
+         labels = c("Australia", "Nepal", "New Zealand"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-2-primary-model-site-terms-avs-itt-ctry2.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
+:::{.callout-caution collapse="true"}
+#### Diagnostics
+```{r}
+res$fit$summary(c("beta", "gamma_site", "tau_site")) |> print(n = Inf)
+res$fit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+#### Trace plots
+```{r}
+mcmc_trace(res$drws["beta"])
+mcmc_trace(res$drws["gamma_site"])
+mcmc_trace(res$drws["tau_site"])
+```
+:::

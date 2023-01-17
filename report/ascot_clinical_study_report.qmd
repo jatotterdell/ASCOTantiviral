@@ -618,6 +618,8 @@ The proportion of participants who met the primary outcome, and rates of missing
 A breakdown of the composite, including missingness by component is reported for ACS-ITT and AVS-ITT in @tbl-primary-composite-breakdown-anticoagulation and @tbl-primary-composite-breakdown-antiviral respectively. 
 Missingness was predominantly due to unknown patient status at study day 28.
 
+A breakdown of the composite by timing of interim analyses is reported in @tbl-primary-composite-interims.
+
 A summary of the primary outcome by each of the baseline covariates pre-specified to be included in the primary model (or as pre-specified subgroup analyses) are presented in the appendix (@sec-app-primary-outcome-model-cov).
 
 ```{r}
@@ -653,6 +655,16 @@ writeLines(tab)
 #|   Breakdown of primary composite outcome by antiviral treatment group, AVS-ITT.
 #| results: asis
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "composite-breakdown-antiviral.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-composite-interims
+#| tbl-cap: |
+#|   Breakdown of primary composite outcomes by treatment group and
+#|   interim of enrolment.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-composite-interims.tex"))
 writeLines(tab)
 ```
 
@@ -1023,10 +1035,6 @@ knitr::include_graphics(
   "../outputs/figures/outcomes/primary/primary-model-fas-itt-worst-case-epoch-site-terms.pdf"
 )
 ```
-
-\clearpage
-
-#### Temporal Variation
 
 \clearpage
 
@@ -1731,6 +1739,78 @@ knitr::include_graphics(
 
 \clearpage
 
+#### Calendar Time
+
+A randomisation date cut-point of 2021-12-20 was specified.
+
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-cal-anticoagulation
+#| tbl-cap: |
+#|   Summary of participant outcomes by randomisation date in the FAS-ITT set, anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-cal-descriptive-anticoagulation.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-cal-antiviral
+#| tbl-cap: |
+#|   Summary of participant outcomes by randomisation date in the FAS-ITT set, anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-cal-descriptive-antiviral.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-fas-itt-subgroup-date
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by randomisation date in
+#|   the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "fas-itt-date-odds-ratios.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-compare-fas-itt-subgroup-date
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by randomisation date in
+#|   the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "fas-itt-date-odds-ratios-compare.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-date
+#| fig-cap: |
+#|   Posterior densities of odds ratio for antiviral interventions
+#|   relative to standard dose by randomisation date subgroup using FAS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-date-hte.pdf"
+)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-date-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution of primary outcome proportion for antiviral interventions
+#|   by randomisation date subgroup using FAS-ITT set. Red diamonds indicate sample proportions and black dot posterior median.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-date-hte-ppc.pdf"
+)
+```
+
+\clearpage
+
 ## Secondary Outcomes
 
 For all secondary outcomes, the primary model (the model adjusting for interventions, age group, country, site, and epoch using the relevant outcome model) was fit to the ACS-ITT set. The only sensitivity analysis conducted was to repeat the analyses restricted to contemporaneous controls using a reduced model.
@@ -1856,7 +1936,7 @@ knitr::include_graphics(
 #### AVS-ITT
 
 - **Model**: multinomial logistic regression
-- **Terms**: antiviral intervention, anticoagulation intervention, age group, sex, oxygen requirement
+- **Terms**: antiviral intervention, anticoagulation intervention, age group, sex, oxygen requirement, CRP tertile
 - **Set**: AVS-ITT
 
 ```{r}
@@ -1963,7 +2043,7 @@ knitr::include_graphics(
 
 This section reports on the analysis of the secondary outcome: WHO outcome scale at day 28. The model is coded so that an odds ratio less than 1 implies a benefit (reduction in odds of having a higher WHO score at day 28).
 
-@tbl-7-2-summary-anticoagulation presents the number of participants where the outcome was observed by the allocated anticoagulation arm. Similarly for the antiviral arms in @tbl-7-2-summary-antiviral.
+@tbl-7-2-summary-anticoagulation presents the number of participants where the outcome was observed by the allocated anticoagulation arm. Similarly for the antiviral arms in @tbl-7-2-summary-antiviral. For two participants randomised to the antiviral domain, their day 28 WHO outcome score was missing (as in @tbl-7-2-summary-antiviral), but they were known to be out of hospital. Therefore, their outcome was actually censored in $\{1,2\}$.
 
 ```{r}
 #| label: tbl-7-2-summary-anticoagulation
@@ -2051,7 +2131,7 @@ knitr::include_graphics(
 #### AVS-ITT
 
 - **Model**: cumulative logistic (ordinal) regression assuming proportional odds
-- **Terms**: antiviral intervention, anticoagulation intervention, age group, sex, oxygen requirement
+- **Terms**: antiviral intervention, anticoagulation intervention, age group, sex, oxygen requirement, CRP tertile
 - **Set**: AVS-ITT
 
 @fig-7-2-anticoagulation-avs-itt presents the distribution of day 28 WHO score by anticoagulation intervention for AVS-ITT.
@@ -2209,27 +2289,29 @@ knitr::include_graphics(
 #### AVS-ITT
 
 - **Model**: logistic regression
-- **Terms**: anticoagulation intervention, antiviral intervention, age group, sex, oxygen requirement, region.
+- **Terms**: anticoagulation intervention, antiviral intervention, age group, sex, oxygen requirement, CRP tertile
 - **Set**: AVS-ITT
 
-```{r}
-#| label: tbl-7-3-primary-model-avs-itt-summary
-#| tbl-cap: |
-#|   Summary of model parameters (fixed-effects odds-ratios)
-#|   for mortality by day 28 primary model fit to the AVS-ITT set.
-#| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-3-primary-model-avs-itt-summary-table.tex"))
-writeLines(tab)
-```
+No deaths were observed when restricting to the AVS-ITT set, therefore the data provides no information on the model parameters. Therefore this model is not reported.
 
-```{r}
-#| label: fig-7-3-avs-itt-odds-ratio-densities
-#| fig-cap: |
-#|   Posterior densities for the treatment effect odds ratios, AVS-ITT.
-knitr::include_graphics(
-  "../outputs/figures/outcomes/secondary/7-3-primary-model-avs-itt-odds-ratio-densities.pdf"
-)
-```
+<!-- ```{r} -->
+<!-- #| label: tbl-7-3-primary-model-avs-itt-summary -->
+<!-- #| tbl-cap: | -->
+<!-- #|   Summary of model parameters (fixed-effects odds-ratios) -->
+<!-- #|   for mortality by day 28 primary model fit to the AVS-ITT set. -->
+<!-- #| results: asis -->
+<!-- tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-3-primary-model-avs-itt-summary-table.tex")) -->
+<!-- writeLines(tab) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: fig-7-3-avs-itt-odds-ratio-densities -->
+<!-- #| fig-cap: | -->
+<!-- #|   Posterior densities for the treatment effect odds ratios, AVS-ITT. -->
+<!-- knitr::include_graphics( -->
+<!--   "../outputs/figures/outcomes/secondary/7-3-primary-model-avs-itt-odds-ratio-densities.pdf" -->
+<!-- ) -->
+<!-- ``` -->
 
 \clearpage
 
@@ -2372,7 +2454,7 @@ knitr::include_graphics(
 #### AVS-ITT
 
 - **Model**: cumulative logistic (ordinal) regression assuming proportional odds
-- **Terms**: anticoagulation intervention, antiviral intervention, age group, sex, oxygen requirement
+- **Terms**: anticoagulation intervention, antiviral intervention, age group, sex, oxygen requirement, CRP tertile
 - **Set**: AVS-ITT
 
 ```{r}
@@ -2542,7 +2624,7 @@ knitr::include_graphics(
 #### AVS-ITT
 
 - **Model**: cumulative logistic (ordinal) regression assuming proportional odds
-- **Terms**: anticoagulation intervention, antiviral intervention, age group, sex, oxygen requirement
+- **Terms**: anticoagulation intervention, antiviral intervention, age group, sex, oxygen requirement, CRP tertile
 - **Set**: AVS-ITT
 
 ```{r}
@@ -2684,7 +2766,7 @@ knitr::include_graphics(
 #### AVS-ITT
 
 - **Model**: logistic regression
-- **Terms**: anticoagulation intervention, antiviral intervention, age group, sex, oxygen requirement.
+- **Terms**: anticoagulation intervention, antiviral intervention, age group, sex, oxygen requirement, CRP tertile
 - **Set**: AVS-ITT
 
 ```{r}
@@ -2831,6 +2913,31 @@ knitr::include_graphics(
 )
 ```
 
+#### AVS-ITT
+
+- **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, sex, oxygen requirement, CRP tertile
+- **Set**: AVS-ITT
+
+```{r}
+#| label: tbl-7-7-primary-model-avs-itt-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios)
+#|   for mMRC breathlessness scale at day 28 outcome model
+#|   fit to the AVS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-7-primary-model-avs-itt-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-7-avs-itt-odds-ratio-densities
+#| fig-cap: |
+#|   Posterior densities for the treatment effect odds ratios, AVS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/7-7-primary-model-avs-itt-odds-ratio-densities.pdf"
+)
+```
 
 \clearpage
 

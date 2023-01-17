@@ -71,6 +71,8 @@ ordmod0 <- compile_cmdstanr_mod(
   file.path("ordinal", "logistic_cumulative"), dir = "stan")
 ordmod <- compile_cmdstanr_mod(
   file.path("ordinal", "logistic_cumulative_epoch_site"), dir = "stan")
+ordmod_site <- compile_cmdstanr_mod(
+  file.path("ordinal", "logistic_cumulative_site"), dir = "stan")
 logistic <- compile_cmdstanr_mod(
   file.path("binary", "logistic_site_epoch"), dir = "stan")
 ```
@@ -838,23 +840,77 @@ p
 ### Pre-specified
 
 ```{r}
-#| label: fit-model-avs-itt
+#| label: fit-model-avs-itt-pre-spec
 #| code-summary: Fit primary model
 res <- fit_primary_model(
-  fas_itt_nona_dat,
-  ordmod,
+  avs_itt_nona_dat |> mutate(ctry = droplevels(ctry)),
+  ordmod_site,
   outcome = "out_dafv",
-  vars = c("agegte60", "sexF", "supp_oxy2"),
-  beta_sd_var = c(2.5, 2.5, 2.5),
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile", "ctry"),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 1),
   intercept = FALSE
 )
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Age \u2265 60", "Female", "Oxygen requirement")
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)", "Nepal")
 ```
 
 ```{r}
-#| label: odds-ratio-summary-table-primary-model-save-avs-itt
+#| label: odds-ratio-summary-table-primary-model-save-avs-itt-pre-spec
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects), AVS-ITT.
+save_tex_table(
+  odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  "outcomes/secondary/7-5-primary-model-avs-itt-summary-table-pre-spec")
+odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+```
+
+```{r}
+#| label: fig-or-densities-avs-itt-model-pre-spec
+#| fig-cap: Posterior densities for odds ratio contrasts, AVS-ITT.
+p <- plot_or_densities(c(res$drws$AOR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "7-5-primary-model-avs-itt-odds-ratio-densities-pre-spec.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+```{r}
+#| code-summary: Odds ratio summary for epoch and site
+#| fig-cap: Summary of epoch and site posterior odds ratios.
+p <- plot_site_terms(
+  res$drws$gamma_site,
+  factor(res$dat$region_by_site, 
+         labels = c("Australia\nNew Zealand", "Nepal"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-5-primary-model-site-terms-avs-itt-pre-spec.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
+
+### Reduced Model
+
+- excluding epoch, site, and country due to small sample size
+
+```{r}
+#| label: fit-model-avs-itt-reduced
+#| code-summary: Fit primary model - AVS-ITT
+res <- fit_primary_model(
+  avs_itt_nona_dat,
+  ordmod0,
+  outcome = "out_dafv",
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"),
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5),
+  intercept = FALSE
+)
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Required oxygen", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-avs-itt
 #| code-summary: Odds ratio summary table
 #| tbl-cap: Posterior summaries for model parameters (fixed-effects), AVS-ITT.
 save_tex_table(
@@ -866,7 +922,7 @@ odds_ratio_summary_table_rev(c(res$drws$AOR, res$drws$COR, res$drws$OR))
 ```{r}
 #| label: fig-or-densities-avs-itt-model
 #| fig-cap: Posterior densities for odds ratio contrasts, AVS-ITT.
-p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+p <- plot_or_densities(c(res$drws$AOR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
 pth <- file.path("outputs", "figures", "outcomes", "primary", "7-5-primary-model-avs-itt-odds-ratio-densities.pdf")
 ggsave(pth, p, width = 6, height = 2.5)

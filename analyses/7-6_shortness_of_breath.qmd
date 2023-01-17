@@ -638,13 +638,13 @@ res <- fit_primary_model(
   logistic_mod, 
   ctr = contr.equalprior,
   outcome = "out_sob", 
-  vars = c("agegte60", "sexF", "supp_oxy2"), 
-  beta_sd_var = c(2.5, 2.5, 2.5)
+  vars = c("agegte60", "sexF", "supp_oxy2", "crp_tertile"), 
+  beta_sd_var = c(2.5, 2.5, 2.5, 2.5, 2.5, 2.5)
 )
 res$drws$OR <- res$drws$OR[-1]
 names(res$drws$AOR) <- "Nafamostat"
 names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR) <- c("Age \u2265 60", "Female", "Oxygen requirement")
+names(res$drws$OR) <- c("Age \u2265 60", "Female", "Oxygen requirement", "CRP (2nd tertile)", "CRP (3rd tertile)", "CRP (unknown)")
 ```
 
 ```{r}
@@ -659,7 +659,7 @@ odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
 
 ```{r}
 #| fig-cap: Posterior densities for treatment comparisons.
-p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+p <- plot_or_densities(c(res$drws$AOR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
 pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-6-primary-model-avs-itt-odds-ratio-densities.pdf")
 ggsave(pth, p, width = 6, height = 2.5)

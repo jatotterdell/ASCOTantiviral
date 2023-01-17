@@ -672,10 +672,10 @@ intdatC <- fas_itt_dat |>
     CAssignment = factor(
       CAssignment, labels = intervention_labels_short_break()$CAssignment)
   )
-intcounts <- intdat %>% 
+intcounts <- intdatC %>% 
   dplyr::count(interim) %>% 
   mutate(label = paste0("Interim ", interim, " (n = ", n, ")"))
-trtcountsC <- intdat %>% dplyr::count(CAssignment)
+trtcountsC <- intdatC %>% dplyr::count(CAssignment)
 ovrtabC <- intdatC %>%
   group_by(interim = "Overall", CAssignment) %>%
   summarise(
@@ -764,7 +764,7 @@ intdatA <- fas_itt_dat |>
     AAssignment = factor(
       AAssignment, labels = intervention_labels_short_break()$AAssignment)
   )
-intcounts <- intdat %>% 
+intcounts <- intdatA %>% 
   dplyr::count(interim) %>% 
   mutate(label = paste0("Interim ", interim, " (n = ", n, ")"))
 trtcountsA <- intdatA %>% dplyr::count(AAssignment)

@@ -212,3 +212,35 @@ all_data |>
   kable("html") |>
   kable_styling("striped", font_size = 12)
 ```
+
+# Other Summaries
+
+```{r}
+all_data |> 
+  count(EL_LocationCode, Country) |> 
+  spread(Country, n) |>
+  print(n = Inf)
+
+aa <- all_data |> 
+  count(Country, Location, EL_LocationCode, AAssignment)
+
+aaa <- aa |> 
+  select(Country, Location) |> 
+  distinct() |> 
+  right_join(aa, by = c("Location" = "EL_LocationCode"))
+
+aaa |>
+  group_by(Country.x) |> 
+  summarise(sum(n))
+
+aa |> 
+  filter(Country %in% c("AU", "NZ", "NP")) |> 
+  group_by(Country) |> 
+  summarise(sum(n))
+aa |> 
+  filter(is.na(Country)) |> 
+  left_join(
+    aa |> filter(!is.na(Country)), "EL_LocationCode") |> 
+  group_by(Country.y) |> 
+  summarise(sum(n.x))
+```

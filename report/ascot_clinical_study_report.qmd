@@ -2233,7 +2233,7 @@ knitr::include_graphics(
 
 This section reports on the analysis of the secondary outcome: WHO outcome scale at day 28. The model is coded so that an odds ratio less than 1 implies a benefit (reduction in odds of having a higher WHO score at day 28).
 
-@tbl-7-2-summary-anticoagulation presents the number of participants where the outcome was observed by the allocated anticoagulation arm. Similarly for the antiviral arms in @tbl-7-2-summary-antiviral. For two participants randomised to the antiviral domain, their day 28 WHO outcome score was missing (as in @tbl-7-2-summary-antiviral), but they were known to be out of hospital. Therefore, their outcome was actually censored in $\{1,2\}$.
+@tbl-7-2-summary-anticoagulation presents the number of participants where the outcome was observed by the allocated anticoagulation arm. Similarly for the antiviral arms in @tbl-7-2-summary-antiviral. For two participants randomised to the antiviral domain, their day 28 WHO outcome score was missing (as in @tbl-7-2-summary-antiviral), but they were known to be out of hospital. Therefore, their outcome was actually censored in $\{1,2\}$. They were excluded as missing in the results below. A sensitivity analysis (not reported) included them as censored observations with no difference in results.
 
 ```{r}
 #| label: tbl-7-2-summary-anticoagulation

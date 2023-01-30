@@ -939,6 +939,71 @@ knitr::include_graphics(
 
 \clearpage
 
+#### FAS-ITT Antiviral/Anticoagulation Interaction
+
+The SAP specified investigation of interaction effects between Nafamostat and the anticoagulation domain.
+The number of events within cells were very small, so the results are uninformative.
+
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-anticoagulation-antiviral
+#| tbl-cap: |
+#|   Summary of participant outcomes by assigned anticoagulation intervention in
+#|   the FAS-ITT set, antiviral domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-anticoagulation-descriptive-antiviral.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-fas-itt-subgroup-anticoagulation
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by assigned anticoagulation intervention in
+#|   the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "fas-itt-anticoagulation-odds-ratios.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-compare-fas-itt-subgroup-anticoagulation
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by by 
+#|   assigned anticoagulation intervention in the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "fas-itt-anticoagulation-odds-ratios-compare.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-anticoagulation
+#| fig-cap: |
+#|   Posterior densities of odds ratio for antiviral interventions
+#|   relative to standard dose by by assigned anticoagulation intervention 
+#|   using FAS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-anticoagulation-hte.pdf"
+)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-anticoagulation-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution of primary outcome proportion for antiviral interventions
+#|   by by assigned anticoagulation intervention using FAS-ITT set. 
+#|   Red diamonds indicate sample proportions.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-anticoagulation-hte-ppc.pdf"
+)
+```
+
+\clearpage
+
 ### Sensitivity Analyses
 
 The SAP outlined a number of sensitivity analyses. 
@@ -1038,6 +1103,48 @@ knitr::include_graphics(
 
 \clearpage
 
+#### FAS-ITT Australia/New Zealand Only
+
+```{r}
+#| label: tbl-primary-model-fas-itt-aunz-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios)
+#|   for primary outcome model fit to the FAS-ITT set restricted to Australia/New Zealand.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-fas-itt-aunz-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-primary-model-fas-itt-aunz-site-odds-ratio-densities
+#| fig-cap: |
+#|   Posterior densities for the treatment effect odds ratios, FAS-ITT set restricted to Australia/New Zealand.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-fas-itt-aunz-odds-ratio-densities.pdf"
+)
+```
+
+```{r}
+#| label: fig-primary-model-fas-itt-aunz-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line 0.95% CrI)
+#|   of odds ratio for epoch and site effects for
+#|   the primary outcome model fit to the FAS-ITT set restricted to Australia/New Zealand.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-fas-itt-aunz-epoch-site-terms.pdf"
+)
+```
+
+\clearpage
+
+#### Concurrent Randomisations
+
+The SAP requested an analysis of primary and secondary outcomes restricted to concurrent randomisations. For the antiviral domain, both interventions were concurrently randomised 1:1 throughout the platform. Therefore, this restriction is equivalent to the restriction to the AVS-ITT analyses which are reported for all outcomes.
+
+Analyses of the anticoagulation domain restricted to concurrent randomisations were reported in the anticoagulation domain report.
+
+\clearpage
+
 ### Subgroups
 
 The pre-specified subgroups where treatment effect heterogeneity with respect to Nafamostat was to be investigated were:
@@ -1092,6 +1199,80 @@ tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", "subgroup",
   "descriptive-fas-itt-subgroup-country-descriptive-antiviral.tex"))
 writeLines(tab)
+```
+
+\clearpage
+
+#### Country (Exploratory)
+
+As an exploratory analysis, the region subgroup analysis was reported by individual country (rather than with Australia and New Zealand combined).
+
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-country2-anticoagulation
+#| tbl-cap: |
+#|   Summary of participant outcomes by country of enrolment in
+#|   the FAS-ITT set, anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-country2-descriptive-anticoagulation.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-descriptive-fas-itt-subgroup-country2-antiviral
+#| tbl-cap: |
+#|   Summary of participant outcomes by country of enrolment in
+#|   the FAS-ITT set, antiviral domain.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "descriptive-fas-itt-subgroup-country2-descriptive-antiviral.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-fas-itt-subgroup-country2
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by country of enrolment in
+#|   the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "country2-odds-ratios.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-compare-fas-itt-subgroup-country2
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by country of enrolment in
+#|   the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "country2-odds-ratios-compare.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-country2
+#| fig-cap: |
+#|   Posterior densities of odds ratio for antiviral interventions
+#|   relative to standard dose by country of enrolment subgroup using FAS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-country2-hte.pdf"
+)
+```
+
+```{r}
+#| label: fig-subgroup-fas-itt-country2-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution of primary outcome proportion for antiviral interventions
+#|   by country of enrolment subgroup using FAS-ITT set. Red diamonds indicate sample proportions.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup/fas-itt-subgroup-country2-hte-ppc.pdf"
+)
 ```
 
 \clearpage

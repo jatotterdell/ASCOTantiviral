@@ -1,0 +1,613 @@
+---
+title: Primary Outcome
+subtitle: |
+  Death from any cause or requirement of new intensive respiratory 
+  support (invasive or non-invasive ventilation) or vasopressor/inotropic 
+  support in the 28 days after randomisation.
+description: |
+  *This document reports on the analysis of the primary outcome interaction effects for ASCOT.*
+author: "James Totterdell"
+date: today
+execute: 
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(ASCOTr)
+library(tidyverse)
+library(lubridate)
+library(kableExtra)
+library(patchwork)
+library(cmdstanr)
+library(posterior)
+library(bayesplot)
+library(ggdist)
+library(lme4)
+library(broom)
+library(broom.mixed)
+library(bayestestR)
+library(grid)
+library(gridExtra)
+library(gtable)
+library(scales)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+
+color_scheme_set("red")
+options(digits = 4)
+```
+
+```{r}
+#| label: stan-models
+#| code-summary: Load models
+logistic_mod <- compile_cmdstanr_mod(
+  file.path("binary", "logistic"), dir = "stan")
+logistic_site_epoch <- compile_cmdstanr_mod(
+  file.path("binary", "logistic_site_epoch"), dir = "stan")
+```
+
+```{r}
+#| label: analysis-sets
+#| code-summary: Prepare datasets
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
+
+# FAS-ITT
+fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data)
+fas_itt_nona_dat <- fas_itt_dat |>
+  filter(!is.na(PO))
+```
+
+```{r}
+make_base_subgroup_table_antiviral <- function(dat, grp, format = "html") {
+  tdat <- dat %>%
+    dplyr::count(
+      group = {{ grp }},
+      `Antiviral intervention` = factor(
+        AAssignment, labels = str_replace(intervention_labels()$AAssignment, "<br>", " ")),
+      PO) %>%
+    complete(group, `Antiviral intervention`, PO, fill = list(n = 0)) %>%
+    group_by(group, `Antiviral intervention`) %>%
+    spread(PO, n, fill = 0) %>%
+    ungroup() %>%
+    mutate(
+      Patients = `0` + `1` + `<NA>`,
+      Known = `0` + `1`,
+      `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
+    ) %>%
+    mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
+    select(-group, -`0`, -`1`, -`<NA>`)
+  kable(
+    tdat,
+    format = format,
+    digits = 2,
+    align = "lrrr",
+    booktabs = TRUE) %>%
+  kable_styling(
+    font_size = 9,
+    bootstrap_options = "striped",
+    latex_options = "HOLD_position")
+}
+
+grp_ppc <- function(grp, labs) {
+  ppc_dat %>%
+    group_by(
+      Antiviral = factor(AAssignment, levels = c("A0", "A1", "A2"), labels = intervention_labels_short()$AAssignment), 
+      grp = !!grp,
+      .drop = FALSE
+    ) %>%
+    summarise(
+      n = n(),
+      y = sum(PO),
+      `y/n` = mean(PO),
+      rvar_mean_y_ppc = rvar_mean(y_ppc)
+    ) |>
+    mutate(grp = factor(grp, levels = c("C0", "C1", "C2", "C3", "C4"), labels = labs))
+}
+
+add_facet_labs <- function(p, labelT = "", labelR = "") {
+   g <- ggplotGrob(p)
+  # Get the positions of the strips in the gtable: t = top, l = left, ...
+  posR <- subset(g$layout, grepl("strip-r", name), select = t:r)
+  posT <- subset(g$layout, grepl("strip-t", name), select = t:r)
+  # Add a new column to the right of current right strips, 
+  # and a new row on top of current top strips
+  if(nrow(posR) > 0)
+    width <- g$widths[max(posR$r)]    # width of current right strips
+  if(nrow(posT) > 0)
+    height <- g$heights[min(posT$t)]  # height of current top strips
+  if(nrow(posR) > 0)
+    g <- gtable_add_cols(g, width, max(posR$r))  
+  if(nrow(posT) > 0)
+    g <- gtable_add_rows(g, height, min(posT$t)-1)
+  
+  # Construct the new strip grobs
+  if(nrow(posR) > 0) {
+    stripR <- gTree(name = "Strip_right", children = gList(
+     rectGrob(gp = gpar(col = "grey90", fill = "grey90")),
+     textGrob(labelR, rot = -90, gp = gpar(fontsize = 8.8, fontface = 'bold', col = "grey10"))))
+  }
+  if(nrow(posT) > 0) {
+    stripT <- gTree(name = "Strip_top", children = gList(
+     rectGrob(gp = gpar(col = "grey90", fill = "grey90")),
+     textGrob(labelT, gp = gpar(fontsize = 8.8, fontface = 'bold', col = "grey10"))))
+  }
+  
+  # Position the grobs in the gtable
+  if(nrow(posR) > 0) {
+    g <- gtable_add_grob(g, stripR, t = min(posR$t)+1, 
+                       l = max(posR$r) + 1, b = max(posR$b)+1, name = "strip-right")
+  }
+  if(nrow(posT) > 0) {
+    g <- gtable_add_grob(g, stripT, t = min(posT$t), 
+                       l = min(posT$l), r = max(posT$r), name = "strip-top")
+  }
+  
+  # Add small gaps between strips
+  if(nrow(posR) > 0)
+    g <- gtable_add_cols(g, unit(1/5, "line"), max(posR$r))
+  if(nrow(posT) > 0)
+    g <- gtable_add_rows(g, unit(1/5, "line"), min(posT$t))
+  return(g) 
+}
+
+plot_ppc <- function(dat, labs = " ") {
+  p <- dat %>%
+    ggplot(aes(y = Antiviral, xdist = rvar_mean_y_ppc)) +
+    facet_grid(. ~ grp) +
+    stat_interval(size = 2) +
+    geom_point(aes(x = `y/n`), colour = "red", shape = 23, size = 2) +
+    geom_point(aes(x = median(rvar_mean_y_ppc)), colour = "black", shape = 20) +
+    labs(x = "Posterior predictive\nproportion", y = "Antiviral", colour = "Probability") +
+    coord_flip() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  add_facet_labs(p, labs)
+}
+```
+
+
+```{r}
+d <- expand.grid(a = factor(1:2), b = factor(1:4))
+X <- model.matrix( ~ a*b, data = d)
+Xorth <- model.matrix( ~ a*b, data = d, contrasts.arg = list(a = contr.equalprior, b = contr.equalprior))
+solve(X)
+solve(Xorth)
+```
+
+# Analyses
+
+Interest was in evaluation of interaction effects between Nafamostat and anticoagulation dosage.
+So the primary model is extended to include interaction between domain A and domain C interventions.
+
+The pre-specified prior was standard normal on the relevant parameter.
+A request was that non-randomised anticoagulation be treated as standard of care (meaning low-dose?).
+
+## Non-randomised Anticoagulation
+
+```{r}
+fas_itt_dat |>
+  count(CAssignment, DIS_AntiCoagTreatment)
+
+fas_itt_dat |>
+  count(AAssignment, DIS_AntiCoagTreatment)
+```
+
+## FAS-ITT
+
+```{r}
+tab <- make_base_subgroup_table_antiviral(fas_itt_dat, CAssignment, "latex") |>
+  pack_rows("Not randomised to anticoagulation", 1, 3) |>
+  pack_rows("Low-dose anticoagulation", 4, 6) |>
+  pack_rows("Intermediate-dose anticoagulation", 7, 9) |>
+  pack_rows("Low-dose anticoagulation with aspirin", 10, 12) |>
+  pack_rows("Therapeutic-dose anticoagulation", 13, 15)
+
+save_tex_table(
+  tab, 
+  "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-anticoagulation-descriptive-antiviral")
+
+make_base_subgroup_table_antiviral(fas_itt_dat, CAssignment, "html") |>
+  pack_rows("Not randomised to anticoagulation", 1, 3) |>
+  pack_rows("Low-dose anticoagulation", 4, 6) |>
+  pack_rows("Intermediate-dose anticoagulation", 7, 9) |>
+  pack_rows("Low-dose anticoagulation with aspirin", 10, 12) |>
+  pack_rows("Therapeutic-dose anticoagulation", 13, 15)
+```
+
+### Orthonormal Coding, Pre-specified Prior
+
+```{r}
+Xbase <- make_X_design(fas_itt_nona_dat, vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry"))
+Xint <- cbind(
+  "randA:randC1" = Xbase[, "randA"] * Xbase[, "randC1"],
+  "randA:randC2" = Xbase[, "randA"] * Xbase[, "randC2"],
+  "randA:randC3" = Xbase[, "randA"] * Xbase[, "randC3"],
+  "randA1:randC" = Xbase[, "randA1"] * Xbase[, "randC"],
+  "randA1:randC1" = Xbase[, "randA1"] * Xbase[, "randC1"],
+  "randA1:randC2" = Xbase[, "randA1"] * Xbase[, "randC2"],
+  "randA1:randC3" = Xbase[, "randA1"] * Xbase[, "randC3"]
+)
+Xdes <- cbind(Xbase, Xint)
+epoch <- fas_itt_nona_dat[["epoch"]]
+M_epoch <- max(epoch)
+region <- fas_itt_nona_dat[["ctry_num"]]
+M_region <- max(region)
+site <- fas_itt_nona_dat[["site_num"]]
+M_site <- max(site)
+region_by_site <- fas_itt_nona_dat |>
+    count(.data[["ctry_num"]], .data[["site_num"]]) |>
+    pull(.data[["ctry_num"]])
+y <- fas_itt_nona_dat[["PO"]]
+beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1,  rep(1, ncol(Xint)))
+N <- dim(Xdes)[1]
+K <- dim(Xdes)[2]
+mdat <- list(
+    N = N, K = K, X = Xdes, y = y,
+    M_region = M_region, region = region,
+    M_site = M_site, site = site,
+    M_epoch = M_epoch, epoch = epoch,
+    region_by_site = region_by_site,
+    beta_sd = beta_sd
+  )
+snk <- capture.output(
+  mfit <- logistic_site_epoch[["sample"]](
+    data = mdat,
+    seed = 1234,
+    adapt_delta = 0.99,
+    refresh = 0,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    chains = 4,
+    parallel_chains = min(4, parallel::detectCores())
+  )
+)
+mpars <- mfit$metadata()$model_params
+keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
+mdrws <- as_draws_rvars(mfit$draws(keep))
+names(mdrws$beta) <- colnames(mdat$X)
+
+Ca <- attr(Xbase, "contrasts")$randA
+Cc <- attr(Xbase, "contrasts")$randC
+Cint <- kronecker(Ca, Cc)
+rownames(Cint) <- c("A1C1", "A1C2", "A1C3", "A1C4", "A2C1", "A2C2", "A2C3", "A2C4")
+rrs <- c("randA1:randC1", "randA1:randC2", "randA1:randC3")
+
+seff <- rbind(
+  diff(Ca) %**% (mdrws$beta["randA1"]) + (Cint[5, ] - Cint[1, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randA1"]) + (Cint[6, ] - Cint[2, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randA1"]) + (Cint[7, ] - Cint[3, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randA1"]) + (Cint[8, ] - Cint[4, ]) %**% mdrws$beta[rrs]
+)
+rownames(seff) <- intervention_labels_short()$CAssignment[-1]
+mdrws$OR <- exp(seff)
+reff <- seff[-1, ] - seff[1, ]
+mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
+
+# Summarise subgroup effects
+ordat <- expand_grid(
+  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
+  Anticoagulation = fct_inorder(intervention_labels_short()$CAssignment[-1]),
+) %>%
+  mutate(Posterior = c(mdrws$OR)) %>%
+  summarise_posterior()
+compdat <- expand_grid(
+  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
+  Anticoagulation = fct_inorder(intervention_labels_short()$CAssignment[-1]),
+) %>%
+  mutate(Posterior = c(mdrws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
+```
+
+```{r}
+y_ppc <- mdrws$y_ppc
+ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
+ppc_dat_grp <- grp_ppc(sym("CAssignment"), intervention_labels_short()$CAssignment)
+p <- plot_ppc(ppc_dat_grp, "Anticoagulation")
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "primary", "subgroup",
+    "fas-itt-subgroup-anticoagulation-hte-ppc.pdf"),
+  grid.arrange(p), height = 2.5, width = 6, device = cairo_pdf
+)
+grid.arrange(p)
+```
+
+```{r}
+p <- plot_subgroup_or(ordat, sym("Anticoagulation"))
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "primary", "subgroup", 
+    "fas-itt-subgroup-anticoagulation-hte.pdf"),
+  p, height = 2.5, width = 6, device = cairo_pdf)
+p
+```
+
+```{r}
+tab <- make_subgroup_summary_table(ordat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-anticoagulation-odds-ratios")
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+tab <- make_subgroup_summary_table(compdat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-anticoagulation-odds-ratios-compare")
+make_subgroup_summary_table(compdat)
+```
+
+
+### Orthonormal Coding, Diffuse Prior
+
+```{r}
+Xbase <- make_X_design(fas_itt_nona_dat, vars = "ctry")
+Xint <- cbind(
+  "randA:randC1" = Xbase[, "randA"] * Xbase[, "randC1"],
+  "randA:randC2" = Xbase[, "randA"] * Xbase[, "randC2"],
+  "randA:randC3" = Xbase[, "randA"] * Xbase[, "randC3"],
+  "randA1:randC" = Xbase[, "randA1"] * Xbase[, "randC"],
+  "randA1:randC1" = Xbase[, "randA1"] * Xbase[, "randC1"],
+  "randA1:randC2" = Xbase[, "randA1"] * Xbase[, "randC2"],
+  "randA1:randC3" = Xbase[, "randA1"] * Xbase[, "randC3"]
+)
+Xdes <- cbind(Xbase, Xint)
+epoch <- fas_itt_nona_dat[["epoch"]]
+M_epoch <- max(epoch)
+region <- fas_itt_nona_dat[["ctry_num"]]
+M_region <- max(region)
+site <- fas_itt_nona_dat[["site_num"]]
+M_site <- max(site)
+region_by_site <- fas_itt_nona_dat |>
+    count(.data[["ctry_num"]], .data[["site_num"]]) |>
+    pull(.data[["ctry_num"]])
+y <- fas_itt_nona_dat[["PO"]]
+beta_sd <- c(2.5, rep(10, ncol(Xdes) - 1))
+N <- dim(Xdes)[1]
+K <- dim(Xdes)[2]
+mdat <- list(
+    N = N, K = K, X = Xdes, y = y,
+    M_region = M_region, region = region,
+    M_site = M_site, site = site,
+    M_epoch = M_epoch, epoch = epoch,
+    region_by_site = region_by_site,
+    beta_sd = beta_sd
+  )
+snk <- capture.output(
+  mfit <- logistic_site_epoch[["sample"]](
+    data = mdat,
+    seed = 1234,
+    adapt_delta = 0.99,
+    refresh = 0,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    chains = 4,
+    parallel_chains = min(4, parallel::detectCores())
+  )
+)
+mpars <- mfit$metadata()$model_params
+keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
+mdrws <- as_draws_rvars(mfit$draws(keep))
+names(mdrws$beta) <- colnames(mdat$X)
+
+Ca <- attr(Xbase, "contrasts")$randA
+Cc <- attr(Xbase, "contrasts")$randC
+Cint <- kronecker(Ca, Cc)
+rownames(Cint) <- c("A1C1", "A1C2", "A1C3", "A1C4", "A2C1", "A2C2", "A2C3", "A2C4")
+rrs <- c("randA1:randC1", "randA1:randC2", "randA1:randC3")
+
+seff <- rbind(
+  diff(Ca) %**% (mdrws$beta["randA1"]) + (Cint[5, ] - Cint[1, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randA1"]) + (Cint[6, ] - Cint[2, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randA1"]) + (Cint[7, ] - Cint[3, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randA1"]) + (Cint[8, ] - Cint[4, ]) %**% mdrws$beta[rrs]
+)
+rownames(seff) <- intervention_labels_short()$CAssignment[-1]
+mdrws$OR <- exp(seff)
+reff <- seff[-1, ] - seff[1, ]
+mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
+
+# Summarise subgroup effects
+ordat <- expand_grid(
+  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
+  Anticoagulation = fct_inorder(intervention_labels_short()$CAssignment[-1]),
+) %>%
+  mutate(Posterior = c(mdrws$OR)) %>%
+  summarise_posterior()
+compdat <- expand_grid(
+  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
+  Anticoagulation = fct_inorder(intervention_labels_short()$CAssignment[-1]),
+) %>%
+  mutate(Posterior = c(mdrws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
+```
+
+```{r}
+y_ppc <- mdrws$y_ppc
+ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
+ppc_dat_grp <- grp_ppc(sym("CAssignment"), intervention_labels_short()$CAssignment)
+p <- plot_ppc(ppc_dat_grp, "Anticoagulation")
+grid.arrange(p)
+```
+
+```{r}
+y_ppc <- mdrws$y_ppc
+ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
+ppc_dat_grp <- grp_ppc(sym("CAssignment"), intervention_labels_short()$CAssignment)
+p <- plot_ppc(ppc_dat_grp, "Anticoagulation")
+grid.arrange(p)
+```
+
+```{r}
+p <- plot_subgroup_or(ordat, sym("Anticoagulation"))
+p
+```
+
+```{r}
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+make_subgroup_summary_table(compdat)
+```
+
+
+### Treatment Coding, Pre-specified Prior
+
+```{r}
+Xbase <- make_X_design(fas_itt_nona_dat, vars = "ctry", ctr = contr.treatment)
+Xint <- cbind(
+  "randA:randC2" = Xbase[, "randA"] * Xbase[, "randC2"],
+  "randA:randC3" = Xbase[, "randA"] * Xbase[, "randC3"],
+  "randA:randC4" = Xbase[, "randA"] * Xbase[, "randC4"],
+  "randA2:randC" = Xbase[, "randA2"] * Xbase[, "randC"],
+  "randA2:randC2" = Xbase[, "randA2"] * Xbase[, "randC2"],
+  "randA2:randC3" = Xbase[, "randA2"] * Xbase[, "randC3"],
+  "randA2:randC4" = Xbase[, "randA2"] * Xbase[, "randC4"]
+)
+Xdes <- cbind(Xbase, Xint)
+epoch <- fas_itt_nona_dat[["epoch"]]
+M_epoch <- max(epoch)
+region <- fas_itt_nona_dat[["ctry_num"]]
+M_region <- max(region)
+site <- fas_itt_nona_dat[["site_num"]]
+M_site <- max(site)
+region_by_site <- fas_itt_nona_dat |>
+    count(.data[["ctry_num"]], .data[["site_num"]]) |>
+    pull(.data[["ctry_num"]])
+y <- fas_itt_nona_dat[["PO"]]
+beta_sd <- c(2.5, rep(sqrt(2), ncol(Xdes) - 1))
+N <- dim(Xdes)[1]
+K <- dim(Xdes)[2]
+mdat <- list(
+    N = N, K = K, X = Xdes, y = y,
+    M_region = M_region, region = region,
+    M_site = M_site, site = site,
+    M_epoch = M_epoch, epoch = epoch,
+    region_by_site = region_by_site,
+    beta_sd = beta_sd
+  )
+snk <- capture.output(
+  mfit <- logistic_site_epoch[["sample"]](
+    data = mdat,
+    seed = 1234,
+    adapt_delta = 0.99,
+    refresh = 0,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    chains = 4,
+    parallel_chains = min(4, parallel::detectCores())
+  )
+)
+mpars <- mfit$metadata()$model_params
+keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
+mdrws <- as_draws_rvars(mfit$draws(keep))
+names(mdrws$beta) <- colnames(mdat$X)
+
+Ca <- attr(Xbase, "contrasts")$randA
+Cc <- attr(Xbase, "contrasts")$randC
+Cint <- kronecker(Ca, Cc)
+rownames(Cint) <- c("A1C1", "A1C2", "A1C3", "A1C4", "A2C1", "A2C2", "A2C3", "A2C4")
+rrs <- c("randA2:randC2", "randA2:randC3", "randA2:randC4")
+
+seff <- rbind(
+  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[5, ] - Cint[1, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[6, ] - Cint[2, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[7, ] - Cint[3, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[8, ] - Cint[4, ]) %**% mdrws$beta[rrs]
+)
+reff <- seff[-1, ] - seff[1, ]
+```
+
+```{r}
+y_ppc <- mdrws$y_ppc
+ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
+ppc_dat_grp <- grp_ppc(sym("CAssignment"), intervention_labels_short()$CAssignment)
+p <- plot_ppc(ppc_dat_grp, "Anticoagulation")
+grid.arrange(p)
+```
+
+
+### Treatment Coding, Diffuse Prior
+
+```{r}
+Xbase <- make_X_design(fas_itt_nona_dat, vars = "ctry", ctr = contr.treatment)
+Xint <- cbind(
+  "randA:randC2" = Xbase[, "randA"] * Xbase[, "randC2"],
+  "randA:randC3" = Xbase[, "randA"] * Xbase[, "randC3"],
+  "randA:randC4" = Xbase[, "randA"] * Xbase[, "randC4"],
+  "randA2:randC" = Xbase[, "randA2"] * Xbase[, "randC"],
+  "randA2:randC2" = Xbase[, "randA2"] * Xbase[, "randC2"],
+  "randA2:randC3" = Xbase[, "randA2"] * Xbase[, "randC3"],
+  "randA2:randC4" = Xbase[, "randA2"] * Xbase[, "randC4"]
+)
+Xdes <- cbind(Xbase, Xint)
+epoch <- fas_itt_nona_dat[["epoch"]]
+M_epoch <- max(epoch)
+region <- fas_itt_nona_dat[["ctry_num"]]
+M_region <- max(region)
+site <- fas_itt_nona_dat[["site_num"]]
+M_site <- max(site)
+region_by_site <- fas_itt_nona_dat |>
+    count(.data[["ctry_num"]], .data[["site_num"]]) |>
+    pull(.data[["ctry_num"]])
+y <- fas_itt_nona_dat[["PO"]]
+beta_sd <- c(2.5, rep(10, ncol(Xdes) - 1))
+N <- dim(Xdes)[1]
+K <- dim(Xdes)[2]
+mdat <- list(
+    N = N, K = K, X = Xdes, y = y,
+    M_region = M_region, region = region,
+    M_site = M_site, site = site,
+    M_epoch = M_epoch, epoch = epoch,
+    region_by_site = region_by_site,
+    beta_sd = beta_sd
+  )
+snk <- capture.output(
+  mfit <- logistic_site_epoch[["sample"]](
+    data = mdat,
+    seed = 1234,
+    adapt_delta = 0.99,
+    refresh = 0,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    chains = 4,
+    parallel_chains = min(4, parallel::detectCores())
+  )
+)
+mpars <- mfit$metadata()$model_params
+keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
+mdrws <- as_draws_rvars(mfit$draws(keep))
+names(mdrws$beta) <- colnames(mdat$X)
+
+Ca <- attr(Xbase, "contrasts")$randA
+Cc <- attr(Xbase, "contrasts")$randC
+Cint <- kronecker(Ca, Cc)
+rownames(Cint) <- c("A1C1", "A1C2", "A1C3", "A1C4", "A2C1", "A2C2", "A2C3", "A2C4")
+rrs <- c("randA2:randC2", "randA2:randC3", "randA2:randC4")
+
+seff <- rbind(
+  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[5, ] - Cint[1, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[6, ] - Cint[2, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[7, ] - Cint[3, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[8, ] - Cint[4, ]) %**% mdrws$beta[rrs]
+)
+reff <- seff[-1, ] - seff[1, ]
+```
+
+```{r}
+y_ppc <- mdrws$y_ppc
+ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
+ppc_dat_grp <- grp_ppc(sym("CAssignment"), intervention_labels_short()$CAssignment)
+p <- plot_ppc(ppc_dat_grp, "Anticoagulation")
+grid.arrange(p)
+```

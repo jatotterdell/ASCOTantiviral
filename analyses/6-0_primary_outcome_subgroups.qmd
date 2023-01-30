@@ -184,8 +184,20 @@ plot_ppc <- function(dat, labs = " ") {
     geom_point(aes(x = `y/n`), colour = "red", shape = 23, size = 2) +
     geom_point(aes(x = median(rvar_mean_y_ppc)), colour = "black", shape = 20) +
     labs(x = "Posterior predictive\nproportion", y = "Antiviral", colour = "Probability") +
-    coord_flip()
+    coord_flip() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
   add_facet_labs(p, labs)
+}
+
+plot_ppc2 <- function(dat, labs = " ") {
+  p <- dat %>%
+    ggplot(aes(y = Antiviral, xdist = rvar_mean_y_ppc)) +
+    facet_grid(grp ~ .) +
+    stat_interval(size = 2) +
+    geom_point(aes(x = `y/n`), colour = "red", shape = 23, size = 2) +
+    geom_point(aes(x = median(rvar_mean_y_ppc)), colour = "black", shape = 20) +
+    labs(x = "Posterior predictive\nproportion", y = "Antiviral", colour = "Probability")
+  add_facet_labs(p, labelR = labs)
 }
 
 make_base_subgroup_table_anticoagulation <- function(dat, grp, format = "html") {
@@ -2386,7 +2398,7 @@ grid.arrange(p)
 ```{r}
 p <- plot_subgroup_or(ordat, sym("Country"))
 ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "fas-itt-subgroup-country2-hte.pdf"),
+  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-country2-hte.pdf"),
   p, height = 3, width = 6, device = cairo_pdf)
 p
 ```

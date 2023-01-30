@@ -1167,9 +1167,18 @@ The analysts note that:
 
 - The antiviral domain was almost exclusive to participants in Australia/New Zealand (5 were randomised in Nepal, 0 in India), therefore, no subgroup analysis was undertaken for region
 - Given the small number of events in the antiviral domain, there is little data to inform subgroup specific effects for Nafamostat beyond what is assumed in the specified prior.
-- Some of the subgroups relate to post-randomsiation events, which make interpretation of the treatment effects difficult.
+- Some of the subgroups relate to post-randomisation events, which make interpretation of the treatment effects difficult.
 
 For each sub-group analysis, the primary model was extended to include an interaction term between the covariate of interest and the antiviral interventions (not randomised and randomised to Nafamostat).
+
+```{r}
+#| label: fig-subgroup-fas-itt-forest-plot
+#| fig-cap: |
+#|   Posterior odds ratio summaries for subgroups, FAS-ITT.
+knitr::include_graphics(
+  file.path("..", "outputs", "figures", "outcomes", "subgroups", "subgroup-joint-fas-itt.pdf")
+)
+```
 
 \clearpage
 
@@ -2539,6 +2548,8 @@ knitr::include_graphics(
 This section reports on the analysis of the secondary outcome: days alive and free of hospital (DAFH) to day 28. For this outcome, participants who died within 28 days were coded to have 0 DAFH. The model is coded so that an odds ratio greater than 1 implies a benefit (increased odds of more days alive and free of hospital).
 
 @tbl-7-4-summary-anticoagulation presents the number of participants where the outcome was observed by the allocated anticoagulation arm. Similarly, @tbl-7-4-summary-antiviral for the antiviral domain. 
+
+Two participants had missing number of days alive and free of hospital, however, they were known to be alive and out of hospital on day 28. One participant spent 8 days in hospital as part of their index admission and the other spent 5. Therefore, for these two participants their days alive and free of hospital were censored between [1, 20] and [1, 23] days respectively, with 20 and 23 most likely (i.e. no readmission to hospital). For the analyses these two participants were excluded as missing. A sensitivity analysis (not reported) included them as censored observations with no difference in results.
 
 ```{r}
 #| label: fig-7-4-dist-overall

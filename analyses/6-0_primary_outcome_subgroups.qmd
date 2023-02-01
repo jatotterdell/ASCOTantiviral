@@ -1,5 +1,5 @@
 ---
-title: Primary Outcome
+title: Primary Outcome - Subgroups
 subtitle: |
   Death from any cause or requirement of new intensive respiratory 
   support (invasive or non-invasive ventilation) or vasopressor/inotropic 

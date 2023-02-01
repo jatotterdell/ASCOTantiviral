@@ -429,6 +429,42 @@ ast_table |>
   add_header_above(c(" " = 1, "Standard of care" = 4, "Nafamostat" = 4))
 ```
 
+```{r}
+tt <- all_daily_data |> 
+  filter(ENR_rec == 1, WTH_FU == 0, AAssignment != "A0") |>
+  select(StudyPatientID, DD_StudyDay, AAssignment, DD_ALTLabs, DD_ASTLabs) |>
+  group_by(StudyPatientID, AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
+  summarise(
+    days = n(),
+    any_altorast_tests = any(!is.na(DD_ALTLabs) | !is.na(DD_ALTLabs)),
+    any_altorast_gt150 = any(DD_ALTLabs > 150 | DD_ASTLabs > 150, na.rm = TRUE),
+    n_altorast_tests = sum(!is.na(DD_ALTLabs) | !is.na(DD_ASTLabs)),
+    n_altorast_gt150 = sum(DD_ALTLabs > 150 | DD_ASTLabs > 150, na.rm = TRUE)
+  )
+
+tt_tab <- tt |> 
+  group_by(AAssignment) |>
+  summarise(
+    Assigned = sprintf("%i", n()),
+    `Any ALT or AST tests, n (% of assigned)` = sprintf("%i (%.0f)", sum(any_altorast_tests), 100 * sum(any_altorast_tests) / n()),
+    `Any ALT > 150 or AST > 150, n (% of tested)` = sprintf("%i (%.0f)", sum(any_altorast_gt150), 100 * sum(any_altorast_gt150) / sum(any_altorast_tests)),
+    `Total days` = sprintf("%i", sum(days)),
+    `Total days ALT or AST tested, n (% of days)` = sprintf("%i (%.0f)", sum(n_altorast_tests), 100 * sum(n_altorast_tests) / sum(days)),
+    `Total days ALT > 150 or AST > 150, n (% of tests)` = sprintf("%i (%.0f)", sum(n_altorast_gt150), 100 * sum(n_altorast_gt150) / sum(n_altorast_tests))
+    )|>
+  pivot_longer(2:7, names_to = "Variable") |>
+  pivot_wider(names_from = AAssignment, values_from = value)
+
+tt_tab |>
+  kable("html", digits = 2, align = "lrr") |>
+  kable_styling("striped", font_size = 12)
+
+tt_tab |>
+  kable("latex", booktabs = TRUE, digits = 2, align = "lrr") |>
+  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
+  save_tex_table("outcomes/domain/patient-alt-or-ast")
+```
+
 
 ### Elevation of serum potassium
 
@@ -473,7 +509,9 @@ tt <- all_daily_data |>
     any_tests = any(!is.na(DD_Potassium)),
     tests = sum(!is.na(DD_Potassium)),
     any_gt55 = as.numeric(any(DD_Potassium > 5.5, na.rm = TRUE)),
-    n_gt55 = sum(DD_Potassium > 5.5, na.rm = TRUE)
+    n_gt55 = sum(DD_Potassium > 5.5, na.rm = TRUE),
+    max_val = max(DD_Potassium, na.rm = TRUE),
+    all_val_gt55 = paste0(DD_Potassium[which(DD_Potassium > 5.5)], collapse = ", ")
   )
 sp_table <- tt |> 
   group_by(AAssignment) |>
@@ -557,7 +595,7 @@ events <- bind_rows(
   select(`Patient ID`, `Onset date`, `SAE Term`, Type, `Notes from Site`)
 tt |> 
   filter(any_gt55 == 1) |>
-  select(StudyPatientID, Antiviral = AAssignment) |>
+  select(StudyPatientID, Antiviral = AAssignment, Values = all_val_gt55) |>
   left_join(
     events |> filter(grepl("hyper", tolower(`SAE Term`))), by = c("StudyPatientID" = "Patient ID")
   ) |>
@@ -575,9 +613,9 @@ tt |>
     latex_options = "HOLD_position",
     font_size = 5.5
   ) |>
-  column_spec(1:4, width = "1cm") |>
-  column_spec(5, width = "0.5cm") |>
-  column_spec(6, width = "6cm") |>
+  column_spec(1:5, width = "1cm") |>
+  column_spec(6, width = "0.5cm") |>
+  column_spec(7, width = "6cm") |>
   save_tex_table("outcomes/domain/sae-serum-potassium")
 ```
 

@@ -3258,7 +3258,7 @@ Daily summaries are reported in @tbl-alt-daily and @tbl-ast-daily.
 ```{r}
 #| label: tbl-alt-ast-patient
 #| tbl-cap: |
-#|   Descriptive summary of participant cycle threshold values.
+#|   Descriptive summary of participant AST/ALT levels.
 #| results: asis
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-alt-ast.tex"))
 writeLines(tab)
@@ -3279,6 +3279,15 @@ writeLines(tab)
 #|   Descriptive summary of daily AST levels (IU/L) and testing.
 #| results: asis
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "daily-ast.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-alt-or-ast-patient
+#| tbl-cap: |
+#|   Descriptive summary of participants with AST or ALT exceeding threshold.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "domain", "patient-alt-or-ast.tex"))
 writeLines(tab)
 ```
 

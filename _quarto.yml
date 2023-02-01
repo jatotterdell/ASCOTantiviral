@@ -26,6 +26,8 @@ website:
       - section: "Outcomes and Analyses"
         contents:
           - "analyses/6-0_primary_outcome.qmd"
+          - "analyses/6-0_primary_outcome_interactions.qmd"
+          - "analyses/6-0_primary_outcome_subgroups.qmd"
           - "analyses/7-1_time_to_clinical_recovery.qmd"
           - "analyses/7-2_who_ordinal_scale.qmd"
           - "analyses/7-3_all_cause_mortality.qmd"

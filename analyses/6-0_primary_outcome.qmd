@@ -81,21 +81,21 @@ fas_itt_aunz_nona_dat <- fas_itt_aunz_dat |>
 # FAS-PP
 fas_pp_dat <- fas_itt_dat |>
   left_join(pd, by = "StudyPatientID") |>
-  filter(is.na(pd_A), is.na(pd_C))
+  filter(is.na(pd_A) | pd_A == 0, is.na(pd_C) | pd_C == 0)
 fas_pp_nona_dat <- fas_pp_dat |>
   filter(!is.na(PO))
 
 # ACS-PP
 acs_pp_dat <- acs_itt_dat |>
   left_join(pd, by = "StudyPatientID") |>
-  filter(is.na(pd_A), is.na(pd_C))
+  filter(is.na(pd_C) | pd_C == 0)
 acs_pp_nona_dat <- acs_pp_dat |>
   filter(!is.na(PO))
 
 # AVS-PP
 avs_pp_dat <- avs_itt_dat |>
   left_join(pd, by = "StudyPatientID") |>
-  filter(is.na(pd_A), is.na(pd_C))
+  filter(is.na(pd_A) | pd_A == 0)
 avs_pp_nona_dat <- avs_pp_dat |>
   filter(!is.na(PO))
 ```
@@ -2204,7 +2204,7 @@ odds_ratio_summary_table(c(res$drws$AOR, res$drws$OR[-1]))
 
 ## FAS-PP
 
-Here the primary model is fit to the FAS-PP where per-protocol participants were identified as pre the provided listings.
+Here the primary model is fit to the FAS-PP where per-protocol participants were identified as per the provided listings. Participants may be excluded due to failing the per-protocol criteria for the anticoagulation domain or the antiviral domain (or both).
 
 ```{r}
 #| label: tbl-domainC-po-fas-pp
@@ -2272,6 +2272,8 @@ p
 
 ## ACS-PP
 
+Note that for ACS-PP only participants who were not per-protocol according to the anticoagulation domain are excluded. A participant who was not per-protocol according to the antiviral domain but was per-protocol according to the anticoagulation domain is kept in the analysis set. The alternative would be to exclude both (as for FAS-PP).
+
 ```{r}
 res <- fit_primary_model(acs_pp_nona_dat, logistic_site_epoch, ctr = contr.equalprior)
 names(res$drws$AOR) <- "Nafamostat"
@@ -2313,6 +2315,8 @@ p
 ```
 
 ## AVS-PP
+
+Note that for AVS-PP only participants who were not per-protocol according to the antiviral domain are excluded. A participant was not per-protocol according to the anticoagulation domain but was per-protocol according to the antiviral domain is kept in the analysis set. The alternative would be to exclude both (as for FAS-PP).
 
 ```{r}
 #| label: tbl-domainC-po-avs-pp

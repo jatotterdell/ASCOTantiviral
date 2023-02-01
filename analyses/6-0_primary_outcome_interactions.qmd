@@ -1,5 +1,5 @@
 ---
-title: Primary Outcome
+title: Primary Outcome - Interactions
 subtitle: |
   Death from any cause or requirement of new intensive respiratory 
   support (invasive or non-invasive ventilation) or vasopressor/inotropic 
@@ -173,6 +173,50 @@ plot_ppc <- function(dat, labs = " ") {
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
   add_facet_labs(p, labs)
 }
+
+plot_subgroup_or <- function(dat, grp) {
+  ggplot(ordat, aes(xdist = Posterior, y = !!grp)) +
+    facet_grid( ~ Contrast, scales = "free_x") +
+    stat_slabinterval(
+      aes(fill = 
+            after_stat(
+              cut_cdf_qi(cdf, .width = c(0.5, 0.8, 0.95, 0.99), labels = scales::percent_format()))),
+      adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95, 0.99),
+      fatten_point = 1
+      ) + 
+    scale_fill_brewer(
+      palette = "Reds",
+      direction = -1, 
+      na.translate = FALSE) + 
+    labs(
+      x = "Odds ratio contrast",
+      fill = "Interval"
+    ) +
+    geom_vline(xintercept = 1, linetype = 2) +
+    scale_x_log10("Odds ratio (log scale)") +
+    scale_colour_manual("", values = c("red", "black")) +
+    guides(colour = "none") +
+    theme(panel.border = element_rect(fill = NA),
+          legend.position = "top")
+}
+
+make_subgroup_summary_table <- function(dat, format = "html") {
+  L <- nrow(dat)
+  row_st <- seq(1, L, by = L / 3)
+  row_ed <- seq(L/3, L, by = L / 3)
+  kable(
+    dat[, -1] %>% select(-Posterior),
+    format = format,
+    booktabs = TRUE,
+    align = "lrrrrr",
+      escape = FALSE
+  ) %>%
+    kable_styling(
+      latex_options = "HOLD_position",
+      font_size = 9
+    ) %>%
+    group_rows("Nafamostat", 1, nrow(ordat))
+}
 ```
 
 
@@ -215,8 +259,11 @@ tab <- make_base_subgroup_table_antiviral(fas_itt_dat, CAssignment, "latex") |>
 save_tex_table(
   tab, 
   "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-anticoagulation-descriptive-antiviral")
+```
 
-make_base_subgroup_table_antiviral(fas_itt_dat, CAssignment, "html") |>
+```{r}
+#| tbl-cap: Primary outcome by anti-viral intervention by anticoagulation intervention.
+make_base_subgroup_table_antiviral(fas_itt_dat, CAssignment) |>
   pack_rows("Not randomised to anticoagulation", 1, 3) |>
   pack_rows("Low-dose anticoagulation", 4, 6) |>
   pack_rows("Intermediate-dose anticoagulation", 7, 9) |>

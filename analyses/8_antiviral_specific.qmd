@@ -1041,5 +1041,21 @@ Relevant fields are:
 ```{r}
 all_data |>
   filter_avs_itt() |>
-  count(CAssignment, DIS_AntiCoagTreatment)
+  select(StudyPatientID, AAssignment, CAssignment, DIS_AntiCoagTreatment) |>
+  mutate(anticoag = factor(case_when(
+    CAssignment == "C1" ~ "Low-dose",
+    CAssignment == "C2" ~ "Intermediate-dose",
+    CAssignment == "C3" ~ "Low-dose with aspirin",
+    CAssignment == "C4" ~ "Therapeutic-dose",
+    DIS_AntiCoagTreatment == "Prophylactic Dose" ~ "Low-dose (non-rand)",
+    DIS_AntiCoagTreatment == "Therapeutic Dose" ~ "Therapeutic-dose (non-rand)",
+    DIS_AntiCoagTreatment == "No non-trial anticoagulants were given during hospitalisation" ~ "None",
+    DIS_AntiCoagTreatment == "Unknown" ~ "Unknown"
+  ), levels = c("Low-dose", "Low-dose (non-rand)", "Intermediate-dose", "Low-dose with aspirin", "Therapeutic-dose", "Therapeutic-dose (non-rand)", "None", "Unknown"))) |>
+  left_join(ddd, by = "StudyPatientID") |>
+  group_by(AAssignment.y, anticoag) |>
+  summarise(
+    n = sprintf("%i (%i)", sum(dd_mb | d28_mb | d28_nmb, na.rm = TRUE), n())
+  )
+  
 ```

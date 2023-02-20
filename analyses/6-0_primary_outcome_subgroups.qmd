@@ -2824,6 +2824,27 @@ compdat <- expand_grid(
   mutate(Posterior = c(mdrws$compare)) %>%
   summarise_posterior() %>%
   select(-`Pr(OR > 1/1.1)`)
+
+OR_age <- mdrws$OR
+rownames(OR_age) <- labs2
+agedat <- avs_itt_dat %>% 
+  group_by(agegte60, AAssignment) %>% 
+  summarise("events/patients" = sprintf(
+    "%i/%i (%.2f)", 
+    sum(PO, na.rm = TRUE), 
+    sum(!is.na(PO)), 
+    mean(PO, na.rm = T))
+  ) %>%
+  ungroup() %>%
+  mutate(
+    Subgroup = "Age",
+    Variable = as.character(factor(as.numeric(agegte60), levels = 0:1, labels = labs2)),
+    Intervention = as.character(factor(
+      AAssignment, 
+      labels = intervention_labels_short()$AAssignment[-1])),
+    .before = 1
+  ) %>%
+  select(-agegte60, -AAssignment)
 ```
 
 ```{r}
@@ -3917,7 +3938,7 @@ make_subgroup_summary_table(compdat)
 ```{r}
 pad_width <- 0
 cnt_dat <- bind_rows(agedat, dsfsdat, oxydat, steroidsdat, remdat, 
-                     antiviraldat, vaxdat[1:6, ], ddimerdat, datedat,
+                     vaxdat[1:6, ], ddimerdat, datedat,
                      countrydat) %>%
   mutate(
     `events/patients` = str_pad(`events/patients`, width = pad_width, side = "left")
@@ -3935,7 +3956,8 @@ ORdat <- ORdat %>%
     lower = quantile(Posterior, probs = 0.025)[1, ],
     upper = quantile(Posterior, probs = 0.975)[1, ],
     ` ` = paste(rep(" ", 30), collapse = " "),
-    `Odds ratio\n(95% CrI)` = sprintf("%.2f (%.2f, %.2f)", est, lower, upper)
+    `Odds ratio\n(95% CrI)` = sprintf("%.2f (%.2f, %.2f)", est, lower, upper),
+    `Pr(OR < 1)` = sprintf("%.2f", Pr(Posterior < 1))
   ) %>%
   left_join(cnt_dat, by = c("Variable", "Intervention")) %>%
   mutate(Variable = paste0("   ", Variable))
@@ -3957,7 +3979,10 @@ naf_ORdat <- ORdatmod %>%
   left_join(cnt_dat %>% filter(Intervention == "SoC") %>% 
               mutate(Variable = paste0("   ", Variable)) %>% select(c(2, 4)), by = "Variable") %>%
   rename(SoC = `events/patients`) %>%
-  replace_na(replace = list(SoC = paste(rep(" ", pad_width), collapse = ""), Nafamostat = paste(rep(" ", pad_width), collapse = "")))
+  replace_na(replace = list(
+    SoC = paste(rep(" ", pad_width), collapse = ""), 
+    Nafamostat = paste(rep(" ", pad_width), collapse = ""),
+    `Pr(OR < 1)` = paste(rep(" ", pad_width), collapse = "")))
 
 thm <- forestploter::forest_theme(
     ci_pch = 19,
@@ -3966,7 +3991,7 @@ thm <- forestploter::forest_theme(
     base_family = "Palatino",
     title_just = "left")
 
-naf_pdat <-  naf_ORdat[, c(1, 11, 10, 7, 8)]
+naf_pdat <-  naf_ORdat[, c(1, 12, 11, 7, 8, 9)]
 colnames(naf_pdat)[4] <- "Odds ratio (median, 95% CrI)"
 colnames(naf_pdat)[5] <- " "
 naf_plot <- forestploter::forest(

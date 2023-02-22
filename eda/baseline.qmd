@@ -55,21 +55,21 @@ fas_itt_wc_dat <- fas_itt_dat |>
 # FAS-PP
 fas_pp_dat <- fas_itt_dat |>
   left_join(pd, by = "StudyPatientID") |>
-  filter(is.na(pd_A), is.na(pd_C))
+  filter(is.na(pd_A) | pd_A == 0, is.na(pd_C) | pd_C == 0)
 fas_pp_nona_dat <- fas_pp_dat |>
   filter(!is.na(PO))
 
 # ACS-PP
 acs_pp_dat <- acs_itt_dat |>
   left_join(pd, by = "StudyPatientID") |>
-  filter(is.na(pd_A), is.na(pd_C))
+  filter(is.na(pd_C) | pd_C == 0)
 acs_pp_nona_dat <- acs_pp_dat |>
   filter(!is.na(PO))
 
 # AVS-PP
 avs_pp_dat <- avs_itt_dat |>
   left_join(pd, by = "StudyPatientID") |>
-  filter(is.na(pd_A), is.na(pd_C))
+  filter(is.na(pd_A) | pd_A == 0)
 avs_pp_nona_dat <- avs_pp_dat |>
   filter(!is.na(PO))
 ```
@@ -382,6 +382,32 @@ ggsave(file.path(pth, "antiviral-allocations-country.pdf"), p, height = 2.5, wid
 p
 ```
 
+```{r}
+#| label: fig-allocation-country-antiviral-noIndia
+#| code-summary: Allocations by country
+#| fig-cap: |
+#|   Allocation to anti-viral interventions by country.
+#| fig-height: 4
+p <- all_data |>
+  filter(ENR_rec == 1, Country != "IN", AAssignment != "A0") |>
+  dplyr::count(
+      Country = factor(Country, labels = c("Australia (AU)", "Nepal (NP)", "New Zealand (NZ)")),
+      Intervention = factor(AAssignment, labels = intervention_labels_short()$AAssignment[-1])) %>%
+  group_by(Country) |>
+  mutate(p = n / sum(n)) |>
+  ggplot(aes(Intervention, n)) +
+  facet_wrap( ~ Country, scales = "free_y", ncol = 4) +
+  geom_col() +
+  scale_y_continuous("Frequency",
+    breaks = function(x) 
+      unique(floor(pretty(seq(0, (max(x) + 1) * 1.1)))))
+pth <- file.path("outputs", "figures", "baseline")
+fpth <- file.path(pth, "antiviral-allocations-country-no-india.pdf")
+ggsave(fpth, p, height = 2.5, width = 7)
+system(sprintf("pdftoppm %s %s -png", fpth, gsub(".pdf", "", fpth)))
+p
+```
+
 ## Site
 
 Allocations to interventions by site of enrolment.
@@ -432,7 +458,36 @@ p <- all_data |>
       unique(floor(pretty(seq(0, (max(x) + 1) * 1.1))))) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.25))
 pth <- file.path("outputs", "figures", "baseline")
-ggsave(file.path(pth, "antiviral-allocations-sites.pdf"), p, height = 6, width = 7)
+fpth <- file.path(pth, "antiviral-allocations-sites.pdf")
+ggsave(fpth, p, height = 6, width = 7)
+p
+```
+
+
+```{r}
+#| label: fig-allocation-site-antiviral-noA0
+#| code-summary: Allocations by site
+#| fig-cap: |
+#|   Allocation to anti-viral interventions by site
+#| fig-height: 6
+p <- all_data |>
+  filter(ENR_rec == 1, Country != "IN", AAssignment != "A0") |>
+  dplyr::count(Country = Country, 
+        Site = Location,
+        Intervention = factor(AAssignment, labels = intervention_labels_short()$AAssignment[-1])) %>%
+  group_by(Site = paste(Country, Site, sep = ": ")) |>
+  mutate(p = n / sum(n)) |>
+  ggplot(aes(Intervention, n)) +
+  facet_wrap( ~ Site, scales = "free_y") +
+  geom_col() +
+  scale_y_continuous("Frequency",
+    breaks = function(x) 
+      unique(floor(pretty(seq(0, (max(x) + 1) * 1.1))))) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+pth <- file.path("outputs", "figures", "baseline")
+fpth <- file.path(pth, "antiviral-allocations-sites-noA0.pdf")
+ggsave(fpth, p, height = 6, width = 7)
+system(sprintf("pdftoppm %s %s -png", fpth, gsub(".pdf", "", fpth)))
 p
 ```
 

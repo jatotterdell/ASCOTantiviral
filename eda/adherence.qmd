@@ -223,8 +223,12 @@ naf_id_sum <- naf_data |>
     total_hours = sum(DD_NafamostatDuration[DD_StudyDay < 9]),
     hours_per_day = total_hours / min(8, days),
     days_comply = sum(DD_NafamostatDuration >= 21 & DD_StudyDay <= 8, na.rm = TRUE),
+    days_comply2 = sum(DD_NafamostatDuration >= 21 & DD_StudyDay > 1 & DD_StudyDay < min(9, DIS_day), na.rm = TRUE),
+    days_comply3 = sum(DD_NafamostatDuration >= 21 & DD_StudyDay > 1 & DD_StudyDay < min(8, DIS_day), na.rm = TRUE),
     days_nocomply = sum(DD_NafamostatDuration < 21 & DD_StudyDay > 1 & DD_StudyDay < min(9, DIS_day)),
-    p_days_comply = days_comply / min(8, days)
+    p_days_comply = days_comply / min(8, days),
+    p_days_comply2 = if_else(days == 2, 1, days_comply2 / (min(7, days - 2))),
+    p_days_comply3 = if_else(days == 2, 1, days_comply3 / (min(6, days - 2)))
   )
 
 naf_tab <- naf_id_sum |>
@@ -244,6 +248,11 @@ naf_tab <- naf_id_sum |>
     `pdayscomply_Median (IQR)` = sprintf("%.2f (%.2f - %.2f)", median(p_days_comply), quantile(p_days_comply, 0.25), quantile(p_days_comply, 0.75)),
     `pdayscomply_Min, Max` = sprintf("%.2f, %.2f", min(p_days_comply), max(p_days_comply)),
     `pdayscomply_Missing` = sprintf("%i", sum(is.na(p_days_comply))),
+    
+    `pdayscomply3_Median (IQR)` = sprintf("%.2f (%.2f - %.2f)", median(p_days_comply3), quantile(p_days_comply3, 0.25), quantile(p_days_comply3, 0.75)),
+    `pdayscomply3_Min, Max` = sprintf("%.2f, %.2f", min(p_days_comply3), max(p_days_comply3)),
+    `pdayscomply3_Missing` = sprintf("%i", sum(is.na(p_days_comply3))),
+    
     `dayscomply_Median (IQR)` = sprintf("%i (%i - %i)", median(days_comply), quantile(days_comply, 0.25), quantile(days_comply, 0.75)),
     `dayscomply_Min, Max` = sprintf("%i, %i", min(days_comply), max(days_comply)),
     `dayscomply_Missing` = sprintf("%i", sum(is.na(days_comply))),
@@ -262,8 +271,9 @@ naf_tab |>
   pack_rows("Total hours receiving infusion", 7, 9) |>
   pack_rows("Hours per day on infusion", 10, 12) |>
   pack_rows("Proportion of days admitted to hospital with infusion $\\geq$ 21/24 hours$^1$", 13, 15) |>
-  pack_rows("Days with 21/24 hours infusion", 16, 18) |>
-  pack_rows("Days without 21/24 hours infusion", 19, 21) |>
+  pack_rows("Proportion of days admitted to hospital with infusion $\\geq$ 21/24 hours$^1$ (day 2 to 7 or before discharge)", 16, 18) |>
+  pack_rows("Days with 21/24 hours infusion", 19, 21) |>
+  pack_rows("Days without 21/24 hours infusion", 22, 24) |>
   footnote(
     general = c(
       "Days on study treatment is any part day on drug.",

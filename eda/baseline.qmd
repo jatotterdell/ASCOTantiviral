@@ -1062,6 +1062,25 @@ save_tex_table(
 sout[[1]]
 ```
 
+# Anticoagulation Received
+
+```{r}
+#| label: anticoagulation-table-setup
+avs_itt_dat |>
+  select(AAssignment, CAssignment, DIS_AntiCoagTreatment) |>
+  mutate(
+    anticoag = case_when(
+      CAssignment == "C1" ~ "Prophylactic Dose",
+      CAssignment == "C4" ~ "Therapeutic Dose",
+      CAssignment %in% c("C2", "C3") ~ "Intermediate Dose",
+      CAssignment == "C0" ~ DIS_AntiCoagTreatment
+    )
+  ) |>
+  count(AAssignment, anticoag) |>
+  spread(AAssignment, n, fill = 0) |>
+  mutate(across(A1:A2, ~ sprintf("%i (%.2f)", .x, .x / sum(.x))))
+```
+
 # Table 1
 
 ```{r}

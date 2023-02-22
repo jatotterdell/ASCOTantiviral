@@ -1090,6 +1090,50 @@ ggsave(file.path(path, "outcome-country.pdf"), p, height = 2, width = 6)
 p
 ```
 
+```{r}
+#| label: fig-country-po
+#| code-summary: Relationship country to outcome
+#| fig-cap: Primary outcome by country.
+#| fig-height: 2
+tdat <- all_data %>%
+  filter_avs_itt() %>%
+  count(Country = factor(PT_CountryName, levels = c("Australia", "Nepal", "New Zealand")), 
+        AAssignment = factor(AAssignment, labels = intervention_labels_short()$AAssignment[-1]),
+        PO) %>%
+  group_by(Country) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0`,
+    p_1 = `1` / (`1` + `0`)
+  )
+p1 <- ggplot(tdat, aes(AAssignment, n)) +
+  facet_wrap( ~ Country, ncol = 1, scales = "free_y") +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Antiviral intervention") +
+  scale_y_continuous(breaks = function(x) unique(floor(pretty(seq(0, (max(x) + 1) * 1.1)))))
+p2 <- ggplot(tdat, aes(AAssignment, p_1)) +
+  facet_wrap( ~ Country, ncol = 1, scales = "free_y") +
+  geom_point() +
+    labs(
+      y = "Proportion meeting\nprimary outcome", 
+      x = "Antiviral intervention")  +
+  scale_y_continuous(limits = c(0, NA)) +
+  expand_limits(y = 0.1) +
+  facetted_pos_scales(y = list(
+    scale_y_continuous(breaks = seq(0, 0.1, 0.02), limits = c(0, 0.1)),
+    scale_y_continuous(breaks = seq(0, 0.1, 0.02), limits = c(0, 0.1)),
+    scale_y_continuous(breaks = seq(0, 1, 0.1), limits = c(0, NA), labels = \(x) sprintf("%.2f", x))
+  ))
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "primary")
+fpth <- file.path(path, "outcome-country-avs-itt.pdf") 
+ggsave(fpth, p, height = 4, width = 6)
+system(sprintf("pdftoppm %s %s -png", fpth, gsub(".pdf", "", fpth)))
+p
+```
+
 ## Site
 
 The following presents the primary outcome rate by study site.
@@ -1134,6 +1178,65 @@ p2 <- ggplot(tdat, aes(Site_lab, p_1)) +
 p <- p1 / p2
 path <- file.path("outputs", "figures", "outcomes", "primary")
 ggsave(file.path(path, "outcome-country-site.pdf"), p, height = 4, width = 6.25)
+p
+```
+
+```{r}
+#| label: fig-site-po
+#| code-summary: Relationship site to outcome
+#| fig-cap: Primary outcome by site within country.
+#| fig-height: 6
+#| fig-width: 4
+tdat <- all_data %>%
+  filter_avs_itt() %>%
+  dplyr::count(
+    Country_lab = Country,
+    Site_lab = fct_infreq(Location),
+    Country = factor(PT_CountryName, labels = c("Australia", "Nepal", "New\nZealand")),
+    Site = PT_LocationName,
+    AAssignment = factor(AAssignment, labels = intervention_labels_short()$AAssignment[-1]),
+    PO) %>%
+  group_by(Country, Site, AAssignment) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0`,
+    p_1 = `1` / (`1` + `0`),
+  ) %>%
+  ungroup()
+p1 <- ggplot(tdat, aes(Site_lab, n)) +
+  facet_grid(Country ~ ., scales = "free_y", space = "free_y", switch = "both") +
+  geom_col(aes(fill = AAssignment), width = 0.85) +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Site of enrolment",
+      fill = "Antiviral") +
+  coord_flip() +
+  scale_fill_viridis_d() +
+  theme(panel.border = element_rect(fill = NA),
+        panel.grid.major.y = element_line(colour = "grey80", linetype = 2),
+        strip.placement = "outside")
+p2 <- ggplot(tdat, aes(Site_lab, p_1)) +
+  facet_grid(Country ~ ., scales = "free_y", space = "free_y", switch = "both") +
+  geom_point(aes(fill = AAssignment, colour = AAssignment), shape = 21, position = position_dodge(0.5)) +
+    labs(
+      y = "Proportion meeting\nprimary outcome", 
+      x = "") +
+  coord_flip() +
+  scale_colour_viridis_d() +
+  scale_fill_viridis_d() +
+  theme(panel.border = element_rect(fill = NA),
+        panel.grid.major.y = element_line(colour = "grey80", linetype = 2),
+        strip.placement = "outside",
+        # axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        strip.text.y = element_blank()) +
+  guides(fill = "none", colour = "none")
+p <- (p1 | p2) + plot_layout(guides = "collect") &
+  theme(legend.position = "top")
+path <- file.path("outputs", "figures", "outcomes", "primary")
+fpth <- file.path(path, "outcome-country-site-avs-itt.pdf")
+ggsave(fpth, p, height = 5, width = 6, dpi = 244)
+system(sprintf("pdftoppm %s %s -png", fpth, gsub(".pdf", "", fpth)))
 p
 ```
 

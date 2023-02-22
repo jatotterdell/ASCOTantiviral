@@ -371,12 +371,14 @@ grid.arrange(p)
 ```
 
 ```{r}
-p <- plot_subgroup_or(ordat, sym("Anticoagulation"))
-ggsave(
-  file.path(
+p <- plot_subgroup_or(ordat, sym("Anticoagulation"))  + 
+  scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x),
+                labels = trans_format("log10", math_format(10^.x)))
+fpth <-   file.path(
     "outputs", "figures", "outcomes", "primary", "subgroup", 
-    "fas-itt-subgroup-anticoagulation-hte.pdf"),
-  p, height = 2.5, width = 6, device = cairo_pdf)
+    "fas-itt-subgroup-anticoagulation-hte.pdf")
+ggsave(fpth, p, height = 3, width = 5, device = cairo_pdf)
+system(sprintf("pdftoppm %s %s -png", fpth, gsub(".pdf", "", fpth)))
 p
 ```
 

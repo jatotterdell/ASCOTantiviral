@@ -431,6 +431,31 @@ p
 ```
 
 ```{r}
+#| label: fig-7-1-antiviral
+#| fig-cap: |
+#|   Progression to recovery by antiviral intervention.
+p <- fas_itt_outdat_agg_antiviral %>% 
+  filter(AAssignment != "Not randomised to antiviral") %>%
+  select(-y1, -y2, -cy1, -cy2) %>% 
+  pivot_longer(cp1:cpn) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cp1", "cp2", "cpn"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, fill = name, colour = name)) + 
+  facet_wrap(~AAssignment) + 
+  geom_col(width = 1) +
+  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative proportion", fill = "Status", colour = "Status") +
+  theme(panel.grid.minor = element_blank())
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "outcome-7-1-descriptive-antiviral2.pdf"), p, height = 2.5, width = 6)
+p
+```
+
+```{r}
 #| label: fig-7-1-antiviral-alt
 #| fig-cap: |
 #|   Progression to recovery by antiviral intervention.
@@ -452,6 +477,35 @@ p <- fas_itt_outdat_agg_antiviral %>%
   guides(colour = guide_legend(title.position="top", title.hjust = 0.5))
 path <- file.path("outputs", "figures", "outcomes", "secondary")
 ggsave(file.path(path, "outcome-7-1-descriptive-antiviral-alt.pdf"), p, height = 2.5, width = 6)
+p
+```
+
+```{r}
+#| label: fig-7-1-antiviral-alt
+#| fig-cap: |
+#|   Progression to recovery by antiviral intervention.
+p <- fas_itt_outdat_agg_antiviral %>% 
+  filter(AAssignment != "Not randomised to antiviral") %>%
+  select(-y1, -y2, -cy1, -cy2) %>% 
+  pivot_longer(cp1:cpn) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cp1", "cp2", "cpn"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  filter(name != "Died") %>%
+  ggplot(., aes(time, value, colour = AAssignment)) + 
+  facet_wrap(~ name, scales = "free_y") + 
+  geom_step() +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative proportion", colour = "Intervention") +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = "bottom") +
+  guides(colour = guide_legend(title.position="top", title.hjust = 0.5))
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+fpth <- file.path(path, "outcome-7-1-descriptive-antiviral-alt2.pdf") 
+ggsave(fpth, p, height = 2.5, width = 6)
+system(sprintf("pdftoppm %s %s -png", fpth, gsub(".pdf", "", fpth)))
 p
 ```
 

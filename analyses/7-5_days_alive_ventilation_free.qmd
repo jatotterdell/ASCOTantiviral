@@ -321,6 +321,33 @@ p
 ```
 
 ```{r}
+#| label: fig-dafh-dist-antiviral-avs-itt
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by antiviral intervention.
+#| fig-height: 4
+pdat <- avs_itt_nona_dat %>%
+  dplyr::count(
+    AAssignment = factor(AAssignment, labels = str_replace(intervention_labels()$AAssignment[-1], "<br>", "\n")),
+    dafv = ordered(out_dafv, levels = 0:28), 
+    .drop = F) %>%
+  group_by(AAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p <- ggplot(pdat, aes(AAssignment, p)) +
+  geom_col(aes(fill = fct_rev(dafv))) +
+  labs(x = "Antiviral intervention", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of ventilation", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.6, "lines"))
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+fpth <- file.path(pth, "outcome-7-5-descriptive-antiviral-avs-itt.pdf")
+ggsave(fpth, p + coord_flip(), height = 2.5, width = 6)
+system(sprintf("pdftoppm %s %s -png", fpth, gsub(".pdf", "", fpth)))
+p
+```
+
+```{r}
 #| label: fig-dafh-dist-antiviral-acs-itt
 #| fig-cap: |
 #|   Distribution of days alive and free of hospital by antiviral intervention.

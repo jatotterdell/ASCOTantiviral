@@ -440,6 +440,43 @@ p
 ```
 
 ```{r}
+#| label: fig-who-antiviral-avs-itt
+#| fig-cap: Day 28 WHO score, antiviral domain, AVS-ITT.
+p1 <- avs_itt_nona_dat %>%
+  filter(!is.na(D28_who)) %>%
+  group_by(AAssignment = factor(
+    AAssignment, 
+    labels = str_replace(intervention_labels()$AAssignment[-1], "<br>", "\n"))) %>%
+  summarise(n = n()) %>%
+  ggplot(., aes(AAssignment, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Antiviral intervention")
+p2 <- avs_itt_nona_dat %>%
+  filter(!is.na(D28_who)) %>%
+  dplyr::count(
+    AAssignment = factor(
+      AAssignment, 
+      labels = str_replace(intervention_labels()$AAssignment[-1], "<br>", "\n")), 
+    D28_who = ordered(as.integer(D28_who), levels = 1:8)
+  ) %>%
+  group_by(AAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  ggplot(., aes(AAssignment, p)) +
+  geom_col(aes(fill = D28_who)) +
+  scale_fill_viridis_d(option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = F)) +
+  labs(fill = "WHO scale", y = "Cumulative proportion", x = "Antiviral intervention")
+p <- p1 | p2
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+fpth <- file.path(pth, "7-2-antiviral-avs-itt.pdf") 
+ggsave(fpth, p2 + coord_flip(), height = 2.5, width = 6)
+system(sprintf("pdftoppm %s %s -png", fpth, gsub(".pdf", "", fpth)))
+p
+```
+
+```{r}
 #| label: fig-who-antiviral-acs-itt
 #| fig-cap: Day 28 WHO score, antiviral domain, ACS-ITT.
 p2 <- acs_itt_nona_dat %>%

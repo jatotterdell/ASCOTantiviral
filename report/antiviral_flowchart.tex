@@ -1,0 +1,77 @@
+\begin{tikzpicture}[auto,
+    block_center/.style ={rectangle, draw=black, thick, fill=white, font = \footnotesize,
+      text width=14em, text centered, minimum height=4em},
+    block_assign/.style ={rectangle, draw=black, thick, fill=white, anchor=north, font = \footnotesize,
+      text width=10em, text centered, minimum height=3em, inner sep=6pt},
+    block_left/.style ={rectangle, draw=black, thick, fill=white, font = \footnotesize,
+      text width=20em, text ragged, minimum height=4em, inner sep=6pt},
+    block_left_small/.style ={rectangle, draw=black, thick, fill=white, font = \footnotesize,
+      text width=10em, text ragged, minimum height=2em, inner sep=6pt},
+    block_blank/.style={rectangle, draw=white, thick, fill=white, font = \footnotesize,
+      text width=0em, text ragged, minimum height=0em, inner sep=0pt},
+    block_noborder/.style ={rectangle, draw=none, thick, fill=none, font = \footnotesize,
+      text width=10em, text centered, minimum height=0.5cm},
+    line/.style ={draw, thick, -latex', shorten >=0pt}]
+
+
+    \node [block_center] (screened) {Screened for platform eligibility\\ \textbf{2,254}};
+    \node [block_blank] (blank0) [below=1cm of screened] {};
+    \node [block_left] (unavailable) [right=0.5cm of blank0] {\textbf{1,894}\h Antiviral domain unavailable}
+    \node [block_center] (antiviral) [below=1cm of blank0] {Antiviral eligibility assessed\\ \textbf{360}};
+    \node [block_blank] (blank1) [below=2cm of antiviral] {};
+    \node [block_left] (ineligible) [right=0.5cm of blank1] {\textbf{185}\h Not enrolled: \\
+    \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+        \textbf{145}& Did not consent \\
+        \textbf{30} & No eligible domains, reason: \\
+        & \textbf{26} Use oral therapeutic anticoagulation agents \\
+        & \ \textbf{3} Decompensated heart failure or renal dialysis \\
+        & \ \textbf{1} Decompensated liver disease \\
+        \textbf{6}  & Not in the best interests \\
+        \textbf{3}  & Expired platform pending \\
+        \textbf{1}  & Receiving acute intensive respiratory support
+    \end{tabular}};
+    \node [block_center] (enrolled) [below=2cm of blank1] {Enrolled into platform\\ \textbf{175}};
+    \node [block_blank] (blank2) [below=1cm of enrolled] {};
+    \node [block_center] (randomised) [below=1cm of blank2] {Randomised to antiviral\\ \textbf{158}};
+
+    \node [block_left] (notrand) [right=0.5cm of blank2] {\textbf{17}\h Not randomised to antiviral: \\
+    \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+        \textbf{17}& Did not consent 
+    \end{tabular}};
+
+    \node [block_assign] (int0) [below left=0.5cm and 0.5cm of randomised] {Standard of care \\ \textbf{73}};
+    \node [block_assign] (int1) [below right=0.5cm and 0.5cm of randomised] {Nafamostat \\ \textbf{85}};
+    % row 5
+    \node [block_left_small] (int0excl) [below = 0.5cm of int0] {\textbf{0} Excluded: \\
+    \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+      \textbf{0}  & Withdrew follow-up \\
+      \textbf{0} & Missing primary \\ 
+                  & outcome
+    \end{tabular}};
+    \node [block_left_small] (int1excl) [below = 0.5cm of int1] {\textbf{3} Excluded: \\
+    \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+      \textbf{3}  & Withdrew follow-up \\
+      \textbf{0} & Missing primary \\ 
+                  & outcome
+    \end{tabular}};
+    % row
+    \node [block_assign] (int0analysis) [below = 0.5cm of int0excl] {Included in\\ primary analysis \\ \textbf{73}};
+    \node [block_assign] (int1analysis) [below = 0.5cm of int1excl] {Included in\\ primary analysis \\ \textbf{82}};
+
+    % connecting nodes with paths
+    \begin{scope}[every path/.style=line]
+        \path (screened)   -- (antiviral);
+        \path (blank0)     -- (unavailable);
+        \path (blank1)     -- (ineligible);
+        \path (antiviral)  -- (enrolled);
+        \path (enrolled)   -- (randomised);
+        \path (blank2)     -- (notrand);
+        \path (randomised) -- (int0);
+        \path (randomised) -- (int1);
+        \path (int0)       -- (int0excl);
+        \path (int1)       -- (int1excl);
+        \path (int0excl)   -- (int0analysis);
+        \path (int1excl)   -- (int1analysis);
+    \end{scope}
+
+\end{tikzpicture}

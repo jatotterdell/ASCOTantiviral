@@ -244,3 +244,95 @@ aa |>
   group_by(Country.y) |> 
   summarise(sum(n.x))
 ```
+
+
+# Update Flowchart
+
+To make it clearer who was and wasn't enrolled into the antiviral domain want to update the flowchart to exclude those for whom it was unavailable.
+
+```{r}
+all_data |>
+  filter(!is.na(EL_Con_DomainA)) |>
+  count(ENR_rec, EL_Con_DomainA, EL_OutcomeReason, BAS_rec) |>
+  print(n = Inf)
+```
+
+```{r}
+all_data |>
+  count(ENR_rec, EL_Con_DomainA, EL_OutcomeReason) |>
+  print(n = Inf)
+```
+
+
+```{r}
+all_data |>
+  filter(!is.na(EL_HyperNafamostat)) |>
+  count(ENR_rec, EL_OutcomeReason)
+```
+
+```{r}
+all_data |>
+  count(EL_HyperNafamostat)
+```
+
+```{r}
+all_data |>
+  filter(!is.na(EL_HyperNafamostat)) |>
+```
+
+```{r}
+#| label: tbl-platform-eligibility-antiviral
+#| tbl-cap: Platform eligibility.
+all_data |>
+  filter(!is.na(EL_HyperNafamostat)) |>
+  count(ENR_rec, EL_OutcomeReason) |>
+  group_by(ENR_rec) |>
+  arrange(-n, .by_group = TRUE) |>
+  ungroup() |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+
+all_data |>
+  filter(!is.na(EL_HyperNafamostat)) |>
+  count(ENR_rec, EL_OutcomeReason, EL_Con_DomainA, EL_Con_DomainC) |>
+  group_by(ENR_rec) |>
+  arrange(-n, .by_group = TRUE) |>
+  ungroup() |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+
+all_data |>
+  filter(!is.na(EL_HyperNafamostat)) |>
+  count(ENR_rec, EL_OutcomeReason, EL_Result) |>
+  group_by(ENR_rec) |>
+  arrange(-n, .by_group = TRUE) |>
+  ungroup() |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+
+```{r}
+#| label: tbl-antiviral-eligibility
+#| tbl-cap: Antiviral eligibility variables.
+all_data |>
+    filter(
+        !is.na(EL_HyperNafamostat)
+    ) |>
+    group_by(ENR_rec) |>
+    summarise(
+        EL_DecompensatedLiver = sum(EL_DecompensatedLiver == "Yes"),
+        EL_OralTherapeuticAnticoagAgents = sum(EL_OralTherapeuticAnticoagAgents == "Yes", na.rm = TRUE),
+        EL_TherapeuticAnticoagBleeding = sum(EL_TherapeuticAnticoagBleeding == "Yes"),
+        EL_SerumSodium = sum(EL_SerumSodium < 5.5, na.rm = TRUE),
+        EL_SerumPotassium = sum(EL_SerumPotassium >= 120, na.rm = TRUE),
+        EL_HyperNafamostat = sum(EL_HyperNafamostat == "Yes"),
+        EL_PregnancyBreastfeedingStatus = sum(EL_PregnancyBreastfeedingStatus == "Yes", na.rm = TRUE),
+        EL_ReceivedNafamostat = sum(EL_ReceivedNafamostat == "Yes"),
+        EL_HeartRenalDialysis = sum(EL_HeartRenalDialysis == "Yes")
+    ) |>
+    gather(Criteria, Count, -ENR_rec) |>
+  arrange(ENR_rec, Count) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```

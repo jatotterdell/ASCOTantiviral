@@ -3969,7 +3969,7 @@ ORdatmod <- ORdat %>%
   add_row(tibble(Variable = "Corticosteroids"), .before = 10) %>%
   add_row(tibble(Variable = "Remdesivir"), .before = 13) %>%
   add_row(tibble(Variable = "Vaccination"), .before = 16) %>%
-  add_row(tibble(Variable = "D-dimer"), .before = 19) %>%
+  add_row(tibble(Variable = "D-dimer above upper limit of normal"), .before = 19) %>%
   add_row(tibble(Variable = "Randomisation date"), .before = 23) %>%
   add_row(tibble(Variable = "Country"), .before = 26) %>%
   replace_na(replace = list(Variable = " ", Intervention = " ", ` ` = " ", `Odds ratio\n(95% CrI)` = " ", `events/patients` = " "))
@@ -4015,14 +4015,16 @@ naf_plot <- forestploter::insert_text(
   before = FALSE,
   gp = gpar(fontface = "bold", fontfamily = "Palatino", fontsize = 8))
 
+fpth <- file.path("outputs", "figures", "outcomes", "subgroups", "subgroup-joint-avs-itt.pdf")
 ggsave(
-  file.path("outputs", "figures", "outcomes", "subgroups", "subgroup-joint-avs-itt.pdf"),
+  fpth,
   naf_plot,
   device = cairo_pdf,
   width = 7,
   height = 8,
   dpi = 444
 )
+system(sprintf("pdftoppm %s %s -png", fpth, gsub(".pdf", "", fpth)))
 ```
 
 ```{r}

@@ -1088,3 +1088,7 @@ generate_table_1(avs_itt_dat, "latex") |>
   save_tex_table("baseline/table-1")
 generate_table_1(avs_itt_dat)
 ```
+
+# Ethnicities revise
+
+

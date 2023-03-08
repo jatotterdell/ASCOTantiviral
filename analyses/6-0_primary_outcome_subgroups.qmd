@@ -3717,7 +3717,7 @@ seff <- rbind(
   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:calgrp≥ 2021-12-20"])
 )
 labs <- c("Randomisation < 2021-12-20", "Randomisation \u2265 2021-12-20")
-labs2 <- c("< 2021-12-20", "\u2265 2021-12-20")
+labs2 <- c("< 2021-12-20 (Pre-Omicron)", "\u2265 2021-12-20 (Omicron)")
 mdrws$OR <- exp(seff)
 rownames(mdrws$OR) <- labs
 colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
@@ -3756,7 +3756,7 @@ datedat <- avs_itt_dat %>%
   ungroup() %>%
   mutate(
     Subgroup = "Randomisation date",
-    Variable = calgrp,
+    Variable = factor(calgrp, labels = labs2),
     Intervention = as.character(factor(
       AAssignment, 
       labels = intervention_labels_short()$AAssignment[-1])),

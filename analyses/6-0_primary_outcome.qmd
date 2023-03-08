@@ -1865,6 +1865,7 @@ p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
 pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-fas-itt-aunz-odds-ratio-densities.pdf")
 ggsave(pth, p, width = 6, height = 2.5)
+system(sprintf("pdftoppm %s %s -png", pth, gsub(".pdf", "", pth)))
 p
 ```
 

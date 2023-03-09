@@ -33,10 +33,12 @@
      \end{tabular}};
     \node [block_center] (peligible) [below=3cm of blank0] {Enrolled into platform\\ \textbf{1,606}};
     \node [block_blank] (blank1) [below=2cm of peligible] {};
-    \node [block_left] (ineligible) [right=0.5cm of blank1] {\textbf{1,448} Ineligible for antiviral domain\textsuperscript{\dagger}: \\
+    \node [block_left] (ineligible) [right=0.5cm of blank1] {\textbf{1,448} Not randomised to antiviral domain: \\
     \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
-      \textbf{1,432} & Domain unavailable \\
+      \textbf{1,300} & Domain unavailable in India \\
+      \textbf{131} & Enrolled before domain opened \\
       \textbf{16} & Did not consent to domain \\
+      \textbf{1} & Serum potassium > 5.5 mmol/L
     \end{tabular} };
     % row 3
     \node [block_center] (randomised) [below = 2.3cm of blank1] {Randomised to \\ antiviral domain \\ \textbf{158}};
@@ -60,9 +62,9 @@
     \node [block_assign] (int0analysis) [below = 0.5cm of int0excl] {Included in\\ primary analysis \\ \textbf{73}};
     \node [block_assign] (int1analysis) [below = 0.5cm of int1excl] {Included in\\ primary analysis \\ \textbf{82}};
     % footnotes
-    \node [anchor=north west, text width=3cm, align=left] at (ineligible.south west) {
-      \textsuperscript{\dagger Participants may meet more than one exclusion criteria}
-    };
+    % \node [anchor=north west, text width=3cm, align=left] at (ineligible.south west) {
+    %   \textsuperscript{\dagger Participants may meet more than one exclusion criteria}
+    % };
     % connecting nodes with paths
     \begin{scope}[every path/.style=line]
       \path (screened)   -- (peligible);

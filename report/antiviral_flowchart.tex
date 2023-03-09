@@ -16,7 +16,16 @@
 
     \node [block_center] (screened) {Screened for platform eligibility\\ \textbf{2,254}};
     \node [block_blank] (blank0) [below=1cm of screened] {};
-    \node [block_left] (unavailable) [right=0.5cm of blank0] {\textbf{1,894}\h Antiviral domain unavailable}
+    \node [block_left] (unavailable) [right=0.5cm of blank0] {\textbf{1,455}\h Antiviral domain unavailable: \\
+    \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+      \textbf{1,326} & Screened in India \\
+      \textbf{129} & Screened before available
+    \end{tabular} \\
+    \textbf{439}\h Ineligible for platform:}
+    \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+      \textbf{168} & Not in best interests \\
+      \textbf{58} & Not committed to active treatment
+    \end{tabular};
     \node [block_center] (antiviral) [below=1cm of blank0] {Antiviral eligibility assessed\\ \textbf{360}};
     \node [block_blank] (blank1) [below=2cm of antiviral] {};
     \node [block_left] (ineligible) [right=0.5cm of blank1] {\textbf{185}\h Not enrolled: \\

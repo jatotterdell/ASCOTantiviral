@@ -17,12 +17,25 @@ execute:
 library(tidyverse)
 library(kableExtra)
 library(ASCOTr)
+library(readxl)
 ```
 
 ```{r}
 #| label: load-data
 all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
 all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
+
+site_doma <- read_excel(file.path(ASCOT_DATA, "raw", "ListofSites_AVActivationDates.xlsx")) |>
+  rename(date_doma = `First Activated onto Antiviral Domain`) |>
+  select(Country, Site, date_doma)
+
+el_doma <- all_data |> 
+  select(StudyPatientID, ENR_rec, AAssignment, CAssignment, EL_LocationCode, starts_with("EL_")) |>
+  left_join(site_doma, by = c("EL_LocationCode" = "Site")) |>
+  left_join(
+    all_data |> count(EL_LocationCode, EL_Country = PT_CountryName) |> filter(!is.na(EL_Country)),
+    by = "EL_LocationCode"
+  )
 ```
 
 # Eligibility
@@ -277,7 +290,56 @@ all_data |>
 
 ```{r}
 all_data |>
-  filter(!is.na(EL_HyperNafamostat)) |>
+  count(EL_HyperNafamostat, EL_LocationCode) |>
+  left_join(
+    all_data |> count(EL_LocationCode, PT_CountryName) |> filter(!is.na(PT_CountryName)),
+    by = "EL_LocationCode"
+  ) |>
+  group_by(EL_HyperNafamostat, PT_CountryName) |>
+  summarise(sum(n.x))
+```
+
+```{r}
+el_doma |> filter(EL_Country == "India") |> count(ENR_rec)
+el_doma |> filter(EL_Country == "Australia") |> count(is.na(date_doma), EL_Screened >= date_doma, ENR_rec)
+el_doma |> filter(EL_Country == "New Zealand") |> count(is.na(date_doma), EL_Screened >= date_doma, ENR_rec)
+el_doma |> filter(EL_Country == "Nepal") |> count(is.na(date_doma), EL_Screened >= date_doma, ENR_rec)
+
+el_doma |> count(ENR_rec, EL_Country)
+
+el_doma |> 
+  filter(EL_Country != "India", EL_Screened >= date_doma)  |>
+  count(EL_HyperNafamostat, EL_OutcomeReason) |>
+  group_by(EL_HyperNafamostat) |>
+  arrange(-n, .by_group = T)
+
+el_doma |> 
+  filter(ENR_rec == 1, EL_Country != "India")  |>
+  count(EL_Screened >= date_doma, EL_Con_DomainA)
+el_doma |> 
+  filter(ENR_rec == 1, EL_Country != "India")  |>
+  count(EL_Con_DomainA)
+
+el_doma |>
+  count(ENR_rec, EL_OutcomeReason) |>
+  arrange(-n, .by_group = T)
+
+el_doma |>
+  filter(ENR_rec == 1) |>
+  count(EL_HyperNafamostat, EL_Screened >= date_doma, AAssignment)
+  arrange(-n, .by_group = T)
+
+ dd |> 
+  filter(EL_Country == "Nepal") |>
+  count(EL_Screened >= np_date, EL_HyperNafamostat, EL_OutcomeReason, AAssignment)
+
+dd |> 
+  filter(EL_Country == "New Zealand") |>
+  count(EL_Screened >= aunz_date, EL_HyperNafamostat, EL_OutcomeReason, AAssignment)
+
+dd |> 
+  filter(EL_Country == "Australia") |>
+  count(EL_Screened >= aunz_date, EL_HyperNafamostat, EL_OutcomeReason)
 ```
 
 ```{r}
@@ -330,6 +392,31 @@ all_data |>
         EL_PregnancyBreastfeedingStatus = sum(EL_PregnancyBreastfeedingStatus == "Yes", na.rm = TRUE),
         EL_ReceivedNafamostat = sum(EL_ReceivedNafamostat == "Yes"),
         EL_HeartRenalDialysis = sum(EL_HeartRenalDialysis == "Yes")
+    ) |>
+    gather(Criteria, Count, -ENR_rec) |>
+  arrange(ENR_rec, Count) |>
+  kable("html") |>
+  kable_styling("striped", font_size = 12)
+```
+
+```{r}
+#| label: tbl-antiviral-eligibility
+#| tbl-cap: Antiviral eligibility variables.
+all_data |>
+    filter(
+        is.na(EL_HyperNafamostat)
+    ) |>
+    group_by(ENR_rec) |>
+    summarise(
+        EL_DecompensatedLiver = sum(EL_DecompensatedLiver == "Yes", na.rm = TRUE),
+        EL_OralTherapeuticAnticoagAgents = sum(EL_OralTherapeuticAnticoagAgents == "Yes", na.rm = TRUE),
+        EL_TherapeuticAnticoagBleeding = sum(EL_TherapeuticAnticoagBleeding == "Yes", na.rm = TRUE),
+        EL_SerumSodium = sum(EL_SerumSodium < 5.5, na.rm = TRUE, na.rm = TRUE),
+        EL_SerumPotassium = sum(EL_SerumPotassium >= 120, na.rm = TRUE, na.rm = TRUE),
+        EL_HyperNafamostat = sum(EL_HyperNafamostat == "Yes", na.rm = TRUE),
+        EL_PregnancyBreastfeedingStatus = sum(EL_PregnancyBreastfeedingStatus == "Yes", na.rm = TRUE),
+        EL_ReceivedNafamostat = sum(EL_ReceivedNafamostat == "Yes", na.rm = TRUE),
+        EL_HeartRenalDialysis = sum(EL_HeartRenalDialysis == "Yes", na.rm = TRUE)
     ) |>
     gather(Criteria, Count, -ENR_rec) |>
   arrange(ENR_rec, Count) |>

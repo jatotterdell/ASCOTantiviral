@@ -25,12 +25,12 @@ library(readxl)
 all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
 all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
 
-site_doma <- read_excel(file.path(ASCOT_DATA, "raw", "ListofSites_AVActivationDates.xlsx")) |>
+site_doma <- read_excel(file.path(ASCOT_DATA, "raw", "ListofSites_AVActivationDates_updated.xlsx")) |>
   rename(date_doma = `First Activated onto Antiviral Domain`) |>
   select(Country, Site, date_doma)
 
 el_doma <- all_data |> 
-  select(StudyPatientID, ENR_rec, AAssignment, CAssignment, EL_LocationCode, starts_with("EL_")) |>
+  select(StudyPatientID, ENR_rec, EL_inelg_a, EL_inelg_c, AAssignment, CAssignment, EL_LocationCode, starts_with("EL_")) |>
   left_join(site_doma, by = c("EL_LocationCode" = "Site")) |>
   left_join(
     all_data |> count(EL_LocationCode, EL_Country = PT_CountryName) |> filter(!is.na(EL_Country)),
@@ -318,29 +318,100 @@ el_doma |>
   count(EL_Screened >= date_doma, EL_Con_DomainA)
 el_doma |> 
   filter(ENR_rec == 1, EL_Country != "India")  |>
-  count(EL_Con_DomainA)
+  count(EL_Con_DomainA, AAssignment)
 
 el_doma |>
   count(ENR_rec, EL_OutcomeReason) |>
   arrange(-n, .by_group = T)
 
-el_doma |>
-  filter(ENR_rec == 1) |>
-  count(EL_HyperNafamostat, EL_Screened >= date_doma, AAssignment)
-  arrange(-n, .by_group = T)
 
- dd |> 
-  filter(EL_Country == "Nepal") |>
-  count(EL_Screened >= np_date, EL_HyperNafamostat, EL_OutcomeReason, AAssignment)
-
-dd |> 
-  filter(EL_Country == "New Zealand") |>
-  count(EL_Screened >= aunz_date, EL_HyperNafamostat, EL_OutcomeReason, AAssignment)
-
-dd |> 
-  filter(EL_Country == "Australia") |>
-  count(EL_Screened >= aunz_date, EL_HyperNafamostat, EL_OutcomeReason)
+el_doma |> 
+  filter(ENR_rec == 1, EL_Country != "India")  |>
+  count(EL_Con_DomainA, EL_inelg_a, EL_inelg_a2, EL_TransLungInjury,  as.numeric(EL_SerumPotassium) > 5.5)
 ```
+
+
+```{r}
+el_doma |> 
+  filter(EL_Country != "India") |>
+  count(EL_Screened >= date_doma)
+
+el_doma |> 
+  count(EL_Country != "India", EL_Screened >= date_doma)
+
+el_doma |> 
+  filter(EL_Country != "India", EL_Screened >= date_doma) |>
+  count(EL_LocationCode)
+
+el_doma |> 
+  filter(EL_Country != "India") |>
+  count(EL_Country, EL_LocationCode, doma = EL_Screened >= date_doma) |>
+  spread(doma, n) |>
+  print(n = Inf)
+
+el_doma |> 
+  filter(EL_Country != "India") |>
+  count(EL_Country, EL_LocationCode, AAssignment) |>
+  spread(AAssignment, n) |>
+  print(n = Inf)
+
+el_doma |> 
+  filter(EL_Country != "India", EL_Screened >= date_doma) |>
+  count(EL_Country, EL_LocationCode) |>
+  print(n = Inf)
+
+el_doma |> 
+  filter(EL_Country != "India", EL_Screened >= date_doma) |>
+  count(ENR_rec, EL_OutcomeReason) |>
+  group_by(ENR_rec) |>
+  arrange(-n, .by_group = T) |>
+  print(n = Inf)
+
+el_doma |>
+  filter(EL_Country != "India", EL_Screened >= date_doma, ENR_rec == 1) |>
+  count(AAssignment, EL_Con_DomainA, EL_inelg_a, EL_SerumPotassium > 5.5)
+
+el_doma |> 
+  filter(EL_Country != "India", EL_Screened >= date_doma, EL_OutcomeReason == "No eligible domains") |>
+  count(ENR_rec, EL_Country,  EL_inelg_a, EL_inelg_c, EL_OralTherapeuticAnticoagAgents) |>
+  group_by(ENR_rec) |>
+  arrange(-n, .by_group = T) |>
+  print(n = Inf)
+
+el_doma |> 
+  filter(EL_Country != "India", EL_Screened >= date_doma, EL_OutcomeReason == "No eligible domains") |>
+  count(ENR_rec, EL_inelg_a, EL_inelg_c) |>
+  group_by(ENR_rec) |>
+  arrange(-n, .by_group = T) |>
+  print(n = Inf)
+
+el_doma |> 
+  filter(EL_Country != "India", EL_Screened >= date_doma, EL_OutcomeReason == "No eligible domains") |>
+  count(
+    ENR_rec, 
+    EL_OralTherapeuticAnticoagAgents, 
+    EL_DecompensatedLiver,
+    EL_HeartRenalDialysis, 
+    EL_BleedingConditionThrombo, 
+    EL_ContraHeparinReact
+  ) |>
+  group_by(ENR_rec) |>
+  arrange(-n, .by_group = T) |>
+  print(n = Inf)
+
+el_doma |> 
+  filter(EL_Country != "India", EL_Screened >= date_doma, EL_OutcomeReason == "No eligible domains") |>
+  summarise(
+    n(),
+    EL_OralTherapeuticAnticoagAgents = sum(EL_OralTherapeuticAnticoagAgents == "Yes", na.rm = T),
+    EL_HeartRenalDialysis = sum(EL_HeartRenalDialysis == "Yes", na.rm = T)
+  )
+  count(ENR_rec, EL_OralTherapeuticAnticoagAgents, EL_HeartRenalDialysis, EL_BleedingConditionThrombo, EL_ContraHeparinReact) |>
+  group_by(ENR_rec) |>
+  arrange(-n, .by_group = T) |>
+  print(n = Inf)
+```
+
 
 ```{r}
 #| label: tbl-platform-eligibility-antiviral

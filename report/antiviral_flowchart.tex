@@ -4,7 +4,7 @@
     block_assign/.style ={rectangle, draw=black, thick, fill=white, anchor=north, font = \footnotesize,
       text width=10em, text centered, minimum height=3em, inner sep=6pt},
     block_left/.style ={rectangle, draw=black, thick, fill=white, font = \footnotesize,
-      text width=20em, text ragged, minimum height=4em, inner sep=6pt},
+      text width=20.5em, text ragged, minimum height=4em, inner sep=6pt},
     block_left_small/.style ={rectangle, draw=black, thick, fill=white, font = \footnotesize,
       text width=10em, text ragged, minimum height=2em, inner sep=6pt},
     block_blank/.style={rectangle, draw=white, thick, fill=white, font = \footnotesize,
@@ -16,36 +16,38 @@
 
     \node [block_center] (screened) {Screened for platform eligibility\\ \textbf{2,254}};
     \node [block_blank] (blank0) [below=1cm of screened] {};
-    \node [block_left] (unavailable) [right=0.5cm of blank0] {\textbf{1,455}\h Antiviral domain unavailable: \\
+    \node [block_left] (unavailable) [right=0.5cm of blank0] {\textbf{1,607}\h Antiviral domain unavailable: \\
     \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
       \textbf{1,326} & Screened in India \\
-      \textbf{129} & Screened before available
-    \end{tabular} \\
-    \textbf{439}\h Ineligible for platform:}
-    \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
-      \textbf{168} & Not in best interests \\
-      \textbf{58} & Not committed to active treatment
-    \end{tabular};
-    \node [block_center] (antiviral) [below=1cm of blank0] {Antiviral eligibility assessed\\ \textbf{360}};
-    \node [block_blank] (blank1) [below=2cm of antiviral] {};
-    \node [block_left] (ineligible) [right=0.5cm of blank1] {\textbf{185}\h Not enrolled: \\
-    \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
-        \textbf{145}& Did not consent \\
-        \textbf{30} & No eligible domains, reason: \\
-        & \textbf{26} Use oral therapeutic anticoagulation agents \\
-        & \ \textbf{3} Decompensated heart failure or renal dialysis \\
-        & \ \textbf{1} Decompensated liver disease \\
-        \textbf{6}  & Not in the best interests \\
-        \textbf{3}  & Expired platform pending \\
-        \textbf{1}  & Receiving acute intensive respiratory support
+      \textbf{281} & Screened before antiviral domain available
     \end{tabular}};
-    \node [block_center] (enrolled) [below=2cm of blank1] {Enrolled into platform\textsuperscript{*}\\ \textbf{175}};
+    \node [block_center] (antiviral) [below=1cm of blank0] {Antiviral domain available at site \\ \textbf{647}};
+    \node [block_blank] (blank1) [below=2.9cm of antiviral] {};
+    \node [block_left] (ineligible) [right=0.5cm of blank1] {\textbf{472}\h Not enrolled into platform: \\
+    \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+      \textbf{147} & Did not consent \\
+      \textbf{139} & Not in the best interests of the patient \\
+      \textbf{58} & Not committed to active treatment \\
+      \textbf{33} & No eligible domains, reason: \\
+      & \textbf{26} Use oral therapeutic anticoagulation agents \\
+      & \ \ \textbf{3} Decompensated heart failure or renal dialysis \\
+      & \ \ \textbf{3} Condition with risk of bleeding \\
+      & \ \ \textbf{1} Decompensated liver disease \\
+      \textbf{30} & First positive test - over 14 days ago \\
+      \textbf{24} & First symptoms - over 14 days ago \\
+      \textbf{17} & Receiving acute intensive respiratory support \\
+      \textbf{16} & No attributable signs or symptoms \\
+      \textbf{6} & Expired platform pending \\
+      \textbf{2} & SARS-CoV-2 not confirmed by test \\
+    \end{tabular}};
+    \node [block_center] (enrolled) [below=2.9cm of blank1] {Enrolled into platform\textsuperscript{*}\\ \textbf{175}};
     \node [block_blank] (blank2) [below=1cm of enrolled] {};
     \node [block_center] (randomised) [below=1cm of blank2] {Randomised to antiviral\\ \textbf{158}};
 
     \node [block_left] (notrand) [right=0.5cm of blank2] {\textbf{17}\h Not randomised to antiviral: \\
     \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
-        \textbf{17}& Did not consent 
+        \textbf{16}& Did not consent \\
+        \textbf{1}& Serum potassium > 5.5 mmol/L
     \end{tabular}};
 
     \node [block_assign] (int0) [below left=0.5cm and 0.5cm of randomised] {Standard of care \\ \textbf{73}};

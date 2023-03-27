@@ -442,11 +442,11 @@ p
 ```{r}
 #| label: fig-who-antiviral-avs-itt
 #| fig-cap: Day 28 WHO score, antiviral domain, AVS-ITT.
+
+lab <- c("Usual care", "Nafamostat")
 p1 <- avs_itt_nona_dat %>%
   filter(!is.na(D28_who)) %>%
-  group_by(AAssignment = factor(
-    AAssignment, 
-    labels = str_replace(intervention_labels()$AAssignment[-1], "<br>", "\n"))) %>%
+  group_by(AAssignment = factor(AAssignment, labels = lab)) %>%
   summarise(n = n()) %>%
   ggplot(., aes(AAssignment, n)) +
   geom_col() +
@@ -456,9 +456,7 @@ p1 <- avs_itt_nona_dat %>%
 p2 <- avs_itt_nona_dat %>%
   filter(!is.na(D28_who)) %>%
   dplyr::count(
-    AAssignment = factor(
-      AAssignment, 
-      labels = str_replace(intervention_labels()$AAssignment[-1], "<br>", "\n")), 
+    AAssignment = factor(AAssignment, labels = lab), 
     D28_who = ordered(as.integer(D28_who), levels = 1:8)
   ) %>%
   group_by(AAssignment) %>%

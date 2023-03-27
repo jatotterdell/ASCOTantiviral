@@ -377,7 +377,7 @@ p
 #| fig-height: 4
 pdat <- avs_itt_nona_dat %>%
   dplyr::count(
-    AAssignment = factor(AAssignment, labels = str_replace(intervention_labels()$AAssignment[-1], "<br>", "\n")),
+    AAssignment = factor(AAssignment, labels = c("Usual care", "Nafamostat")),
     dafh = ordered(out_dafh, levels = 0:27), 
     .drop = F) %>%
   group_by(AAssignment) %>%

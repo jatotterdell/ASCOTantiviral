@@ -37,6 +37,72 @@ pp_data <- pp_data |>
   rename(StudyPatientID = StudyID, reason = `Reason Why Not`)
 ```
 
+# Withdrawals
+
+```{r}
+all_data |> 
+  filter(AAssignment != "A0") |>
+  count(WTH_FU, WTH_rec)
+```
+
+```{r}
+all_data |>
+  filter(AAssignment != "A0") |>
+  filter(WTH_rec == 1) |>
+  transmute(
+    StudyPatientID,
+    AAssignment,
+    WTH_FU,
+    CON_WithdrawnContact28,
+    CON_WithdrawalReason,
+    CON_WithdrawnDomainA,
+    CON_WithdrawnDate - RandDate, DD_total_days
+  ) |>
+  arrange(AAssignment) |>
+  left_join(pp_data, by = "StudyPatientID")
+```
+
+```{r}
+all_data |>
+  filter(AAssignment == "A2") |>
+  filter(WTH_rec == 1) |>
+  transmute(
+    StudyPatientID,
+    AAssignment,
+    WTH_FU,
+    CON_WithdrawnContact28,
+    CON_WithdrawalReason,
+    CON_WithdrawnDomainA,
+    CON_WithdrawnDate - RandDate, DD_total_days
+  ) |>
+  arrange(AAssignment) |>
+  left_join(pp_data, by = "StudyPatientID")
+```
+
+```{r}
+all_data |>
+  filter(AAssignment == "A2") |>
+  transmute(
+    StudyPatientID,
+    AAssignment,
+    WTH_rec,
+    WTH_FU,
+    CON_WithdrawnContact28,
+    CON_WithdrawalReason,
+    CON_WithdrawnDomainA,
+    CON_WithdrawnDate - RandDate, DD_total_days
+  ) |>
+  arrange(AAssignment) |>
+  left_join(pp_data, by = "StudyPatientID") |>
+  count(pp, WTH_rec, CON_WithdrawalReason, reason)
+```
+
+```{r}
+all_data |>
+  filter(AAssignment != "A0", WTH_rec == 1) |>
+  dplyr::count(CON_WithdrawalReason, CON_WithdrawnContact28, CON_WithdrawnDomainA)
+```
+
 # Nafamostat
 
 ## Dosage
@@ -127,7 +193,7 @@ naf_data <- all_daily_data |>
 naf_data |> 
   select(StudyPatientID, AAssignment, pp) |>
   distinct() |>
-  count(AAssignment, pp)
+  dplyr::count(AAssignment, pp)
 ```
 
 ## Not Per-Protocol
@@ -222,10 +288,13 @@ naf_id_sum <- naf_data |>
     days_off_naf = sum(DD_NafamostatAdministered[DD_StudyDay < 9] == "No"),
     total_hours = sum(DD_NafamostatDuration[DD_StudyDay < 9]),
     hours_per_day = total_hours / min(8, days),
+    
     days_comply = sum(DD_NafamostatDuration >= 21 & DD_StudyDay <= 8, na.rm = TRUE),
     days_comply2 = sum(DD_NafamostatDuration >= 21 & DD_StudyDay > 1 & DD_StudyDay < min(9, DIS_day), na.rm = TRUE),
     days_comply3 = sum(DD_NafamostatDuration >= 21 & DD_StudyDay > 1 & DD_StudyDay < min(8, DIS_day), na.rm = TRUE),
-    days_nocomply = sum(DD_NafamostatDuration < 21 & DD_StudyDay > 1 & DD_StudyDay < min(9, DIS_day)),
+    
+    days_nocomply = sum(DD_NafamostatDuration < 21 & DD_StudyDay > 1 & DD_StudyDay < min(8, DIS_day)),
+    
     p_days_comply = days_comply / min(8, days),
     p_days_comply2 = if_else(days == 2, 1, days_comply2 / (min(7, days - 2))),
     p_days_comply3 = if_else(days == 2, 1, days_comply3 / (min(6, days - 2)))
@@ -245,9 +314,15 @@ naf_tab <- naf_id_sum |>
     `hoursperday_Median (IQR)` = sprintf("%.1f (%.1f - %.1f)", median(hours_per_day), quantile(hours_per_day, 0.25), quantile(hours_per_day, 0.75)),
     `hoursperday_Min, Max` = sprintf("%.1f, %.1f", min(hours_per_day), max(hours_per_day)),
     `hoursperday_Missing` = sprintf("%i", sum(is.na(hours_per_day))),
-    `pdayscomply_Median (IQR)` = sprintf("%.2f (%.2f - %.2f)", median(p_days_comply), quantile(p_days_comply, 0.25), quantile(p_days_comply, 0.75)),
-    `pdayscomply_Min, Max` = sprintf("%.2f, %.2f", min(p_days_comply), max(p_days_comply)),
-    `pdayscomply_Missing` = sprintf("%i", sum(is.na(p_days_comply))),
+    
+    # `pdayscomply_Median (IQR)` = sprintf("%.2f (%.2f - %.2f)", median(p_days_comply), quantile(p_days_comply, 0.25), quantile(p_days_comply, 0.75)),
+    # `pdayscomply_Min, Max` = sprintf("%.2f, %.2f", min(p_days_comply), max(p_days_comply)),
+    # `pdayscomply_Missing` = sprintf("%i", sum(is.na(p_days_comply))),
+    # 
+    `pdayscomply2_Median (IQR)` = sprintf("%.2f (%.2f - %.2f)", median(p_days_comply2), quantile(p_days_comply2, 0.25), quantile(p_days_comply3, 0.75)),
+    `pdayscomply2_Min, Max` = sprintf("%.2f, %.2f", min(p_days_comply2), max(p_days_comply2)),
+    `pdayscomply2_Missing` = sprintf("%i", sum(is.na(p_days_comply2))),
+    
     
     `pdayscomply3_Median (IQR)` = sprintf("%.2f (%.2f - %.2f)", median(p_days_comply3), quantile(p_days_comply3, 0.25), quantile(p_days_comply3, 0.75)),
     `pdayscomply3_Min, Max` = sprintf("%.2f, %.2f", min(p_days_comply3), max(p_days_comply3)),
@@ -256,6 +331,7 @@ naf_tab <- naf_id_sum |>
     `dayscomply_Median (IQR)` = sprintf("%i (%i - %i)", median(days_comply), quantile(days_comply, 0.25), quantile(days_comply, 0.75)),
     `dayscomply_Min, Max` = sprintf("%i, %i", min(days_comply), max(days_comply)),
     `dayscomply_Missing` = sprintf("%i", sum(is.na(days_comply))),
+    
     `daysnocomply_Median (IQR)` = sprintf("%i (%i - %i)", median(days_nocomply), quantile(days_nocomply, 0.25), quantile(days_nocomply, 0.75)),
     `daysnocomply_Min, Max` = sprintf("%i, %i", min(days_nocomply), max(days_nocomply)),
     `daysnocomply_Missing` = sprintf("%i", sum(is.na(days_nocomply)))
@@ -270,7 +346,7 @@ naf_tab |>
   pack_rows("Days off study treatment", 4, 6) |>
   pack_rows("Total hours receiving infusion", 7, 9) |>
   pack_rows("Hours per day on infusion", 10, 12) |>
-  pack_rows("Proportion of days admitted to hospital with infusion $\\geq$ 21/24 hours$^1$", 13, 15) |>
+  pack_rows("Proportion of days admitted to hospital with infusion $\\geq$ 21/24 hours$^1$ (day 2 to 8 or before discharge)", 13, 15) |>
   pack_rows("Proportion of days admitted to hospital with infusion $\\geq$ 21/24 hours$^1$ (day 2 to 7 or before discharge)", 16, 18) |>
   pack_rows("Days with 21/24 hours infusion", 19, 21) |>
   pack_rows("Days without 21/24 hours infusion", 22, 24) |>
@@ -282,25 +358,5 @@ naf_tab |>
     ),
     number = "up to 7 days while hospitalised",
     general_title = "")
-
-naf_tab |>
-  select(-1) |>
-  kable("latex", align = "lr", booktabs = TRUE) |>
-  kable_styling(latex_options = "HOLD_position", font_size = 9) |>
-  pack_rows("Days on study treatment", 1, 3) |>
-  pack_rows("Days off study treatment", 4, 6) |>
-  pack_rows("Total hours receiving infusion", 7, 9) |>
-  pack_rows("Hours per day on infusion", 10, 12) |>
-  pack_rows("Proportion of days admitted to hospital with infusion $\\geq$ 21/24 hours$^1$", 13, 15, escape = FALSE) |>
-  pack_rows("Days with 21/24 hours infusion", 16, 18) |>
-  pack_rows("Days without 21/24 hours infusion", 19, 21) |>
-  footnote(
-    general = c(
-      "Days on study treatment is any part day on drug.",
-      "Days off treatment is any day when no Nafamostat was administered.",
-      "Days without 21/24 excludes day 1 and day of discharge."
-    ),
-    number = "up to 7 days while hospitalised",
-    general_title = "") |>
-  save_tex_table(file.path("compliance-nafamostat"))
+  # save_tex_table(file.path("compliance-nafamostat"))
 ```

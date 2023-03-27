@@ -1,0 +1,154 @@
+---
+title: D90 outcomes
+author: "James Totterdell"
+date: today
+execute: 
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(ASCOTr)
+library(tidyverse)
+library(lubridate)
+library(kableExtra)
+library(patchwork)
+library(cmdstanr)
+library(posterior)
+library(bayesplot)
+library(ggdist)
+library(lme4)
+library(broom)
+library(broom.mixed)
+library(bayestestR)
+library(ggh4x)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+
+color_scheme_set("red")
+options(digits = 4)
+```
+
+```{r}
+#| label: analysis-sets
+#| code-summary: Prepare datasets
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds")) |>
+  mutate(D90_Outcome = if_else(is.na(D90_Outcome) & D28_PatientStatusDay28 == "Dead", "Dead", D90_Outcome)) |>
+  mutate(d90_dth = as.numeric(D90_Outcome == "Dead"))
+
+# FAS-ITT
+fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data)
+fas_itt_nona_dat <- fas_itt_dat |>
+  filter(!is.na(D90_Outcome), D90_Outcome != "Unknown")
+
+# ACS-ITT
+acs_itt_dat <- ASCOTr:::make_acs_itt_set(all_data)
+acs_itt_nona_dat <- acs_itt_dat |>
+  filter(!is.na(D90_Outcome), D90_Outcome != "Unknown")
+
+# AVS-ITT
+avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_data)
+avs_itt_nona_dat <- avs_itt_dat |>
+  filter(!is.na(D90_Outcome), D90_Outcome != "Unknown")
+```
+
+```{r}
+#| label: stan-models
+#| code-summary: Load models
+logistic_mod <- compile_cmdstanr_mod(
+  file.path("binary", "logistic"), dir = "stan")
+logistic_site_epoch <- compile_cmdstanr_mod(
+  file.path("binary", "logistic_site_epoch"), dir = "stan")
+logistic_site <- compile_cmdstanr_mod(
+  file.path("binary", "logistic_site"), dir = "stan")
+```
+
+## Mortality
+
+```{r}
+fas_itt_dat |> 
+  count(CAssignment, D90_Outcome) |> 
+  spread(D90_Outcome, n)
+```
+
+```{r}
+fas_itt_dat |> 
+  count(AAssignment, D90_Outcome) |> 
+  spread(D90_Outcome, n)
+```
+
+```{r}
+res <- fit_primary_model(fas_itt_nona_dat, logistic_site_epoch, ctr = contr.equalprior, outcome = "d90_dth")
+res$drws$OR <- res$drws$OR[-1]
+names(res$drws$AOR) <- "Nafamostat"
+names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(res$drws$OR) <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+```
+
+```{r}
+#| label: odds-ratio-summary-table-fas-itt
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects), FAS-ITT.
+save_tex_table(
+  odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR), "latex"),
+  "outcomes/secondary/7-9-mortality-primary-model-fas-itt-summary-table")
+odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR))
+```
+
+```{r}
+#| code-summary: Odds ratio summary for epoch and site
+#| fig-cap: Summary of epoch and site posterior odds ratios.
+p <- plot_epoch_site_terms(
+  res$drws$gamma_epoch,
+  res$drws$gamma_site,
+  factor(res$dat$region_by_site, 
+         labels = c("India", "Australia\nNew Zealand", "Nepal"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-9-mortality-primary-model-epoch-site-terms-fas-itt.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
+```{r}
+#| fig-cap: Posterior densities for treatment comparisons.
+p <- plot_or_densities(c(res$drws$AOR, res$drws$COR)) +
+  labs(x = "Odds ratio (log scale)", y = "Comparison")
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-9-mortality-primary-model-fas-itt-odds-ratio-densities.pdf")
+ggsave(pth, p, width = 6, height = 2.5)
+p
+```
+
+## Breathlessness
+
+```{r}
+fas_itt_dat |> 
+  count(CAssignment, D90_BreathSinceGettingCovid) |> 
+  spread(D90_BreathSinceGettingCovid, n)
+```
+
+```{r}
+fas_itt_dat |> 
+  filter(D90_BreathSinceGettingCovid == "Yes") |>
+  count(CAssignment, D90_BreathSinceGettingCovid, D90_BreathScale) |>
+  spread(D90_BreathScale, n, fill = 0)
+```
+
+```{r}
+avs_itt_dat |> 
+  count(AAssignment, D90_BreathSinceGettingCovid) |> 
+  spread(D90_BreathSinceGettingCovid, n)
+```
+
+```{r}
+avs_itt_dat |> 
+  count(AAssignment, D90_BreathSinceGettingCovid, D90_BreathScale)
+```

@@ -486,6 +486,7 @@ p
 #|   Progression to recovery by antiviral intervention.
 p <- fas_itt_outdat_agg_antiviral %>% 
   filter(AAssignment != "Not randomised to antiviral") %>%
+  mutate(AAssignment = fct_inorder(if_else(AAssignment == "Standard of care", "Usual care", AAssignment))) %>%
   select(-y1, -y2, -cy1, -cy2) %>% 
   pivot_longer(cp1:cpn) %>% 
   mutate(name = factor(

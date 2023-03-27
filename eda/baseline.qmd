@@ -133,9 +133,13 @@ pC <- all_data %>%
   labs(x = "", subtitle = "Cumulative enrolments in anticoagulation domain", y = "") +
   scale_x_date(date_breaks = "3 months", date_labels = "%b %Y")
 
+
+labs <- unlist(intervention_labels2())[-c(1, 4)]
+labs[1] <- "Usual care"
+
 p2 <- id %>%
   mutate(
-    Intervention = factor(Intervention, labels = unlist(intervention_labels2())[-c(1, 4)])
+    Intervention = factor(Intervention, labels = labs)
   ) %>%
   ggplot(.) +
   facet_grid(Domain ~ ., drop = TRUE, scales = "free_y", space = "free_y") +
@@ -152,7 +156,9 @@ p2 <- id %>%
 
 p <- pA / pC / p2
 pth <- file.path("outputs", "figures", "baseline")
-ggsave(file.path(pth, "enrolment-domain.pdf"), p, height = 6, width = 6)
+fpth <- file.path(pth, "enrolment-domain.pdf")
+ggsave(fpth, p, height = 6.5, width = 6)
+system(sprintf("pdftoppm %s %s -png", fpth, gsub(".pdf", "", fpth)))
 p
 ```
 
@@ -367,7 +373,7 @@ p
 p <- all_data |>
   filter(ENR_rec == 1) |>
   dplyr::count(Country = Country,
-        Intervention = factor(AAssignment, labels = c("Not randomised", intervention_labels_short()$AAssignment[-1]))) %>%
+        Intervention = factor(AAssignment, labels = c("Not randomised", "Usual care", "Nafamostat"))) %>%
   group_by(Country) |>
   mutate(p = n / sum(n)) |>
   ggplot(aes(Intervention, n)) +
@@ -378,7 +384,9 @@ p <- all_data |>
       unique(floor(pretty(seq(0, (max(x) + 1) * 1.1))))) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.25))
 pth <- file.path("outputs", "figures", "baseline")
-ggsave(file.path(pth, "antiviral-allocations-country.pdf"), p, height = 2.5, width = 7)
+fpth <- file.path(pth, "antiviral-allocations-country.pdf")
+ggsave(fpth, p, height = 2.5, width = 7)
+system(sprintf("pdftoppm %s %s -png", fpth, gsub(".pdf", "", fpth)))
 p
 ```
 
@@ -392,7 +400,7 @@ p <- all_data |>
   filter(ENR_rec == 1, Country != "IN", AAssignment != "A0") |>
   dplyr::count(
       Country = factor(Country, labels = c("Australia (AU)", "Nepal (NP)", "New Zealand (NZ)")),
-      Intervention = factor(AAssignment, labels = intervention_labels_short()$AAssignment[-1])) %>%
+      Intervention = factor(AAssignment, labels = c("Usual care", "Nafamostat"))) %>%
   group_by(Country) |>
   mutate(p = n / sum(n)) |>
   ggplot(aes(Intervention, n)) +
@@ -474,7 +482,7 @@ p <- all_data |>
   filter(ENR_rec == 1, Country != "IN", AAssignment != "A0") |>
   dplyr::count(Country = Country, 
         Site = Location,
-        Intervention = factor(AAssignment, labels = intervention_labels_short()$AAssignment[-1])) %>%
+        Intervention = factor(AAssignment, labels = c("Usual care", "Nafamostat"))) %>%
   group_by(Site = paste(Country, Site, sep = ": ")) |>
   mutate(p = n / sum(n)) |>
   ggplot(aes(Intervention, n)) +
@@ -577,7 +585,7 @@ p
 p <- all_data |>
   filter(ENR_rec == 1, Country != "IN") |>
   dplyr::count(yr = year(RandDate), mth = month(RandDate),
-        Intervention = factor(AAssignment, labels = c("Not randomised", intervention_labels_short()$AAssignment[-1]))) %>%
+        Intervention = factor(AAssignment, labels = c("Not randomised", "Usual care", "Nafamostat"))) %>%
   group_by(yr, mth) |>
   mutate(p = n / sum(n)) |>
   ggplot(aes(mth, n, fill = Intervention)) +
@@ -589,7 +597,9 @@ p <- all_data |>
       x = "Calendar date (month of year)") +
   scale_x_continuous(breaks = 1:12)
 pth <- file.path("outputs", "figures", "baseline")
+fpth <- file.path(pth, "antiviral-allocations-calendar2.pdf")
 ggsave(file.path(pth, "antiviral-allocations-calendar2.pdf"), p, height = 2.5, width = 7)
+system(sprintf("pdftoppm %s %s -png", fpth, gsub(".pdf", "", fpth)))
 p
 ```
 
@@ -1091,4 +1101,35 @@ generate_table_1(avs_itt_dat)
 
 # Ethnicities revise
 
+```{r}
+avs_itt_dat |>
+  group_by(AAssignment) |>
+  summarise(
+    pacific = sum(
+          BAS_EthnicityPacificIslander == "Yes" |
+            BAS_EthnicityCookIslandMaori == "Yes" |
+            BAS_EthnicityFijian == "Yes" |
+            BAS_EthnicityNiuean == "Yes" |
+            BAS_EthnicitySamoan == "Yes" |
+            BAS_EthnicityTokelauan == "Yes" |
+            BAS_EthnicityTongan == "Yes" |
+            BAS_EthnicityPINotDefined == "Yes",
+          na.rm = TRUE),
+    maori = sum(
+          BAS_EthnicityMaori == "Yes",
+          na.rm = TRUE),
+    both = sum(
+          (BAS_EthnicityPacificIslander == "Yes" |
+            BAS_EthnicityCookIslandMaori == "Yes" |
+            BAS_EthnicityFijian == "Yes" |
+            BAS_EthnicityNiuean == "Yes" |
+            BAS_EthnicitySamoan == "Yes" |
+            BAS_EthnicityTokelauan == "Yes" |
+            BAS_EthnicityTongan == "Yes" |
+            BAS_EthnicityPINotDefined == "Yes") & BAS_EthnicityMaori == "Yes",
+          na.rm = TRUE),
+  )
+ 
 
+avs_itt_dat |> count(BAS_EthnicityLatinAmerican == "Yes" | BAS_EthnicityUnknown == "Yes" | BAS_EthnicityOther == "Yes") 
+```

@@ -30,6 +30,7 @@ library(lme4)
 library(broom)
 library(broom.mixed)
 library(bayestestR)
+library(ggh4x)
 
 theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
   theme(panel.grid = element_blank(),
@@ -97,6 +98,13 @@ avs_pp_dat <- avs_itt_dat |>
   left_join(pd, by = "StudyPatientID") |>
   filter(is.na(pd_A) | pd_A == 0)
 avs_pp_nona_dat <- avs_pp_dat |>
+  filter(!is.na(PO))
+
+
+# Concurrent enrolments for C4
+acs_itt_concurc4_dat <- acs_itt_dat %>%
+  filter(EL_ProtocolVersion == "5.0")
+acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>% 
   filter(!is.na(PO))
 ```
 
@@ -1098,7 +1106,7 @@ p
 tdat <- all_data %>%
   filter_avs_itt() %>%
   count(Country = factor(PT_CountryName, levels = c("Australia", "Nepal", "New Zealand")), 
-        AAssignment = factor(AAssignment, labels = intervention_labels_short()$AAssignment[-1]),
+        AAssignment = factor(AAssignment, labels = c("Usual care", "Nafamostat")),
         PO) %>%
   group_by(Country) %>%
   spread(PO, n, fill = 0) %>%
@@ -1194,7 +1202,7 @@ tdat <- all_data %>%
     Site_lab = fct_infreq(Location),
     Country = factor(PT_CountryName, labels = c("Australia", "Nepal", "New\nZealand")),
     Site = PT_LocationName,
-    AAssignment = factor(AAssignment, labels = intervention_labels_short()$AAssignment[-1]),
+    AAssignment = factor(AAssignment, labels = c("Usual care", "Nafamostat")),
     PO) %>%
   group_by(Country, Site, AAssignment) %>%
   spread(PO, n, fill = 0) %>%
@@ -2597,4 +2605,15 @@ decision_quantity_summary_table(c("SoC" = rvar(1), res$drws$AOR)) |>
 p <- plot_or_densities(c(res$drws$AOR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
 p
+```
+
+
+
+## Concurrent
+
+```{r}
+#| label: tbl-acs-itt-c4-summary-table
+#| tbl-cap: Primary outcome summary for participants randomised under protocol 5.0 (ACS-ITT-therapeutic).
+make_po_table_C(acs_itt_concurc4_dat)
+make_D28_death_table_C(acs_itt_concurc4_dat)
 ```

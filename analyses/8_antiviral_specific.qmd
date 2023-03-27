@@ -260,24 +260,36 @@ tt |>
 ```
 
 ```{r}
-p <- all_daily_data |>
+pdat <- all_daily_data |>
   filter_avs_itt() |>
   filter(!is.na(DD_CycleThreshold), DD_StudyDay < 8) |>
-  select(StudyPatientID, AAssignment, DD_StudyDay, DD_CycleThreshold) |>
+  select(StudyPatientID, AAssignment, DD_StudyDay, DD_CycleThreshold, BAS_CycleThresholdValue) |>
   mutate(DD_CycleThreshold = as.numeric(DD_CycleThreshold),
-         AAssignment = factor(AAssignment, labels = intervention_labels2()$AAssignment[-1])) |>
+         DD_change = DD_CycleThreshold - BAS_CycleThresholdValue,
+         AAssignment = factor(AAssignment, labels = c("Usual care", "Nafamostat"))) |>
+  arrange(StudyPatientID, DD_StudyDay)
+p <- pdat |>
   ggplot(aes(DD_StudyDay, DD_CycleThreshold)) +
   facet_wrap( ~ AAssignment) +
   geom_point() +
-  geom_line(aes(group = StudyPatientID)) +
-  labs(x = "Study day", y = "Cycle threshold value")
+  geom_path(aes(group = StudyPatientID)) +
+  labs(x = "Study day", y = "Cycle threshold value") +
+  scale_x_continuous(breaks = 1:7)
+fpth <- file.path("outputs", "figures", "outcomes", "domain", "ct-values.pdf")
 ggsave(
-  file.path("outputs", "figures", "outcomes", "domain", "ct-values.pdf"),
+  fpth,
   p,
   height = 2,
   width = 4,
   dpi = 244
 )
+system(sprintf("pdftoppm %s %s -png", fpth, gsub(".pdf", "", fpth)))
+# p <- pdat |>
+#   ggplot(aes(DD_StudyDay, DD_change)) +
+#   facet_wrap( ~ AAssignment) +
+#   geom_point() +
+#   geom_path(aes(group = StudyPatientID)) +
+#   labs(x = "Study day", y = "Cycle threshold value")
 ```
 
 ### Elevation of Alanine Transaminase (ALT) or Aspartate Transaminase (AST)

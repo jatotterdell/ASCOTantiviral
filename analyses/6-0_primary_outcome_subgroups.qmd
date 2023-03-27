@@ -326,2425 +326,2425 @@ fit_subgroup_model <- function() {
 }
 ```
 
-# Subgroups
-
-## Sex
-
-```{r}
-fit1 <- glm(PO ~ randA * sexF + agegte60 + supp_oxy2, data = avs_itt_nona_dat, family = binomial())
-fit2 <- glm(
-  PO ~ randA * sexF + agegte60 + supp_oxy2, 
-  data = avs_itt_nona_dat, 
-  family = binomial(),
-  contrasts = list(randA = contr.equalprior)
-)
-b <- coef(fit1)
-b_star <- coef(fit2)
-b_trans <- c(MASS::ginv(unique(model.matrix(fit1))) %*% unique(model.matrix(fit2)) %*% b_star)
-names(b_trans) <- names(b)
-all.equal(b, b_trans)
-```
-
-```{r}
-#| eval: false
-res <- brm(  
-  PO ~ randA * sexF + agegte60 + supp_oxy2, 
-  data = avs_itt_nona_dat, 
-  prior = prior(normal(0, 10)), 
-  family = bernoulli()
-)
-b_mcmc <- rvar(as_draws_matrix(res))[1:6]
-(MASS::ginv(unique(model.matrix(fit1))) %*% unique(model.matrix(fit2))) %**% b_mcmc
-```
-
-## FAS-ITT
-
-### Base Model
-
-```{r}
-X <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry"), 
-  ctr = contr.equalprior)
-
-epoch <- fas_itt_nona_dat[["epoch"]]
-M_epoch <- max(epoch)
-region <- fas_itt_nona_dat[["ctry_num"]]
-M_region <- max(region)
-site <- fas_itt_nona_dat[["site_num"]]
-M_site <- max(site)
-region_by_site <- region_by_site <- fas_itt_nona_dat |>
-  dplyr::count(ctry_num, site_num) |>
-  pull(ctry_num)
-
-y_raw <- fas_itt_nona_dat[["PO"]]
-if(diff(range(y_raw)) == 1) {
-  y_mod <- y_raw
-} else {
-  y_raw <- ordered(y_raw)
-  y_mod <- as.integer(ordered(y_raw))
-}
-
-N <- dim(X)[1]
-K <- dim(X)[2]
-beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1)
-mdat <- list(
-  N = N, K = K, X = X, y = y_mod, y_raw = y_raw,
-  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
-  M_region = M_region, region = region,
-  M_site = M_site, site = site,
-  M_epoch = M_epoch, epoch = epoch,
-  region_by_site = region_by_site,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mbase <- logistic_site_epoch[["sample"]](
-    data = mdat,
-    seed = 77821,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mbase$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-basedrws <- as_draws_rvars(mbase$draws(keep))
-names(basedrws$beta) <- colnames(mdat$X)
-
-if(any(grepl("site", keep))) {
-  site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)  
-  names(basedrws$gamma_site) <- site_map$site
-}
-if(any(grepl("epoch", keep))) {
-  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
-  names(basedrws$gamma_epoch) <- epoch_map$epoch_lab
-}
-# Transformed samples
-Ca <- attr(mdat$X, "contrasts")$randA
-Cc <- attr(mdat$X, "contrasts")$randC
-```
-
-### Region
-
-```{r}
-make_subgroup_country_table <- function(format = "html") {
-  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, ctry, format = format) %>%
-    pack_rows("India", 1, 5) %>%
-    pack_rows("Australia/New Zealand", 6, 10) %>%
-    pack_rows("Nepal", 11, 15)
-  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, ctry, format = format) %>%
-    pack_rows("India", 1, 3) %>%
-    pack_rows("Australia/New Zealand", 4, 6) %>%
-    pack_rows("Nepal", 7, 9)
-  return(list(t1, t2))
-}
-tab <- make_subgroup_country_table("latex")
-save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-country-descriptive-anticoagulation")
-save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-country-descriptive-antiviral")
-tab <- make_subgroup_country_table()
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-region-anticoagulation
-#| tbl-cap: Primary outcome by anti-coagulation intervention by region.
-tab[[1]]
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-region-antiviral
-#| tbl-cap: Primary outcome by anti-viral intervention by region.
-tab[[2]]
-```
-
-```{r}
-X <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry"), 
-  ctr = contr.equalprior)
-Xint <- cbind(
-  X, 
-  "randA1:ctryAU/NZ" = X[, 3] * X[, "ctryAU/NZ"],
-  "randA1:ctryNP" = X[, 3] * X[, "ctryNP"]
-  )
-attr(Xint, "contrasts") <- attr(X, "contrasts")
-
-epoch <- fas_itt_nona_dat[["epoch"]]
-M_epoch <- max(epoch)
-region <- fas_itt_nona_dat[["ctry_num"]]
-M_region <- max(region)
-site <- fas_itt_nona_dat[["site_num"]]
-M_site <- max(site)
-region_by_site <- region_by_site <- fas_itt_nona_dat |>
-  dplyr::count(ctry_num, site_num) |>
-  pull(ctry_num)
-
-y_raw <- fas_itt_nona_dat[["PO"]]
-if(diff(range(y_raw)) == 1) {
-  y_mod <- y_raw
-} else {
-  y_raw <- ordered(y_raw)
-  y_mod <- as.integer(ordered(y_raw))
-}
-
-N <- dim(Xint)[1]
-K <- dim(Xint)[2]
-beta_sd <- c(2.5, c(1, 1, rep(1, 4)), 10, 2.5, 2.5, 2.5, 1, 1, 1, 1)
-mdat <- list(
-  N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
-  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
-  M_region = M_region, region = region,
-  M_site = M_site, site = site,
-  M_epoch = M_epoch, epoch = epoch,
-  region_by_site = region_by_site,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mfit <- logistic_site_epoch[["sample"]](
-    data = mdat,
-    seed = 123,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mfit$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-mdrws <- as_draws_rvars(mfit$draws(keep))
-names(mdrws$beta) <- colnames(mdat$X)
-
-if(any(grepl("site", keep))) {
-  site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)  
-  names(mdrws$gamma_site) <- site_map$site
-}
-if(any(grepl("epoch", keep))) {
-  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
-  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
-}
-# Transformed samples
-Ca <- attr(mdat$X, "contrasts")$randA
-Cc <- attr(mdat$X, "contrasts")$randC
-
-seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:ctryAU/NZ"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:ctryNP"])
-)
-labs <- c("India", "Australia/New Zealand", "Nepal")
-labs2 <- c("IN", "AU/NZ", "NP")
-mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- labs
-colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
-
-OR_list[["Region"]] <- mdrws$OR %>% 
-  as_tibble(rownames = "Levels") %>% 
-  pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>%
-  mutate(Subgroup = "Age", .before = 1)
-
-# Summarise subgroup effects
-ordat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  Region = labs,
-) %>%
-  mutate(Posterior = c(mdrws$OR)) %>%
-  summarise_posterior()
-compdat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  Region = labs
-) %>%
-  mutate(Posterior = c(mdrws$compare)) %>%
-  summarise_posterior() %>%
-  select(-`Pr(OR > 1/1.1)`)
-
-OR_region <- mdrws$OR
-rownames(OR_region) <- labs2
-regiondat <- fas_itt_dat %>% 
-  group_by(ctry, AAssignment) %>% 
-  summarise("events/patients" = sprintf(
-    "%i/%i (%.2f)", 
-    sum(PO, na.rm = TRUE), 
-    sum(!is.na(PO)), 
-    mean(PO, na.rm = T))
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Subgroup = "Region",
-    Variable = ctry,
-    Intervention = as.character(factor(
-      AAssignment, 
-      labels = intervention_labels_short()$AAssignment)),
-    .before = 1
-  ) %>%
-  select(-ctry, -AAssignment)
-```
-
-```{r}
-p <- plot_subgroup_or(
-  ordat %>% 
-    mutate(Region = if_else(Region == "Australia/New Zealand", "Australia\nNew Zealand", Region)), 
-  sym("Region"))
-ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "fas-itt-subgroup-country-hte.pdf"),
-  p, height = 3, width = 6, device = cairo_pdf)
-p
-```
-
-```{r}
-tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/country-odds-ratios")
-make_subgroup_summary_table(ordat)
-```
-
-```{r}
-tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/country-odds-ratios-compare")
-make_subgroup_summary_table(compdat)
-```
-
-### Age
-
-```{r}
-make_subgroup_age_table <- function(format = "html") {
-  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, agegte60, format = format)  %>%
-    pack_rows("Age < 60 years", 1, 5) %>%
-    pack_rows("Age \u2265 60 years", 6, 10)
-  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, agegte60, format = format)  %>%
-    pack_rows("Age < 60 years", 1, 3) %>%
-    pack_rows("Age \u2265 60 years", 4, 6)
-  return(list(t1, t2))
-}
-tab <- make_subgroup_age_table("latex")
-save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-age-descriptive-anticoagulation")
-save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-age-descriptive-antiviral")
-tab <- make_subgroup_age_table()
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup--age-anticoagulation
-#| tbl-cap: Primary outcome by anti-coagulation intervention by age.
-tab[[1]]
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-age-antiviral
-#| tbl-cap: Primary outcome by anti-viral intervention by age.
-tab[[2]]
-```
-
-```{r}
-X <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry"), 
-  ctr = contr.equalprior)
-Xint <- cbind(
-  X, 
-  "randA:agegte60" = X[, 2] * X[, "agegte60"],
-  "randA1:agegte60" = X[, 3] * X[, "agegte60"])
-attr(Xint, "contrasts") <- attr(X, "contrasts")
-
-epoch <- fas_itt_nona_dat[["epoch"]]
-M_epoch <- max(epoch)
-region <- fas_itt_nona_dat[["ctry_num"]]
-M_region <- max(region)
-site <- fas_itt_nona_dat[["site_num"]]
-M_site <- max(site)
-region_by_site <- region_by_site <- fas_itt_nona_dat |>
-  dplyr::count(ctry_num, site_num) |>
-  pull(ctry_num)
-
-y_raw <- fas_itt_nona_dat[["PO"]]
-if(diff(range(y_raw)) == 1) {
-  y_mod <- y_raw
-} else {
-  y_raw <- ordered(y_raw)
-  y_mod <- as.integer(ordered(y_raw))
-}
-
-N <- dim(Xint)[1]
-K <- dim(Xint)[2]
-beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 1, 1)
-mdat <- list(
-  N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
-  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
-  M_region = M_region, region = region,
-  M_site = M_site, site = site,
-  M_epoch = M_epoch, epoch = epoch,
-  region_by_site = region_by_site,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mfit <- logistic_site_epoch[["sample"]](
-    data = mdat,
-    seed = 77821,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mfit$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-mdrws <- as_draws_rvars(mfit$draws(keep))
-names(mdrws$beta) <- colnames(mdat$X)
-
-if(any(grepl("site", keep))) {
-  site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)  
-  names(mdrws$gamma_site) <- site_map$site
-}
-if(any(grepl("epoch", keep))) {
-  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
-  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
-}
-# Transformed samples
-Ca <- attr(mdat$X, "contrasts")$randA
-Cc <- attr(mdat$X, "contrasts")$randC
-
-seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:agegte60"])
-)
-labs <- c("Age < 60", "Age \u2265 60")
-labs2 <- c("< 60 yr", "\u2265 60 yr")
-mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- labs
-colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
-
-OR_list[["Age"]] <- mdrws$OR %>% 
-  as_tibble(rownames = "Levels") %>% 
-  pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>%
-  mutate(Subgroup = "Age", .before = 1)
-
-# Summarise subgroup effects
-ordat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  Age = labs,
-) %>%
-  mutate(Posterior = c(mdrws$OR)) %>%
-  summarise_posterior()
-compdat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  Age = labs
-) %>%
-  mutate(Posterior = c(mdrws$compare)) %>%
-  summarise_posterior() %>%
-  select(-`Pr(OR > 1/1.1)`)
-
-OR_age <- mdrws$OR
-rownames(OR_age) <- labs2
-agedat <- fas_itt_dat %>% 
-  group_by(agegte60, AAssignment) %>% 
-  summarise("events/patients" = sprintf(
-    "%i/%i (%.2f)", 
-    sum(PO, na.rm = TRUE), 
-    sum(!is.na(PO)), 
-    mean(PO, na.rm = T))
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Subgroup = "Age",
-    Variable = as.character(factor(as.numeric(agegte60), levels = 0:1, labels = labs2)),
-    Intervention = as.character(factor(
-      AAssignment, 
-      labels = intervention_labels_short()$AAssignment)),
-    .before = 1
-  ) %>%
-  select(-agegte60, -AAssignment)
-```
-
-```{r}
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-p <- plot_ppc(grp_ppc(sym("agegte60"), sgroup_labs_shrt$Age), "Age") 
-ggsave(
-  file.path(
-    "outputs", "figures", "outcomes", "primary", "subgroup",
-    "fas-itt-subgroup-age-hte-ppc.pdf"),
-  grid.arrange(p), height = 2.5, width = 6, device = cairo_pdf
-)
-grid.arrange(p)
-```
-
-```{r}
-p <- plot_subgroup_or(ordat, sym("Age"))
-ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-age-hte.pdf"),
-  p, height = 2.5, width = 6, device = cairo_pdf)
-p
-```
-
-```{r}
-tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-age-odds-ratios")
-make_subgroup_summary_table(ordat)
-```
-
-```{r}
-tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-age-odds-ratios-compare")
-make_subgroup_summary_table(compdat)
-```
-
-### Days since symptom onset
-
-```{r}
-#| tbl-cap: Primary outcome by anti-coagulation intervention by days since first symptom group.
-make_subgroup_dsfs_table <- function(format = "html") {
-  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, dsfsgt7, format = format)  %>%
-    pack_rows("Days since first symptoms \u2264 7", 1, 5) %>%
-    pack_rows("Days since first symptoms > 7", 6, 10)
-  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, dsfsgt7, format = format)  %>%
-    pack_rows("Days since first symptoms \u2264 7", 1, 3) %>%
-    pack_rows("Days since first symptoms > 7", 4, 6)
-  return(list(t1, t2))
-}
-tab <- make_subgroup_dsfs_table("latex")
-save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-dsfs-descriptive-anticoagulation")
-save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-dsfs-descriptive-antiviral")
-tab <- make_subgroup_dsfs_table()
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-dsfs-anticoagulation
-#| tbl-cap: Primary outcome by anti-coagulation intervention by DSFS
-tab[[1]]
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-dsfs-antiviral
-#| tbl-cap: Primary outcome by anti-viral intervention by DSFS
-tab[[2]]
-```
-
-```{r}
-X <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "dsfsgt7"), 
-  ctr = contr.equalprior)
-Xint <- cbind(
-  X, 
-  "randA:dsfsgt7" = X[, 2] * X[, "dsfsgt7"],
-  "randA1:dsfsgt7" = X[, 3] * X[, "dsfsgt7"])
-attr(Xint, "contrasts") <- attr(X, "contrasts")
-
-epoch <- fas_itt_nona_dat[["epoch"]]
-M_epoch <- max(epoch)
-region <- fas_itt_nona_dat[["ctry_num"]]
-M_region <- max(region)
-site <- fas_itt_nona_dat[["site_num"]]
-M_site <- max(site)
-region_by_site <- region_by_site <- fas_itt_nona_dat |>
-  dplyr::count(ctry_num, site_num) |>
-  pull(ctry_num)
-
-y_raw <- fas_itt_nona_dat[["PO"]]
-if(diff(range(y_raw)) == 1) {
-  y_mod <- y_raw
-} else {
-  y_raw <- ordered(y_raw)
-  y_mod <- as.integer(ordered(y_raw))
-}
-
-N <- dim(Xint)[1]
-K <- dim(Xint)[2]
-beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1, 1)
-mdat <- list(
-  N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
-  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
-  M_region = M_region, region = region,
-  M_site = M_site, site = site,
-  M_epoch = M_epoch, epoch = epoch,
-  region_by_site = region_by_site,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mfit <- logistic_site_epoch[["sample"]](
-    data = mdat,
-    seed = 77821,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mfit$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-mdrws <- as_draws_rvars(mfit$draws(keep))
-names(mdrws$beta) <- colnames(mdat$X)
-
-if(any(grepl("site", keep))) {
-  site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)  
-  names(mdrws$gamma_site) <- site_map$site
-}
-if(any(grepl("epoch", keep))) {
-  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
-  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
-}
-# Transformed samples
-Ca <- attr(mdat$X, "contrasts")$randA
-Cc <- attr(mdat$X, "contrasts")$randC
-
-seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:dsfsgt7"])
-)
-labs <- c("Days from symptom onset \u2264 7", "Days from symptom onset > 7")
-labs2 <- c("\u2264 7", "> 7")
-mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- labs
-colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
-
-OR_list[["Days since first symptoms"]] <- mdrws$OR %>% 
-  as_tibble(rownames = "Levels") %>% 
-  pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>%
-  mutate(Subgroup = "Days since first symptoms", .before = 1)
-
-# Summarise subgroup effects
-ordat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Days since symptom onset` = labs,
-) %>%
-  mutate(Posterior = c(mdrws$OR)) %>%
-  summarise_posterior()
-# Summarise comparison of effects (reference is India)
-compdat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Days since symptom onset` = labs
-) %>%
-  mutate(Posterior = c(mdrws$compare)) %>%
-  summarise_posterior() %>%
-  select(-`Pr(OR > 1/1.1)`)
-
-OR_dsfs <- mdrws$OR
-rownames(OR_dsfs) <- labs2
-dsfsdat <- fas_itt_dat %>% 
-  group_by(dsfsgt7, AAssignment) %>% 
-  summarise("events/patients" = sprintf(
-    "%i/%i (%.2f)", 
-    sum(PO, na.rm = TRUE), 
-    sum(!is.na(PO)), 
-    mean(PO, na.rm = T))
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Subgroup = "DSFS",
-    Variable = as.character(factor(as.numeric(dsfsgt7), levels = 0:1, labels = labs2)),
-    Intervention = as.character(factor(
-      AAssignment, 
-      labels = intervention_labels_short()$AAssignment)),
-    .before = 1
-  ) %>%
-  select(-dsfsgt7, -AAssignment)
-```
-
-```{r}
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-p <- plot_ppc(grp_ppc(sym("dsfsgt7"), sgroup_labs_shrt$DSFS), "Days since first symptoms") 
-ggsave(
-  file.path(
-    "outputs", "figures", "outcomes", "primary", "subgroup", 
-    "fas-itt-subgroup-dsfs-hte-ppc.pdf"),
-  grid.arrange(p), height = 2, width = 6, device = cairo_pdf
-)
-grid.arrange(p)
-```
-
-```{r}
-p <- plot_subgroup_or(ordat, sym("Days since symptom onset"))
-ggsave(
-  file.path(
-    "outputs", "figures", "outcomes", "primary", "subgroup",
-    "fas-itt-subgroup-dsfs-hte.pdf"),
-  p, height = 2.5, width = 6, device = cairo_pdf)
-p
-```
-
-```{r}
-tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-dsfs-odds-ratios")
-make_subgroup_summary_table(ordat)
-```
-
-```{r}
-tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-dsfs-odds-ratios-compare")
-make_subgroup_summary_table(compdat)
-```
-
-### On Room Air and Oxygen Saturation
-
-```{r}
-make_subgroup_oxy_table <- function(format = "html") {
-  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, supp_oxy2, format = format)  %>%
-    pack_rows("Did not required supplemental oxygen", 1, 5) %>%
-    pack_rows("Required supplemental oxygen", 6, 10)
-  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, supp_oxy2, format = format)  %>%
-    pack_rows("Did not required supplemental oxygen", 1, 3) %>%
-    pack_rows("Required supplemental oxygen", 4, 6)
-  return(list(t1, t2))
-}
-tab <- make_subgroup_oxy_table("latex")
-save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-oxygen-descriptive-anticoagulation")
-save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-oxygen-descriptive-antiviral")
-tab <- make_subgroup_oxy_table()
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-oxygen-anticoagulation
-#| tbl-cap: Primary outcome by anti-coagulation intervention by oxygen requirement.
-tab[[1]]
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-oxygen-antiviral
-#| tbl-cap: Primary outcome by anti-viral intervention by oxygen requirement.
-tab[[2]]
-```
-
-```{r}
-X <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry"), 
-  ctr = contr.equalprior)
-Xint <- cbind(
-  X, 
-  "randA:supp_oxy2" = X[, 2] * X[, "supp_oxy2"],
-  "randA1:supp_oxy2" = X[, 3] * X[, "supp_oxy2"])
-attr(Xint, "contrasts") <- attr(X, "contrasts")
-
-epoch <- fas_itt_nona_dat[["epoch"]]
-M_epoch <- max(epoch)
-region <- fas_itt_nona_dat[["ctry_num"]]
-M_region <- max(region)
-site <- fas_itt_nona_dat[["site_num"]]
-M_site <- max(site)
-region_by_site <- region_by_site <- fas_itt_nona_dat |>
-  dplyr::count(ctry_num, site_num) |>
-  pull(ctry_num)
-
-y_raw <- fas_itt_nona_dat[["PO"]]
-if(diff(range(y_raw)) == 1) {
-  y_mod <- y_raw
-} else {
-  y_raw <- ordered(y_raw)
-  y_mod <- as.integer(ordered(y_raw))
-}
-
-N <- dim(Xint)[1]
-K <- dim(Xint)[2]
-beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 1, 1)
-mdat <- list(
-  N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
-  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
-  M_region = M_region, region = region,
-  M_site = M_site, site = site,
-  M_epoch = M_epoch, epoch = epoch,
-  region_by_site = region_by_site,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mfit <- logistic_site_epoch[["sample"]](
-    data = mdat,
-    seed = 77821,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mfit$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-mdrws <- as_draws_rvars(mfit$draws(keep))
-names(mdrws$beta) <- colnames(mdat$X)
-
-if(any(grepl("site", keep))) {
-  site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)  
-  names(mdrws$gamma_site) <- site_map$site
-}
-if(any(grepl("epoch", keep))) {
-  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
-  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
-}
-# Transformed samples
-Ca <- attr(mdat$X, "contrasts")$randA
-Cc <- attr(mdat$X, "contrasts")$randC
-
-seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:supp_oxy2"])
-)
-labs <- c("Did not require supplemental oxygen", "Required supplemental oxygen")
-labs2 <- c("Room air and SpO2 ≥ 94%", "Not room air or SpO2 < 94% on RA")
-mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- labs
-colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
-
-OR_list[["Supplemental oxygen"]] <- mdrws$OR %>% 
-  as_tibble(rownames = "Levels") %>% 
-  pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>%
-  mutate(Subgroup = "Supplemental oxygen", .before = 1)
-
-# Summarise subgroup effects
-ordat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Supplemental oxygen` = labs,
-) %>%
-  mutate(Posterior = c(mdrws$OR)) %>%
-  summarise_posterior()
-# Summarise comparison of effects (reference is India)
-compdat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Supplemental oxygen` = labs
-) %>%
-  mutate(Posterior = c(mdrws$compare)) %>%
-  summarise_posterior() %>%
-  select(-`Pr(OR > 1/1.1)`)
-
-OR_oxy <- mdrws$OR
-rownames(OR_oxy) <- labs2
-oxydat <- fas_itt_dat %>% 
-  group_by(supp_oxy2, AAssignment) %>% 
-  summarise("events/patients" = sprintf(
-    "%i/%i (%.2f)", 
-    sum(PO, na.rm = TRUE), 
-    sum(!is.na(PO)), 
-    mean(PO, na.rm = T))
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Subgroup = "Oxygen",
-    Variable = as.character(factor(as.numeric(supp_oxy2), levels = 0:1, labels = labs2)),
-    Intervention = as.character(factor(
-      AAssignment, 
-      labels = intervention_labels_short()$AAssignment)),
-    .before = 1
-  ) %>%
-  select(-supp_oxy2, -AAssignment)
-```
-
-```{r}
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-p <- plot_ppc(grp_ppc(sym("supp_oxy2"), sgroup_labs_shrt$Oxygen), "Supplemental oxygen") 
-ggsave(
-  file.path(
-    "outputs", "figures", "outcomes", "primary", "subgroup", 
-    "fas-itt-subgroup-oxygen-hte-ppc.pdf"),
-  grid.arrange(p), height = 2, width = 6, device = cairo_pdf
-)
-grid.arrange(p)
-```
-
-```{r}
-p <- plot_subgroup_or(ordat, sym("Supplemental oxygen"))
-ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-oxygen-hte.pdf"),
-  p, height = 3, width = 6, device = cairo_pdf)
-p
-```
-
-```{r}
-tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-oxygen-odds-ratios")
-make_subgroup_summary_table(ordat)
-```
-
-```{r}
-tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-oxygen-odds-ratios-compare")
-make_subgroup_summary_table(compdat)
-```
-
-### Received corticosteroids
-
-It is noted that receipt of corticosteroids is a post-randomisation event, and therefore may be affected by both the assigned treatment and the patients progression making interpretation difficult.
-
-```{r}
-#| tbl-cap: Primary outcome by anti-coagulation intervention bysteroids.
-make_subgroup_steroids_table <- function(format = "html") {
-  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, rec_steroids, format = format)  %>%
-    pack_rows("Did not receive corticosteroids", 1, 5) %>%
-    pack_rows("Received corticosteroids", 6, 10)
-  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, rec_steroids, format = format)  %>%
-    pack_rows("Did not receive corticosteroids", 1, 3) %>%
-    pack_rows("Received corticosteroids", 4, 6)
-  return(list(t1, t2))
-}
-tab <- make_subgroup_steroids_table("latex")
-save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-steroids-descriptive-anticoagulation")
-save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-steroids-descriptive-antiviral")
-tab <- make_subgroup_steroids_table()
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-steroids-anticoagulation
-#| tbl-cap: Primary outcome by anti-coagulation intervention by steroids.
-tab[[1]]
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-steroids-antiviral
-#| tbl-cap: Primary outcome by anti-viral intervention by steroids.
-tab[[2]]
-```
-
-```{r}
-X <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "rec_steroids"), 
-  ctr = contr.equalprior)
-Xint <- cbind(
-  X, 
-  "randA:rec_steroids" = X[, 2] * X[, "rec_steroids"],
-  "randA1:rec_steroids" = X[, 3] * X[, "rec_steroids"])
-attr(Xint, "contrasts") <- attr(X, "contrasts")
-
-epoch <- fas_itt_nona_dat[["epoch"]]
-M_epoch <- max(epoch)
-region <- fas_itt_nona_dat[["ctry_num"]]
-M_region <- max(region)
-site <- fas_itt_nona_dat[["site_num"]]
-M_site <- max(site)
-region_by_site <- region_by_site <- fas_itt_nona_dat |>
-  dplyr::count(ctry_num, site_num) |>
-  pull(ctry_num)
-
-y_raw <- fas_itt_nona_dat[["PO"]]
-if(diff(range(y_raw)) == 1) {
-  y_mod <- y_raw
-} else {
-  y_raw <- ordered(y_raw)
-  y_mod <- as.integer(ordered(y_raw))
-}
-
-N <- dim(Xint)[1]
-K <- dim(Xint)[2]
-beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1, 1)
-mdat <- list(
-  N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
-  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
-  M_region = M_region, region = region,
-  M_site = M_site, site = site,
-  M_epoch = M_epoch, epoch = epoch,
-  region_by_site = region_by_site,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mfit <- logistic_site_epoch[["sample"]](
-    data = mdat,
-    seed = 77821,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mfit$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-mdrws <- as_draws_rvars(mfit$draws(keep))
-names(mdrws$beta) <- colnames(mdat$X)
-
-if(any(grepl("site", keep))) {
-  site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)  
-  names(mdrws$gamma_site) <- site_map$site
-}
-if(any(grepl("epoch", keep))) {
-  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
-  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
-}
-# Transformed samples
-Ca <- attr(mdat$X, "contrasts")$randA
-Cc <- attr(mdat$X, "contrasts")$randC
-
-seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:rec_steroids"])
-)
-labs <- c("Did not receive corticosteroids", "Received corticosteroids")
-labs2 <- c("Did not receive", "Received")
-mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- labs
-colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
-
-OR_list[["Received corticosteroids"]] <- mdrws$OR %>% 
-  as_tibble(rownames = "Levels") %>% 
-  pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>%
-  mutate(Subgroup = "Received\ncorticosteroids", .before = 1)
-
-# Summarise subgroup effects
-ordat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Received corticosteroids` = labs,
-) %>%
-  mutate(Posterior = c(mdrws$OR)) %>%
-  summarise_posterior()
-# Summarise comparison of effects (reference is India)
-compdat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Received corticosteroids` = labs
-) %>%
-  mutate(Posterior = c(mdrws$compare)) %>%
-  summarise_posterior() %>%
-  select(-`Pr(OR > 1/1.1)`)
-
-OR_steroids <- mdrws$OR
-steroidsdat <- fas_itt_dat %>% 
-  group_by(rec_steroids, AAssignment) %>% 
-  summarise("events/patients" = sprintf(
-    "%i/%i (%.2f)", 
-    sum(PO, na.rm = TRUE), 
-    sum(!is.na(PO)), 
-    mean(PO, na.rm = T))
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Subgroup = "Steroids",
-    Variable = as.character(factor(as.numeric(rec_steroids), levels = 0:1, labels = labs)),
-    Intervention = as.character(factor(
-      AAssignment, 
-      labels = intervention_labels_short()$AAssignment)),
-    .before = 1
-  ) %>%
-  select(-rec_steroids, -AAssignment)
-```
-
-```{r}
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-p <- plot_ppc(grp_ppc(sym("rec_steroids"), labs2), "Corticosteroids") 
-ggsave(
-  file.path(
-    "outputs", "figures", "outcomes", "primary", "subgroup", 
-    "fas-itt-subgroup-steroids-hte-ppc.pdf"),
-  grid.arrange(p), height = 2, width = 6, device = cairo_pdf
-)
-grid.arrange(p)
-```
-
-```{r}
-p <- plot_subgroup_or(ordat, sym("Received corticosteroids"))
-ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-steroids-hte.pdf"),
-  p, height = 3, width = 6, device = cairo_pdf)
-p
-```
-
-```{r}
-tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-steroids-odds-ratios")
-make_subgroup_summary_table(ordat)
-```
-
-```{r}
-tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-steroids-odds-ratios-compare")
-make_subgroup_summary_table(compdat)
-```
-
-### Received remdesivir
-
-It is noted that receipt of remdesivir is a post-randomisation event, and therefore may be affected by both the assigned treatment and the patients progression making interpretation difficult.
-
-```{r}
-make_subgroup_remdesivir_table <- function(format = "html") {
-  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, rec_remdesivir, format = format)  %>%
-    pack_rows("Did not receive remdesivir", 1, 5) %>%
-    pack_rows("Received remdesivir", 6, 10)
-  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, rec_remdesivir, format = format)  %>%
-    pack_rows("Did not receive remdesivir", 1, 3) %>%
-    pack_rows("Received remdesivir", 4, 6)
-  return(list(t1, t2))
-}
-tab <- make_subgroup_remdesivir_table("latex")
-save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-remdesivir-descriptive-anticoagulation")
-save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-remdesivir-descriptive-antiviral")
-tab <- make_subgroup_remdesivir_table()
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-remdesivir-anticoagulation
-#| tbl-cap: Primary outcome by anti-coagulation intervention by remdesivir.
-tab[[1]]
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-remdesivir-antiviral
-#| tbl-cap: Primary outcome by anti-viral intervention by remdesivir.
-tab[[2]]
-```
-
-```{r}
-X <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "rec_remdesivir"), 
-  ctr = contr.equalprior)
-Xint <- cbind(
-  X, 
-  "randA:rec_remdesivir" = X[, 2] * X[, "rec_remdesivir"],
-  "randA1:rec_remdesivir" = X[, 3] * X[, "rec_remdesivir"])
-attr(Xint, "contrasts") <- attr(X, "contrasts")
-
-epoch <- fas_itt_nona_dat[["epoch"]]
-M_epoch <- max(epoch)
-region <- fas_itt_nona_dat[["ctry_num"]]
-M_region <- max(region)
-site <- fas_itt_nona_dat[["site_num"]]
-M_site <- max(site)
-region_by_site <- region_by_site <- fas_itt_nona_dat |>
-  dplyr::count(ctry_num, site_num) |>
-  pull(ctry_num)
-
-y_raw <- fas_itt_nona_dat[["PO"]]
-if(diff(range(y_raw)) == 1) {
-  y_mod <- y_raw
-} else {
-  y_raw <- ordered(y_raw)
-  y_mod <- as.integer(ordered(y_raw))
-}
-
-N <- dim(Xint)[1]
-K <- dim(Xint)[2]
-beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1, 1)
-mdat <- list(
-  N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
-  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
-  M_region = M_region, region = region,
-  M_site = M_site, site = site,
-  M_epoch = M_epoch, epoch = epoch,
-  region_by_site = region_by_site,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mfit <- logistic_site_epoch[["sample"]](
-    data = mdat,
-    seed = 77821,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mfit$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-mdrws <- as_draws_rvars(mfit$draws(keep))
-names(mdrws$beta) <- colnames(mdat$X)
-
-if(any(grepl("site", keep))) {
-  site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)  
-  names(mdrws$gamma_site) <- site_map$site
-}
-if(any(grepl("epoch", keep))) {
-  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
-  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
-}
-# Transformed samples
-Ca <- attr(mdat$X, "contrasts")$randA
-Cc <- attr(mdat$X, "contrasts")$randC
-
-seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:rec_remdesivir"])
-)
-labs <- c("Did not receive remdesivir", "Received remdesivir")
-labs2 <- c("Did not receive", "Received")
-mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- labs
-colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
-
-OR_list[["Received remdesivir"]] <- mdrws$OR %>% 
-  as_tibble(rownames = "Levels") %>% 
-  pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>%
-  mutate(Subgroup = "Received\nremdesivir", .before = 1)
-
-# Summarise subgroup effects
-ordat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Received remdesivir` = labs,
-) %>%
-  mutate(Posterior = c(mdrws$OR)) %>%
-  summarise_posterior()
-# Summarise comparison of effects (reference is India)
-compdat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Received remdesivir` = labs
-) %>%
-  mutate(Posterior = c(mdrws$compare)) %>%
-  summarise_posterior() %>%
-  select(-`Pr(OR > 1/1.1)`)
-
-OR_rem <- mdrws$OR
-remdat <- fas_itt_dat %>% 
-  group_by(rec_remdesivir, AAssignment) %>% 
-  summarise("events/patients" = sprintf(
-    "%i/%i (%.2f)", 
-    sum(PO, na.rm = TRUE), 
-    sum(!is.na(PO)), 
-    mean(PO, na.rm = T))
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Subgroup = "Remdesivir",
-    Variable = as.character(factor(as.numeric(rec_remdesivir), levels = 0:1, labels = labs)),
-    Intervention = as.character(factor(
-      AAssignment, 
-      labels = intervention_labels_short()$AAssignment)),
-    .before = 1
-  ) %>%
-  select(-rec_remdesivir, -AAssignment)
-```
-
-```{r}
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-p <- plot_ppc(grp_ppc(sym("rec_remdesivir"), labs2), "Remdesivir") 
-ggsave(
-  file.path(
-    "outputs", "figures", "outcomes", "primary", "subgroup", 
-    "fas-itt-subgroup-remdesivir-hte-ppc.pdf"),
-  grid.arrange(p), height = 2, width = 6, device = cairo_pdf
-)
-grid.arrange(p)
-```
-
-```{r}
-p <- plot_subgroup_or(ordat, sym("Received remdesivir"))
-ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-remdesivir-hte.pdf"),
-  p, height = 3, width = 6, device = cairo_pdf)
-p
-```
-
-```{r}
-tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-remdesivir-odds-ratios")
-make_subgroup_summary_table(ordat)
-```
-
-```{r}
-tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-remdesivir-odds-ratios-compare")
-make_subgroup_summary_table(compdat)
-```
-
-### Receipt of other agent intended to be an antiviral agent against SARS-CoV-2
-
-```{r}
-make_subgroup_antiviral_table <- function(format = "html") {
-  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, rec_antiviral, format = format)  %>%
-    pack_rows("Did not receive other antiviral", 1, 5) %>%
-    pack_rows("Received other antiviral", 6, 10)
-  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, rec_antiviral, format = format)  %>%
-    pack_rows("Did not receive other antiviral", 1, 3) %>%
-    pack_rows("Received other antiviral", 4, 6)
-  return(list(t1, t2))
-}
-tab <- make_subgroup_antiviral_table("latex")
-save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-antiviral-descriptive-anticoagulation")
-save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-antiviral-descriptive-antiviral")
-tab <- make_subgroup_antiviral_table()
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-other-antiviral-anticoagulation
-#| tbl-cap: Primary outcome by anti-coagulation intervention by other antiviral
-tab[[1]]
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-other-antiviral-antiviral
-#| tbl-cap: Primary outcome by anti-viral intervention by other antiviral.
-tab[[2]]
-```
-
-```{r}
-X <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "rec_antiviral"), 
-  ctr = contr.equalprior)
-Xint <- cbind(
-  X, 
-  "randA:rec_antiviral" = X[, 2] * X[, "rec_antiviral"],
-  "randA1:rec_antiviral" = X[, 3] * X[, "rec_antiviral"])
-attr(Xint, "contrasts") <- attr(X, "contrasts")
-
-epoch <- fas_itt_nona_dat[["epoch"]]
-M_epoch <- max(epoch)
-region <- fas_itt_nona_dat[["ctry_num"]]
-M_region <- max(region)
-site <- fas_itt_nona_dat[["site_num"]]
-M_site <- max(site)
-region_by_site <- region_by_site <- fas_itt_nona_dat |>
-  dplyr::count(ctry_num, site_num) |>
-  pull(ctry_num)
-
-y_raw <- fas_itt_nona_dat[["PO"]]
-if(diff(range(y_raw)) == 1) {
-  y_mod <- y_raw
-} else {
-  y_raw <- ordered(y_raw)
-  y_mod <- as.integer(ordered(y_raw))
-}
-
-N <- dim(Xint)[1]
-K <- dim(Xint)[2]
-beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1, 1)
-mdat <- list(
-  N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
-  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
-  M_region = M_region, region = region,
-  M_site = M_site, site = site,
-  M_epoch = M_epoch, epoch = epoch,
-  region_by_site = region_by_site,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mfit <- logistic_site_epoch[["sample"]](
-    data = mdat,
-    seed = 77821,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mfit$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-mdrws <- as_draws_rvars(mfit$draws(keep))
-names(mdrws$beta) <- colnames(mdat$X)
-
-if(any(grepl("site", keep))) {
-  site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)  
-  names(mdrws$gamma_site) <- site_map$site
-}
-if(any(grepl("epoch", keep))) {
-  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
-  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
-}
-# Transformed samples
-Ca <- attr(mdat$X, "contrasts")$randA
-Cc <- attr(mdat$X, "contrasts")$randC
-
-seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:rec_antiviral"])
-)
-labs <- c("Did not receive other antivirals", "Received other antivirals")
-labs2 <- c("Did not receive", "Received")
-mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- labs
-colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
-
-OR_list[["Received other antiviral"]] <- mdrws$OR %>% 
-  as_tibble(rownames = "Levels") %>% 
-  pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>%
-  mutate(Subgroup = "Received\nother antiviral", .before = 1)
-
-# Summarise subgroup effects
-ordat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Received other antiviral` = labs,
-) %>%
-  mutate(Posterior = c(mdrws$OR)) %>%
-  summarise_posterior()
-# Summarise comparison of effects (reference is India)
-compdat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Received other antiviral` = labs
-) %>%
-  mutate(Posterior = c(mdrws$compare)) %>%
-  summarise_posterior() %>%
-  select(-`Pr(OR > 1/1.1)`)
-
-OR_antiviral <- mdrws$OR
-antiviraldat <- fas_itt_dat %>% 
-  group_by(rec_antiviral, AAssignment) %>% 
-  summarise("events/patients" = sprintf(
-    "%i/%i (%.2f)", 
-    sum(PO, na.rm = TRUE), 
-    sum(!is.na(PO)), 
-    mean(PO, na.rm = T))
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Subgroup = "Other antiviral",
-    Variable = as.character(factor(as.numeric(rec_antiviral), levels = 0:1, labels = labs)),
-    Intervention = as.character(factor(
-      AAssignment, 
-      labels = intervention_labels_short()$AAssignment)),
-    .before = 1
-  ) %>%
-  select(-rec_antiviral, -AAssignment)
-```
-
-```{r}
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-p <- plot_ppc(grp_ppc(sym("rec_antiviral"), labs2), "Other antiviral") 
-ggsave(
-  file.path(
-    "outputs", "figures", "outcomes", "primary", "subgroup", 
-    "fas-itt-subgroup-antiviral-hte-ppc.pdf"),
-  grid.arrange(p), height = 2, width = 6, device = cairo_pdf
-)
-grid.arrange(p)
-```
-
-```{r}
-library(scales)
-p <- plot_subgroup_or(ordat, sym("Received other antiviral")) + 
-  scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x), 
-                labels = trans_format("log10", scales::math_format(10^.x)))
-ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-antiviral-hte.pdf"),
-  p, height = 3, width = 6, device = cairo_pdf)
-p
-```
-
-```{r}
-tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-antiviral-odds-ratios")
-make_subgroup_summary_table(ordat)
-```
-
-```{r}
-tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-antiviral-odds-ratios-compare")
-make_subgroup_summary_table(compdat)
-```
-
-### Vaccination Status
-
-```{r}
-make_subgroup_vax_table <- function(format = "html") {
-  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, vax, format = format)  %>%
-    pack_rows("Not vaccinated", 1, 5) %>%
-    pack_rows("Vaccinated", 6, 10) %>%
-    pack_rows("Unknown", 11, 15)
-  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, vax, format = format)  %>%
-    pack_rows("Not vaccinated", 1, 3) %>%
-    pack_rows("Vaccinated", 4, 6) %>%
-    pack_rows("Unknown", 7, 9)
-  return(list(t1, t2))
-}
-tab <- make_subgroup_vax_table("latex")
-save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-vax-descriptive-anticoagulation")
-save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-vax-descriptive-antiviral")
-tab <- make_subgroup_vax_table()
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-vax-anticoagulation
-#| tbl-cap: Primary outcome by anti-coagulation intervention by vaccination.
-tab[[1]]
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-vax-antiviral
-#| tbl-cap: Primary outcome by anti-viral intervention by vaccination.
-tab[[2]]
-```
-
-```{r}
-X <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "vaxfac"), 
-  ctr = contr.equalprior)
-Xint <- cbind(
-  X, 
-  "randA:vaxfacYes" = X[, 2] * X[, "vaxfacYes"],
-  "randA1:vaxfacYes" = X[, 3] * X[, "vaxfacYes"])
-attr(Xint, "contrasts") <- attr(X, "contrasts")
-
-epoch <- fas_itt_nona_dat[["epoch"]]
-M_epoch <- max(epoch)
-region <- fas_itt_nona_dat[["ctry_num"]]
-M_region <- max(region)
-site <- fas_itt_nona_dat[["site_num"]]
-M_site <- max(site)
-region_by_site <- region_by_site <- fas_itt_nona_dat |>
-  dplyr::count(ctry_num, site_num) |>
-  pull(ctry_num)
-
-y_raw <- fas_itt_nona_dat[["PO"]]
-if(diff(range(y_raw)) == 1) {
-  y_mod <- y_raw
-} else {
-  y_raw <- ordered(y_raw)
-  y_mod <- as.integer(ordered(y_raw))
-}
-
-N <- dim(Xint)[1]
-K <- dim(Xint)[2]
-beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 2.5, 1, 1)
-mdat <- list(
-  N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
-  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
-  M_region = M_region, region = region,
-  M_site = M_site, site = site,
-  M_epoch = M_epoch, epoch = epoch,
-  region_by_site = region_by_site,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mfit <- logistic_site_epoch[["sample"]](
-    data = mdat,
-    seed = 77821,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mfit$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-mdrws <- as_draws_rvars(mfit$draws(keep))
-names(mdrws$beta) <- colnames(mdat$X)
-
-if(any(grepl("site", keep))) {
-  site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)  
-  names(mdrws$gamma_site) <- site_map$site
-}
-if(any(grepl("epoch", keep))) {
-  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
-  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
-}
-# Transformed samples
-Ca <- attr(mdat$X, "contrasts")$randA
-Cc <- attr(mdat$X, "contrasts")$randC
-
-seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:vaxfacYes"]),
-  diff(Ca) %**% (mdrws$beta["randA1"])
-)
-labs <- c("Not vaccinated", "Vaccinated", "Unknown")
-labs2 <- c("Not vaccinated", "Vaccinated", "Unknown status")
-mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- labs
-colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
-
-OR_list[["Vaccination status"]] <- mdrws$OR %>% 
-  as_tibble(rownames = "Levels") %>% 
-  pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>%
-  mutate(Subgroup = "Vaccination\nstatus", .before = 1)
-
-# Summarise subgroup effects
-ordat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Vaccination status` = fct_inorder(labs),
-) %>%
-  mutate(Posterior = c(mdrws$OR)) %>%
-  summarise_posterior()
-# Summarise comparison of effects (reference is India)
-compdat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Vaccination status` = fct_inorder(labs)
-) %>%
-  mutate(Posterior = c(mdrws$compare)) %>%
-  summarise_posterior() %>%
-  select(-`Pr(OR > 1/1.1)`)
-
-OR_vax <- mdrws$OR
-rownames(OR_vax) <- labs2
-vaxdat <- fas_itt_dat %>% 
-  group_by(vaxfac, AAssignment) %>% 
-  summarise("events/patients" = sprintf(
-    "%i/%i (%.2f)", 
-    sum(PO, na.rm = TRUE), 
-    sum(!is.na(PO)), 
-    mean(PO, na.rm = T))
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Subgroup = "Vaccination",
-    Variable = as.character(factor(as.numeric(vaxfac), levels = 1:3, labels = labs2)),
-    Intervention = as.character(factor(
-      AAssignment, 
-      labels = intervention_labels_short()$AAssignment)),
-    .before = 1
-  ) %>%
-  select(-vaxfac, -AAssignment)
-```
-
-```{r}
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-p <- plot_ppc(grp_ppc(sym("vaxfac"), labs2), "Vaccination status") 
-ggsave(
-  file.path(
-    "outputs", "figures", "outcomes", "primary", "subgroup", 
-    "fas-itt-subgroup-vax-hte-ppc.pdf"),
-  grid.arrange(p), height = 2, width = 6, device = cairo_pdf
-)
-grid.arrange(p)
-```
-
-```{r}
-p <- plot_subgroup_or(ordat, sym("Vaccination status"))
-ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-vax-hte.pdf"),
-  p, height = 3, width = 6, device = cairo_pdf)
-p
-```
-
-```{r}
-tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-vax-odds-ratios")
-make_subgroup_summary_table(ordat)
-```
-
-```{r}
-tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-vax-odds-ratios-compare")
-make_subgroup_summary_table(compdat)
-```
-
-### Iatrogenic immunosuppression
-
-Due to small numbers, no modelling was run.
-
-```{r}
-make_subgroup_iatrogenic_table <- function(format = "html") {
-  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, iatrogenic, format = format)  %>%
-    pack_rows("No iatrogenic immunosuppression", 1, 5) %>%
-    pack_rows("Iatrogenic immunosuppression", 6, 10)
-  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, iatrogenic, format = format)  %>%
-    pack_rows("No iatrogenic immunosuppression", 1, 3) %>%
-    pack_rows("Iatrogenic immunosuppression", 4, 6)
-  return(list(t1, t2))
-}
-tab <- make_subgroup_iatrogenic_table("latex")
-save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-iatrogenic-descriptive-anticoagulation")
-save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-iatrogenic-descriptive-antiviral")
-tab <- make_subgroup_iatrogenic_table()
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-iatrogenic-anticoagulation
-#| tbl-cap: Primary outcome by anti-coagulation intervention by  immunosuppression status.
-tab[[1]]
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-iatrogenic-antiviral
-#| tbl-cap: Primary outcome by anti-viral intervention by  immunosuppression status.
-tab[[2]]
-```
-
-### D-dimer
-
-```{r}
-make_subgroup_ddimer_table <- function(format = "html") {
-  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, ddimer_oor, format = format)  %>%
-    pack_rows("D-dimer below upper limit of normal", 1, 5) %>%
-    pack_rows("D-dimer above upper limit of normal", 6, 10) %>%
-    pack_rows("Unknown", 11, 15)
-  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, ddimer_oor, format = format)  %>%
-    pack_rows("D-dimer below upper limit of normal", 1, 3) %>%
-    pack_rows("D-dimer above upper limit of normal", 4, 6) %>%
-    pack_rows("Unknown", 7, 9)
-  return(list(t1, t2))
-}
-tab <- make_subgroup_ddimer_table("latex")
-save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-ddimer-descriptive-anticoagulation")
-save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-ddimer-descriptive-antiviral")
-tab <- make_subgroup_ddimer_table()
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-ddimer-anticoagulation
-#| tbl-cap: Primary outcome by anti-coagulation intervention by D-dimer
-tab[[1]]
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-ddimer-antiviral
-#| tbl-cap: Primary outcome by anti-viral intervention by D-dimer
-tab[[2]]
-```
-
-```{r}
-X <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "ddimer_oor"), 
-  ctr = contr.equalprior)
-Xint <- cbind(
-  X, 
-  "randA:ddimer_oorYes" = X[, 2] * X[, "ddimer_oorYes"],
-  "randA1:ddimer_oorYes" = X[, 3] * X[, "ddimer_oorYes"], 
-  "randA:ddimer_oorUnknown" = X[, 2] * X[, "ddimer_oorUnknown"],
-  "randA1:ddimer_oorUnknown" = X[, 3] * X[, "ddimer_oorUnknown"])
-attr(Xint, "contrasts") <- attr(X, "contrasts")
-
-epoch <- fas_itt_nona_dat[["epoch"]]
-M_epoch <- max(epoch)
-region <- fas_itt_nona_dat[["ctry_num"]]
-M_region <- max(region)
-site <- fas_itt_nona_dat[["site_num"]]
-M_site <- max(site)
-region_by_site <- region_by_site <- fas_itt_nona_dat |>
-  dplyr::count(ctry_num, site_num) |>
-  pull(ctry_num)
-
-y_raw <- fas_itt_nona_dat[["PO"]]
-if(diff(range(y_raw)) == 1) {
-  y_mod <- y_raw
-} else {
-  y_raw <- ordered(y_raw)
-  y_mod <- as.integer(ordered(y_raw))
-}
-
-N <- dim(Xint)[1]
-K <- dim(Xint)[2]
-beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 2.5, 1, 1, 1, 1)
-mdat <- list(
-  N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
-  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
-  M_region = M_region, region = region,
-  M_site = M_site, site = site,
-  M_epoch = M_epoch, epoch = epoch,
-  region_by_site = region_by_site,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mfit <- logistic_site_epoch[["sample"]](
-    data = mdat,
-    seed = 77821,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mfit$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-mdrws <- as_draws_rvars(mfit$draws(keep))
-names(mdrws$beta) <- colnames(mdat$X)
-
-if(any(grepl("site", keep))) {
-  site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)  
-  names(mdrws$gamma_site) <- site_map$site
-}
-if(any(grepl("epoch", keep))) {
-  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
-  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
-}
-# Transformed samples
-Ca <- attr(mdat$X, "contrasts")$randA
-Cc <- attr(mdat$X, "contrasts")$randC
-
-seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:ddimer_oorYes"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:ddimer_oorUnknown"])
-)
-mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- sgroup_labs$`D-dimer out of range`
-colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
-
-OR_list[["D-dimer out of range"]] <- mdrws$OR %>% 
-  as_tibble(rownames = "Levels") %>% 
-  pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>%
-  mutate(Subgroup = "D-dimer\nout of range", .before = 1)
-
-# Summarise subgroup effects
-ordat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `D-dimer out of range` = fct_inorder(sgroup_labs$`D-dimer out of range`),
-) %>%
-  mutate(Posterior = c(mdrws$OR)) %>%
-  summarise_posterior()
-# Summarise comparison of effects (reference is India)
-compdat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `D-dimer out of range` = fct_inorder(sgroup_labs$`D-dimer out of range`)
-) %>%
-  mutate(Posterior = c(mdrws$compare)) %>%
-  summarise_posterior() %>%
-  select(-`Pr(OR > 1/1.1)`)
-
-OR_ddimer <- mdrws$OR
-rownames(OR_ddimer) <- sgroup_labs_shrt$`D-dimer out of range`
-ddimerdat <- fas_itt_dat %>% 
-  group_by(ddimer_oor, AAssignment) %>% 
-  summarise("events/patients" = sprintf(
-    "%i/%i (%.2f)", 
-    sum(PO, na.rm = TRUE), 
-    sum(!is.na(PO)), 
-    mean(PO, na.rm = T))
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Subgroup = "D-dimer",
-    Variable = as.character(factor(as.numeric(ddimer_oor), levels = 1:3, labels = sgroup_labs_shrt$`D-dimer out of range`)),
-    Intervention = as.character(factor(
-      AAssignment, 
-      labels = intervention_labels_short()$AAssignment)),
-    .before = 1
-  ) %>%
-  select(-ddimer_oor, -AAssignment)
-```
-
-```{r}
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-p <- plot_ppc(grp_ppc(sym("ddimer_oor"), sgroup_labs_shrt$`D-dimer out of range`), "D-dimer out of range") 
-ggsave(
-  file.path(
-    "outputs", "figures", "outcomes", "primary", "subgroup", 
-    "fas-itt-subgroup-ddimer-hte-ppc.pdf"),
-  grid.arrange(p), height = 2, width = 6, device = cairo_pdf
-)
-grid.arrange(p)
-```
-
-```{r}
-p <- plot_subgroup_or(ordat, sym("D-dimer out of range"))
-ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-ddimer-hte.pdf"),
-  p, height = 3, width = 6, device = cairo_pdf)
-p
-```
-
-```{r}
-tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-ddimer-odds-ratios")
-make_subgroup_summary_table(ordat)
-```
-
-```{r}
-tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-ddimer-odds-ratios-compare")
-make_subgroup_summary_table(compdat)
-```
-
-### Calendar Time (Exploratory)
-
-```{r}
-make_subgroup_cal_table <- function(format = "html") {
-  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, calgrp, format = format)  %>%
-    pack_rows("Randomisation < 2021-12-20", 1, 5) %>%
-    pack_rows("Randomisation \u2265 2021-12-20", 6, 10)
-  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, calgrp, format = format)  %>%
-    pack_rows("Randomisation < 2021-12-20", 1, 3) %>%
-    pack_rows("Randomisation \u2265 2021-12-20", 4, 6)
-  return(list(t1, t2))
-}
-tab <- make_subgroup_cal_table("latex")
-save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-cal-descriptive-anticoagulation")
-save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-cal-descriptive-antiviral")
-tab <- make_subgroup_cal_table()
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-calendar-anticoagulation
-#| tbl-cap: Primary outcome by anti-coagulation intervention by calendar time.
-tab[[1]]
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-calendar-antiviral
-#| tbl-cap: Primary outcome by anti-viral intervention by calendar time.
-tab[[2]]
-```
-
-```{r}
-X <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "calgrp"), 
-  ctr = contr.equalprior)
-Xint <- cbind(
-  X, 
-  "randA:calgrp≥ 2021-12-20" = X[, 2] * X[, "calgrp≥ 2021-12-20"],
-  "randA1:calgrp≥ 2021-12-20" = X[, 3] * X[, "calgrp≥ 2021-12-20"])
-attr(Xint, "contrasts") <- attr(X, "contrasts")
-
-epoch <- fas_itt_nona_dat[["epoch"]]
-M_epoch <- max(epoch)
-region <- fas_itt_nona_dat[["ctry_num"]]
-M_region <- max(region)
-site <- fas_itt_nona_dat[["site_num"]]
-M_site <- max(site)
-region_by_site <- region_by_site <- fas_itt_nona_dat |>
-  dplyr::count(ctry_num, site_num) |>
-  pull(ctry_num)
-
-y_raw <- fas_itt_nona_dat[["PO"]]
-if(diff(range(y_raw)) == 1) {
-  y_mod <- y_raw
-} else {
-  y_raw <- ordered(y_raw)
-  y_mod <- as.integer(ordered(y_raw))
-}
-
-N <- dim(Xint)[1]
-K <- dim(Xint)[2]
-beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1, 1)
-mdat <- list(
-  N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
-  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
-  M_region = M_region, region = region,
-  M_site = M_site, site = site,
-  M_epoch = M_epoch, epoch = epoch,
-  region_by_site = region_by_site,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mfit <- logistic_site_epoch[["sample"]](
-    data = mdat,
-    seed = 77821,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mfit$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-mdrws <- as_draws_rvars(mfit$draws(keep))
-names(mdrws$beta) <- colnames(mdat$X)
-
-if(any(grepl("site", keep))) {
-  site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)  
-  names(mdrws$gamma_site) <- site_map$site
-}
-if(any(grepl("epoch", keep))) {
-  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
-  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
-}
-# Transformed samples
-Ca <- attr(mdat$X, "contrasts")$randA
-Cc <- attr(mdat$X, "contrasts")$randC
-
-seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA1"]),
-  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:calgrp≥ 2021-12-20"])
-)
-labs <- c("Randomisation < 2021-12-20", "Randomisation \u2265 2021-12-20")
-labs2 <- c("< 2021-12-20", "\u2265 2021-12-20")
-mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- labs
-colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
-
-OR_list[["Date"]] <- mdrws$OR %>% 
-  as_tibble(rownames = "Levels") %>% 
-  pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>%
-  mutate(Subgroup = "Randomisation date", .before = 1)
-
-# Summarise subgroup effects
-ordat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Randomisation date` = labs,
-) %>%
-  mutate(Posterior = c(mdrws$OR)) %>%
-  summarise_posterior()
-compdat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  `Randomisation date` = labs
-) %>%
-  mutate(Posterior = c(mdrws$compare)) %>%
-  summarise_posterior() %>%
-  select(-`Pr(OR > 1/1.1)`)
-
-OR_date <- mdrws$OR
-rownames(OR_date) <- labs2
-datedat <- fas_itt_dat %>% 
-  group_by(calgrp, AAssignment) %>% 
-  summarise("events/patients" = sprintf(
-    "%i/%i (%.2f)", 
-    sum(PO, na.rm = TRUE), 
-    sum(!is.na(PO)), 
-    mean(PO, na.rm = T))
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Subgroup = "Randomisation date",
-    Variable = calgrp,
-    Intervention = as.character(factor(
-      AAssignment, 
-      labels = intervention_labels_short()$AAssignment)),
-    .before = 1
-  ) %>%
-  select(-calgrp, -AAssignment)
-```
-
-```{r}
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-p <- plot_ppc(grp_ppc(sym("calgrp"), sgroup_labs_shrt$`Randomisation date`), "Randomisation") 
-ggsave(
-  file.path(
-    "outputs", "figures", "outcomes", "primary", "subgroup",
-    "fas-itt-subgroup-date-hte-ppc.pdf"),
-  grid.arrange(p), height = 2.5, width = 6, device = cairo_pdf
-)
-grid.arrange(p)
-```
-
-```{r}
-p <- plot_subgroup_or(ordat, sym("Randomisation date")) + 
-  scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x),
-                labels = trans_format("log10", math_format(10^.x)))
-ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-date-hte.pdf"),
-  p, height = 2.5, width = 6, device = cairo_pdf)
-p
-```
-
-```{r}
-tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-date-odds-ratios")
-make_subgroup_summary_table(ordat)
-```
-
-```{r}
-tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-date-odds-ratios-compare")
-make_subgroup_summary_table(compdat)
-```
-
-### Country (Exploratory)
-
-```{r}
-#| tbl-cap: Primary outcome by anti-coagulation intervention by country.
-make_subgroup_country_table <- function(format = "html") {
-  t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, ctry2, format = format) %>%
-    pack_rows("India", 1, 5) %>%
-    pack_rows("Australia", 6, 10) %>%
-    pack_rows("Nepal", 11, 15) %>% 
-    pack_rows("New Zealand", 16, 20)
-  t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, ctry2, format = format) %>%
-    pack_rows("India", 1, 3) %>%
-    pack_rows("Australia", 4, 6) %>%
-    pack_rows("Nepal", 7, 9) %>%
-    pack_rows("New Zealand", 10, 12)
-    
-  return(list(t1, t2))
-}
-tab <- make_subgroup_country_table("latex")
-save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-country2-descriptive-anticoagulation")
-save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-country2-descriptive-antiviral")
-tab <- make_subgroup_country_table()
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-country-anticoagulation
-#| tbl-cap: Primary outcome by anti-coagulation intervention by country.
-tab[[1]]
-```
-
-```{r}
-#| label: tbl-fas-itt-subgroup-country-antiviral
-#| tbl-cap: Primary outcome by anti-viral intervention by country.
-tab[[2]]
-```
-
-```{r}
-X <- make_X_design(
-  fas_itt_nona_dat, 
-  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry2"), 
-  ctr = contr.equalprior)
-Xint <- cbind(
-  X, 
-  "randA:ctryAU" = X[, 2] * X[, "ctry2AU"],
-  "randA:ctryNP" = X[, 2] * X[, "ctry2NP"],
-  "randA:ctryNZ" = X[, 2] * X[, "ctry2NZ"],
-  "randA1:ctryAU" = X[, 3] * X[, "ctry2AU"],
-  "randA1:ctryNP" = X[, 3] * X[, "ctry2NP"],
-  "randA1:ctryNZ" = X[, 3] * X[, "ctry2NZ"]
-  )
-Xint <- Xint[, -(2:3)]
-attr(Xint, "contrasts") <- attr(X, "contrasts")
-
-epoch <- fas_itt_nona_dat[["epoch"]]
-M_epoch <- max(epoch)
-region <- fas_itt_nona_dat[["ctry2_num"]]
-M_region <- max(region)
-site <- fas_itt_nona_dat[["site2_num"]]
-M_site <- max(site)
-region_by_site <- region_by_site <- fas_itt_nona_dat |>
-  dplyr::count(ctry2_num, site2_num) |>
-  pull(ctry2_num)
-
-y_raw <- fas_itt_nona_dat[["PO"]]
-if(diff(range(y_raw)) == 1) {
-  y_mod <- y_raw
-} else {
-  y_raw <- ordered(y_raw)
-  y_mod <- as.integer(ordered(y_raw))
-}
-
-N <- dim(Xint)[1]
-K <- dim(Xint)[2]
-beta_sd <- c(2.5, c(rep(1, 4)), 10, 2.5, 2.5, 2.5, 1, 1, 1, 1, 1, 1, 1, 1, 1)
-mdat <- list(
-  N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw,
-  J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)),
-  M_region = M_region, region = region,
-  M_site = M_site, site = site,
-  M_epoch = M_epoch, epoch = epoch,
-  region_by_site = region_by_site,
-  beta_sd = beta_sd
-)
-
-snk <- capture.output(
-  mfit <- logistic_site_epoch[["sample"]](
-    data = mdat,
-    seed = 123,
-    adapt_delta = 0.99,
-    refresh = 0,
-    iter_warmup = 500,
-    iter_sampling = 2500,
-    chains = 4,
-    parallel_chains = min(4, parallel::detectCores())
-  )
-)
-
-mpars <- mfit$metadata()$model_params
-keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
-mdrws <- as_draws_rvars(mfit$draws(keep))
-names(mdrws$beta) <- colnames(mdat$X)
-
-if(any(grepl("site", keep))) {
-  site_map <- fas_itt_nona_dat %>% dplyr::count(site2_num, site)  
-  names(mdrws$gamma_site) <- site_map$site
-}
-if(any(grepl("epoch", keep))) {
-  epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)  
-  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
-}
-# Transformed samples
-Ca <- attr(mdat$X, "contrasts")$randA
-Cc <- attr(mdat$X, "contrasts")$randC
-
-seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA1:ctryAU"]),
-  diff(Ca) %**% (mdrws$beta["randA1:ctryNP"]),
-  diff(Ca) %**% (mdrws$beta["randA1:ctryNZ"])
-)
-labs <- c("Australia", "Nepal", "New Zealand")
-labs2 <- c("AU", "NP", "NZ")
-mdrws$OR <- exp(seff)
-rownames(mdrws$OR) <- labs
-colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
-mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
-
-OR_list[["Country"]] <- mdrws$OR %>% 
-  as_tibble(rownames = "Levels") %>% 
-  pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>%
-  mutate(Subgroup = "Country", .before = 1)
-
-# Summarise subgroup effects
-ordat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  Country = labs,
-) %>%
-  mutate(Posterior = c(mdrws$OR)) %>%
-  summarise_posterior()
-compdat <- expand_grid(
-  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
-  Country = labs
-) %>%
-  mutate(Posterior = c(mdrws$compare)) %>%
-  summarise_posterior() %>%
-  select(-`Pr(OR > 1/1.1)`)
-
-OR_country <- mdrws$OR
-rownames(OR_country) <- labs
-countrydat <- fas_itt_dat %>% 
-  group_by(ctry2, AAssignment) %>% 
-  summarise("events/patients" = sprintf(
-    "%i/%i (%.2f)", 
-    sum(PO, na.rm = TRUE), 
-    sum(!is.na(PO)), 
-    mean(PO, na.rm = T))
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Subgroup = "Country",
-    Variable = factor(ctry2, levels = c("AU", "NP", "NZ"), labels = c("Australia", "Nepal", "New Zealand")),
-    Intervention = as.character(factor(
-      AAssignment, 
-      labels = intervention_labels_short()$AAssignment)),
-    .before = 1
-  ) %>%
-  select(-ctry2, -AAssignment)
-```
-
-```{r}
-y_ppc <- mdrws$y_ppc
-ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc))
-p <- plot_ppc(grp_ppc(sym("ctry2"), c("IN", "AU", "NP", "NZ")), "Country")
-ggsave(
-  file.path(
-    "outputs", "figures", "outcomes", "primary", "subgroup",
-    "fas-itt-subgroup-country2-hte-ppc.pdf"),
-  grid.arrange(p), height = 2.5, width = 6, device = cairo_pdf
-)
-grid.arrange(p)
-```
-
-```{r}
-p <- plot_subgroup_or(ordat, sym("Country"))
-ggsave(
-  file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-country2-hte.pdf"),
-  p, height = 3, width = 6, device = cairo_pdf)
-p
-```
-
-```{r}
-tab <- make_subgroup_summary_table(ordat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/country2-odds-ratios")
-make_subgroup_summary_table(ordat)
-```
-
-```{r}
-tab <- make_subgroup_summary_table(compdat, "latex")
-save_tex_table(tab, "outcomes/primary/subgroup/country2-odds-ratios-compare")
-make_subgroup_summary_table(compdat)
-```
-
-### Forest Plot
-
-```{r}
-pad_width <- 0
-cnt_dat <- bind_rows(agedat, dsfsdat, oxydat, steroidsdat, remdat, 
-                     antiviraldat, vaxdat[1:6, ], ddimerdat, datedat,
-                     countrydat) %>%
-  mutate(
-    `events/patients` = str_pad(`events/patients`, width = pad_width, side = "left")
-  )
-
-ORdat <- rbind(
-  OR_age, OR_dsfs, OR_oxy, OR_steroids, OR_rem,
-  OR_antiviral, OR_vax[1:2, ], OR_ddimer, OR_date, OR_country) 
-ORdat <- as_tibble(ORdat) %>%
-  mutate(Variable = rownames(ORdat), .before = 1)
-ORdat <- ORdat %>%
-  pivot_longer(2, names_to = "Intervention", values_to = "Posterior") %>%
-  mutate(
-    est = median(Posterior),
-    lower = quantile(Posterior, probs = 0.025)[1, ],
-    upper = quantile(Posterior, probs = 0.975)[1, ],
-    ` ` = paste(rep(" ", 30), collapse = " "),
-    `Odds ratio\n(95% CrI)` = sprintf("%.2f (%.2f, %.2f)", est, lower, upper)
-  ) %>%
-  left_join(cnt_dat, by = c("Variable", "Intervention")) %>%
-  mutate(Variable = paste0("   ", Variable))
-
-ORdatmod <- ORdat %>% 
-  add_row(tibble(Variable = "Age"), .before = 1) %>%
-  add_row(tibble(Variable = "Days since first symptoms"), .before = 4) %>%
-  add_row(tibble(Variable = "Supplemental oxygen"), .before = 7) %>%
-  add_row(tibble(Variable = "Corticosteroids"), .before = 10) %>%
-  add_row(tibble(Variable = "Remdesivir"), .before = 13) %>%
-  add_row(tibble(Variable = "Other antiviral"), .before = 16) %>%
-  add_row(tibble(Variable = "Vaccination"), .before = 19) %>%
-  add_row(tibble(Variable = "D-dimer"), .before = 22) %>%
-  add_row(tibble(Variable = "Randomisation date"), .before = 26) %>%
-  add_row(tibble(Variable = "Country"), .before = 29) %>%
-  replace_na(replace = list(Variable = " ", Intervention = " ", ` ` = " ", `Odds ratio\n(95% CrI)` = " ", `events/patients` = " "))
-
-naf_ORdat <- ORdatmod %>%
-  rename(Nafamostat = `events/patients`) %>%
-  left_join(cnt_dat %>% filter(Intervention == "SoC") %>% 
-              mutate(Variable = paste0("   ", Variable)) %>% select(c(2, 4)), by = "Variable") %>%
-  rename(SoC = `events/patients`) %>%
-  replace_na(replace = list(SoC = paste(rep(" ", pad_width), collapse = ""), Nafamostat = paste(rep(" ", pad_width), collapse = "")))
-
-thm <- forestploter::forest_theme(
-    ci_pch = 19,
-    base_size = 8, 
-    ci_lwd = 1.5,
-    base_family = "Palatino",
-    title_just = "left")
-
-naf_pdat <-  naf_ORdat[, c(1, 11, 10, 7, 8)]
-colnames(naf_pdat)[4] <- "Odds ratio (median, 95% CrI)"
-colnames(naf_pdat)[5] <- " "
-naf_plot <- forestploter::forest(
-  naf_pdat,
-  est = ORdatmod$est,
-  lower = ORdatmod$lower,
-  upper = ORdatmod$upper,
-  ci_column = 4,
-  ref_line = 1,
-  arrow_lab = c("Nafamostat better", "SoC better"),
-  x_trans = "log",
-  xlim = c(0.05, 20),
-  ticks_at = c(0.1, 0.25, 0.5, 1, 2, 4, 10),
-  theme = thm
-)
-naf_plot <- forestploter::insert_text(
-  naf_plot,
-  text = "events/patients (proportion)",
-  col = 2:3,
-  part = "header",
-  before = FALSE,
-  gp = gpar(fontface = "bold", fontfamily = "Palatino", fontsize = 8))
-
-ggsave(
-  file.path("outputs", "figures", "outcomes", "subgroups", "subgroup-joint-fas-itt.pdf"),
-  naf_plot,
-  device = cairo_pdf,
-  width = 7,
-  height = 8,
-  dpi = 444
-)
-```
-
-```{r}
-#| label: fig-subgroup-plot
-#| fig-cap: Subgroup summary plot.
-naf_plot
-```
-
-```{r}
-pad_width <- 0
-cnt_dat <- bind_rows(agedat, dsfsdat, oxydat, steroidsdat, remdat, 
-                     antiviraldat, vaxdat[1:6, ], ddimerdat, datedat,
-                     countrydat) %>%
-  mutate(
-    `events/patients` = str_pad(`events/patients`, width = pad_width, side = "left")
-  )
-
-ORdat <- rbind(
-  OR_age, OR_dsfs, OR_oxy, OR_steroids, OR_rem,
-  OR_vax[1:2, ], OR_ddimer, OR_date, OR_country) 
-ORdat <- as_tibble(ORdat) %>%
-  mutate(Variable = rownames(ORdat), .before = 1)
-ORdat <- ORdat %>%
-  pivot_longer(2, names_to = "Intervention", values_to = "Posterior") %>%
-  mutate(
-    est = median(Posterior),
-    lower = quantile(Posterior, probs = 0.025)[1, ],
-    upper = quantile(Posterior, probs = 0.975)[1, ],
-    ` ` = paste(rep(" ", 30), collapse = " "),
-    `Odds ratio\n(95% CrI)` = sprintf("%.2f (%.2f, %.2f)", est, lower, upper)
-  ) %>%
-  left_join(cnt_dat, by = c("Variable", "Intervention")) %>%
-  mutate(Variable = paste0("   ", Variable))
-
-ORdatmod <- ORdat %>% 
-  add_row(tibble(Variable = "Age"), .before = 1) %>%
-  add_row(tibble(Variable = "Days since first symptoms"), .before = 4) %>%
-  add_row(tibble(Variable = "Supplemental oxygen"), .before = 7) %>%
-  add_row(tibble(Variable = "Corticosteroids"), .before = 10) %>%
-  add_row(tibble(Variable = "Remdesivir"), .before = 13) %>%
-  add_row(tibble(Variable = "Vaccination"), .before = 16) %>%
-  add_row(tibble(Variable = "D-dimer"), .before = 19) %>%
-  add_row(tibble(Variable = "Randomisation date"), .before = 23) %>%
-  add_row(tibble(Variable = "Country"), .before = 26) %>%
-  replace_na(replace = list(Variable = " ", Intervention = " ", ` ` = " ", `Odds ratio\n(95% CrI)` = " ", `events/patients` = " "))
-
-naf_ORdat <- ORdatmod %>%
-  rename(Nafamostat = `events/patients`) %>%
-  left_join(cnt_dat %>% filter(Intervention == "SoC") %>% 
-              mutate(Variable = paste0("   ", Variable)) %>% select(c(2, 4)), by = "Variable") %>%
-  rename(SoC = `events/patients`) %>%
-  replace_na(replace = list(SoC = paste(rep(" ", pad_width), collapse = ""), Nafamostat = paste(rep(" ", pad_width), collapse = "")))
-
-thm <- forestploter::forest_theme(
-    ci_pch = 19,
-    base_size = 8, 
-    ci_lwd = 1.5,
-    base_family = "Palatino",
-    title_just = "left")
-
-naf_pdat <-  naf_ORdat[, c(1, 11, 10, 7, 8)]
-colnames(naf_pdat)[4] <- "Odds ratio (median, 95% CrI)"
-colnames(naf_pdat)[5] <- " "
-naf_plot <- forestploter::forest(
-  naf_pdat,
-  est = ORdatmod$est,
-  lower = ORdatmod$lower,
-  upper = ORdatmod$upper,
-  ci_column = 4,
-  ref_line = 1,
-  arrow_lab = c("Nafamostat better", "SoC better"),
-  x_trans = "log",
-  xlim = c(0.05, 20),
-  ticks_at = c(0.1, 0.25, 0.5, 1, 2, 4, 10),
-  theme = thm
-)
-naf_plot <- forestploter::insert_text(
-  naf_plot,
-  text = "events/patients (proportion)",
-  col = 2:3,
-  part = "header",
-  before = FALSE,
-  gp = gpar(fontface = "bold", fontfamily = "Palatino", fontsize = 8))
-
-ggsave(
-  file.path("outputs", "figures", "outcomes", "subgroups", "subgroup-joint-fas-itt-2.pdf"),
-  naf_plot,
-  device = cairo_pdf,
-  width = 7,
-  height = 8,
-  dpi = 444
-)
-```
-
-```{r}
-#| label: fig-subgroup-plot-2
-#| fig-cap: Subgroup summary plot.
-naf_plot
-```
+<!-- # Subgroups -->
+
+<!-- ## Sex -->
+
+<!-- ```{r} -->
+<!-- fit1 <- glm(PO ~ randA * sexF + agegte60 + supp_oxy2, data = avs_itt_nona_dat, family = binomial()) -->
+<!-- fit2 <- glm( -->
+<!--   PO ~ randA * sexF + agegte60 + supp_oxy2,  -->
+<!--   data = avs_itt_nona_dat,  -->
+<!--   family = binomial(), -->
+<!--   contrasts = list(randA = contr.equalprior) -->
+<!-- ) -->
+<!-- b <- coef(fit1) -->
+<!-- b_star <- coef(fit2) -->
+<!-- b_trans <- c(MASS::ginv(unique(model.matrix(fit1))) %*% unique(model.matrix(fit2)) %*% b_star) -->
+<!-- names(b_trans) <- names(b) -->
+<!-- all.equal(b, b_trans) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| eval: false -->
+<!-- res <- brm(   -->
+<!--   PO ~ randA * sexF + agegte60 + supp_oxy2,  -->
+<!--   data = avs_itt_nona_dat,  -->
+<!--   prior = prior(normal(0, 10)),  -->
+<!--   family = bernoulli() -->
+<!-- ) -->
+<!-- b_mcmc <- rvar(as_draws_matrix(res))[1:6] -->
+<!-- (MASS::ginv(unique(model.matrix(fit1))) %*% unique(model.matrix(fit2))) %**% b_mcmc -->
+<!-- ``` -->
+
+<!-- ## FAS-ITT -->
+
+<!-- ### Base Model -->
+
+<!-- ```{r} -->
+<!-- X <- make_X_design( -->
+<!--   fas_itt_nona_dat,  -->
+<!--   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry"),  -->
+<!--   ctr = contr.equalprior) -->
+
+<!-- epoch <- fas_itt_nona_dat[["epoch"]] -->
+<!-- M_epoch <- max(epoch) -->
+<!-- region <- fas_itt_nona_dat[["ctry_num"]] -->
+<!-- M_region <- max(region) -->
+<!-- site <- fas_itt_nona_dat[["site_num"]] -->
+<!-- M_site <- max(site) -->
+<!-- region_by_site <- region_by_site <- fas_itt_nona_dat |> -->
+<!--   dplyr::count(ctry_num, site_num) |> -->
+<!--   pull(ctry_num) -->
+
+<!-- y_raw <- fas_itt_nona_dat[["PO"]] -->
+<!-- if(diff(range(y_raw)) == 1) { -->
+<!--   y_mod <- y_raw -->
+<!-- } else { -->
+<!--   y_raw <- ordered(y_raw) -->
+<!--   y_mod <- as.integer(ordered(y_raw)) -->
+<!-- } -->
+
+<!-- N <- dim(X)[1] -->
+<!-- K <- dim(X)[2] -->
+<!-- beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K, X = X, y = y_mod, y_raw = y_raw, -->
+<!--   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)), -->
+<!--   M_region = M_region, region = region, -->
+<!--   M_site = M_site, site = site, -->
+<!--   M_epoch = M_epoch, epoch = epoch, -->
+<!--   region_by_site = region_by_site, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mbase <- logistic_site_epoch[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 77821, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mbase$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- basedrws <- as_draws_rvars(mbase$draws(keep)) -->
+<!-- names(basedrws$beta) <- colnames(mdat$X) -->
+
+<!-- if(any(grepl("site", keep))) { -->
+<!--   site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)   -->
+<!--   names(basedrws$gamma_site) <- site_map$site -->
+<!-- } -->
+<!-- if(any(grepl("epoch", keep))) { -->
+<!--   epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)   -->
+<!--   names(basedrws$gamma_epoch) <- epoch_map$epoch_lab -->
+<!-- } -->
+<!-- # Transformed samples -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+<!-- Cc <- attr(mdat$X, "contrasts")$randC -->
+<!-- ``` -->
+
+<!-- ### Region -->
+
+<!-- ```{r} -->
+<!-- make_subgroup_country_table <- function(format = "html") { -->
+<!--   t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, ctry, format = format) %>% -->
+<!--     pack_rows("India", 1, 5) %>% -->
+<!--     pack_rows("Australia/New Zealand", 6, 10) %>% -->
+<!--     pack_rows("Nepal", 11, 15) -->
+<!--   t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, ctry, format = format) %>% -->
+<!--     pack_rows("India", 1, 3) %>% -->
+<!--     pack_rows("Australia/New Zealand", 4, 6) %>% -->
+<!--     pack_rows("Nepal", 7, 9) -->
+<!--   return(list(t1, t2)) -->
+<!-- } -->
+<!-- tab <- make_subgroup_country_table("latex") -->
+<!-- save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-country-descriptive-anticoagulation") -->
+<!-- save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-country-descriptive-antiviral") -->
+<!-- tab <- make_subgroup_country_table() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-region-anticoagulation -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by region. -->
+<!-- tab[[1]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-region-antiviral -->
+<!-- #| tbl-cap: Primary outcome by anti-viral intervention by region. -->
+<!-- tab[[2]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- X <- make_X_design( -->
+<!--   fas_itt_nona_dat,  -->
+<!--   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry"),  -->
+<!--   ctr = contr.equalprior) -->
+<!-- Xint <- cbind( -->
+<!--   X,  -->
+<!--   "randA1:ctryAU/NZ" = X[, 3] * X[, "ctryAU/NZ"], -->
+<!--   "randA1:ctryNP" = X[, 3] * X[, "ctryNP"] -->
+<!--   ) -->
+<!-- attr(Xint, "contrasts") <- attr(X, "contrasts") -->
+
+<!-- epoch <- fas_itt_nona_dat[["epoch"]] -->
+<!-- M_epoch <- max(epoch) -->
+<!-- region <- fas_itt_nona_dat[["ctry_num"]] -->
+<!-- M_region <- max(region) -->
+<!-- site <- fas_itt_nona_dat[["site_num"]] -->
+<!-- M_site <- max(site) -->
+<!-- region_by_site <- region_by_site <- fas_itt_nona_dat |> -->
+<!--   dplyr::count(ctry_num, site_num) |> -->
+<!--   pull(ctry_num) -->
+
+<!-- y_raw <- fas_itt_nona_dat[["PO"]] -->
+<!-- if(diff(range(y_raw)) == 1) { -->
+<!--   y_mod <- y_raw -->
+<!-- } else { -->
+<!--   y_raw <- ordered(y_raw) -->
+<!--   y_mod <- as.integer(ordered(y_raw)) -->
+<!-- } -->
+
+<!-- N <- dim(Xint)[1] -->
+<!-- K <- dim(Xint)[2] -->
+<!-- beta_sd <- c(2.5, c(1, 1, rep(1, 4)), 10, 2.5, 2.5, 2.5, 1, 1, 1, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw, -->
+<!--   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)), -->
+<!--   M_region = M_region, region = region, -->
+<!--   M_site = M_site, site = site, -->
+<!--   M_epoch = M_epoch, epoch = epoch, -->
+<!--   region_by_site = region_by_site, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_site_epoch[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 123, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+
+<!-- if(any(grepl("site", keep))) { -->
+<!--   site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)   -->
+<!--   names(mdrws$gamma_site) <- site_map$site -->
+<!-- } -->
+<!-- if(any(grepl("epoch", keep))) { -->
+<!--   epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)   -->
+<!--   names(mdrws$gamma_epoch) <- epoch_map$epoch_lab -->
+<!-- } -->
+<!-- # Transformed samples -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+<!-- Cc <- attr(mdat$X, "contrasts")$randC -->
+
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:ctryAU/NZ"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:ctryNP"]) -->
+<!-- ) -->
+<!-- labs <- c("India", "Australia/New Zealand", "Nepal") -->
+<!-- labs2 <- c("IN", "AU/NZ", "NP") -->
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- labs -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+
+<!-- OR_list[["Region"]] <- mdrws$OR %>%  -->
+<!--   as_tibble(rownames = "Levels") %>%  -->
+<!--   pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>% -->
+<!--   mutate(Subgroup = "Age", .before = 1) -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   Region = labs, -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   Region = labs -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- OR_region <- mdrws$OR -->
+<!-- rownames(OR_region) <- labs2 -->
+<!-- regiondat <- fas_itt_dat %>%  -->
+<!--   group_by(ctry, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "Region", -->
+<!--     Variable = ctry, -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment)), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-ctry, -AAssignment) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- p <- plot_subgroup_or( -->
+<!--   ordat %>%  -->
+<!--     mutate(Region = if_else(Region == "Australia/New Zealand", "Australia\nNew Zealand", Region)),  -->
+<!--   sym("Region")) -->
+<!-- ggsave( -->
+<!--   file.path("outputs", "figures", "outcomes", "primary", "fas-itt-subgroup-country-hte.pdf"), -->
+<!--   p, height = 3, width = 6, device = cairo_pdf) -->
+<!-- p -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(ordat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/country-odds-ratios") -->
+<!-- make_subgroup_summary_table(ordat) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(compdat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/country-odds-ratios-compare") -->
+<!-- make_subgroup_summary_table(compdat) -->
+<!-- ``` -->
+
+<!-- ### Age -->
+
+<!-- ```{r} -->
+<!-- make_subgroup_age_table <- function(format = "html") { -->
+<!--   t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, agegte60, format = format)  %>% -->
+<!--     pack_rows("Age < 60 years", 1, 5) %>% -->
+<!--     pack_rows("Age \u2265 60 years", 6, 10) -->
+<!--   t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, agegte60, format = format)  %>% -->
+<!--     pack_rows("Age < 60 years", 1, 3) %>% -->
+<!--     pack_rows("Age \u2265 60 years", 4, 6) -->
+<!--   return(list(t1, t2)) -->
+<!-- } -->
+<!-- tab <- make_subgroup_age_table("latex") -->
+<!-- save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-age-descriptive-anticoagulation") -->
+<!-- save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-age-descriptive-antiviral") -->
+<!-- tab <- make_subgroup_age_table() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup--age-anticoagulation -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by age. -->
+<!-- tab[[1]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-age-antiviral -->
+<!-- #| tbl-cap: Primary outcome by anti-viral intervention by age. -->
+<!-- tab[[2]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- X <- make_X_design( -->
+<!--   fas_itt_nona_dat,  -->
+<!--   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry"),  -->
+<!--   ctr = contr.equalprior) -->
+<!-- Xint <- cbind( -->
+<!--   X,  -->
+<!--   "randA:agegte60" = X[, 2] * X[, "agegte60"], -->
+<!--   "randA1:agegte60" = X[, 3] * X[, "agegte60"]) -->
+<!-- attr(Xint, "contrasts") <- attr(X, "contrasts") -->
+
+<!-- epoch <- fas_itt_nona_dat[["epoch"]] -->
+<!-- M_epoch <- max(epoch) -->
+<!-- region <- fas_itt_nona_dat[["ctry_num"]] -->
+<!-- M_region <- max(region) -->
+<!-- site <- fas_itt_nona_dat[["site_num"]] -->
+<!-- M_site <- max(site) -->
+<!-- region_by_site <- region_by_site <- fas_itt_nona_dat |> -->
+<!--   dplyr::count(ctry_num, site_num) |> -->
+<!--   pull(ctry_num) -->
+
+<!-- y_raw <- fas_itt_nona_dat[["PO"]] -->
+<!-- if(diff(range(y_raw)) == 1) { -->
+<!--   y_mod <- y_raw -->
+<!-- } else { -->
+<!--   y_raw <- ordered(y_raw) -->
+<!--   y_mod <- as.integer(ordered(y_raw)) -->
+<!-- } -->
+
+<!-- N <- dim(Xint)[1] -->
+<!-- K <- dim(Xint)[2] -->
+<!-- beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 1, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw, -->
+<!--   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)), -->
+<!--   M_region = M_region, region = region, -->
+<!--   M_site = M_site, site = site, -->
+<!--   M_epoch = M_epoch, epoch = epoch, -->
+<!--   region_by_site = region_by_site, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_site_epoch[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 77821, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+
+<!-- if(any(grepl("site", keep))) { -->
+<!--   site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)   -->
+<!--   names(mdrws$gamma_site) <- site_map$site -->
+<!-- } -->
+<!-- if(any(grepl("epoch", keep))) { -->
+<!--   epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)   -->
+<!--   names(mdrws$gamma_epoch) <- epoch_map$epoch_lab -->
+<!-- } -->
+<!-- # Transformed samples -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+<!-- Cc <- attr(mdat$X, "contrasts")$randC -->
+
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:agegte60"]) -->
+<!-- ) -->
+<!-- labs <- c("Age < 60", "Age \u2265 60") -->
+<!-- labs2 <- c("< 60 yr", "\u2265 60 yr") -->
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- labs -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+
+<!-- OR_list[["Age"]] <- mdrws$OR %>%  -->
+<!--   as_tibble(rownames = "Levels") %>%  -->
+<!--   pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>% -->
+<!--   mutate(Subgroup = "Age", .before = 1) -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   Age = labs, -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   Age = labs -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- OR_age <- mdrws$OR -->
+<!-- rownames(OR_age) <- labs2 -->
+<!-- agedat <- fas_itt_dat %>%  -->
+<!--   group_by(agegte60, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "Age", -->
+<!--     Variable = as.character(factor(as.numeric(agegte60), levels = 0:1, labels = labs2)), -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment)), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-agegte60, -AAssignment) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- y_ppc <- mdrws$y_ppc -->
+<!-- ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
+<!-- p <- plot_ppc(grp_ppc(sym("agegte60"), sgroup_labs_shrt$Age), "Age")  -->
+<!-- ggsave( -->
+<!--   file.path( -->
+<!--     "outputs", "figures", "outcomes", "primary", "subgroup", -->
+<!--     "fas-itt-subgroup-age-hte-ppc.pdf"), -->
+<!--   grid.arrange(p), height = 2.5, width = 6, device = cairo_pdf -->
+<!-- ) -->
+<!-- grid.arrange(p) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- p <- plot_subgroup_or(ordat, sym("Age")) -->
+<!-- ggsave( -->
+<!--   file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-age-hte.pdf"), -->
+<!--   p, height = 2.5, width = 6, device = cairo_pdf) -->
+<!-- p -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(ordat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-age-odds-ratios") -->
+<!-- make_subgroup_summary_table(ordat) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(compdat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-age-odds-ratios-compare") -->
+<!-- make_subgroup_summary_table(compdat) -->
+<!-- ``` -->
+
+<!-- ### Days since symptom onset -->
+
+<!-- ```{r} -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by days since first symptom group. -->
+<!-- make_subgroup_dsfs_table <- function(format = "html") { -->
+<!--   t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, dsfsgt7, format = format)  %>% -->
+<!--     pack_rows("Days since first symptoms \u2264 7", 1, 5) %>% -->
+<!--     pack_rows("Days since first symptoms > 7", 6, 10) -->
+<!--   t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, dsfsgt7, format = format)  %>% -->
+<!--     pack_rows("Days since first symptoms \u2264 7", 1, 3) %>% -->
+<!--     pack_rows("Days since first symptoms > 7", 4, 6) -->
+<!--   return(list(t1, t2)) -->
+<!-- } -->
+<!-- tab <- make_subgroup_dsfs_table("latex") -->
+<!-- save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-dsfs-descriptive-anticoagulation") -->
+<!-- save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-dsfs-descriptive-antiviral") -->
+<!-- tab <- make_subgroup_dsfs_table() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-dsfs-anticoagulation -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by DSFS -->
+<!-- tab[[1]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-dsfs-antiviral -->
+<!-- #| tbl-cap: Primary outcome by anti-viral intervention by DSFS -->
+<!-- tab[[2]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- X <- make_X_design( -->
+<!--   fas_itt_nona_dat,  -->
+<!--   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "dsfsgt7"),  -->
+<!--   ctr = contr.equalprior) -->
+<!-- Xint <- cbind( -->
+<!--   X,  -->
+<!--   "randA:dsfsgt7" = X[, 2] * X[, "dsfsgt7"], -->
+<!--   "randA1:dsfsgt7" = X[, 3] * X[, "dsfsgt7"]) -->
+<!-- attr(Xint, "contrasts") <- attr(X, "contrasts") -->
+
+<!-- epoch <- fas_itt_nona_dat[["epoch"]] -->
+<!-- M_epoch <- max(epoch) -->
+<!-- region <- fas_itt_nona_dat[["ctry_num"]] -->
+<!-- M_region <- max(region) -->
+<!-- site <- fas_itt_nona_dat[["site_num"]] -->
+<!-- M_site <- max(site) -->
+<!-- region_by_site <- region_by_site <- fas_itt_nona_dat |> -->
+<!--   dplyr::count(ctry_num, site_num) |> -->
+<!--   pull(ctry_num) -->
+
+<!-- y_raw <- fas_itt_nona_dat[["PO"]] -->
+<!-- if(diff(range(y_raw)) == 1) { -->
+<!--   y_mod <- y_raw -->
+<!-- } else { -->
+<!--   y_raw <- ordered(y_raw) -->
+<!--   y_mod <- as.integer(ordered(y_raw)) -->
+<!-- } -->
+
+<!-- N <- dim(Xint)[1] -->
+<!-- K <- dim(Xint)[2] -->
+<!-- beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw, -->
+<!--   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)), -->
+<!--   M_region = M_region, region = region, -->
+<!--   M_site = M_site, site = site, -->
+<!--   M_epoch = M_epoch, epoch = epoch, -->
+<!--   region_by_site = region_by_site, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_site_epoch[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 77821, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+
+<!-- if(any(grepl("site", keep))) { -->
+<!--   site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)   -->
+<!--   names(mdrws$gamma_site) <- site_map$site -->
+<!-- } -->
+<!-- if(any(grepl("epoch", keep))) { -->
+<!--   epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)   -->
+<!--   names(mdrws$gamma_epoch) <- epoch_map$epoch_lab -->
+<!-- } -->
+<!-- # Transformed samples -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+<!-- Cc <- attr(mdat$X, "contrasts")$randC -->
+
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:dsfsgt7"]) -->
+<!-- ) -->
+<!-- labs <- c("Days from symptom onset \u2264 7", "Days from symptom onset > 7") -->
+<!-- labs2 <- c("\u2264 7", "> 7") -->
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- labs -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+
+<!-- OR_list[["Days since first symptoms"]] <- mdrws$OR %>%  -->
+<!--   as_tibble(rownames = "Levels") %>%  -->
+<!--   pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>% -->
+<!--   mutate(Subgroup = "Days since first symptoms", .before = 1) -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Days since symptom onset` = labs, -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- # Summarise comparison of effects (reference is India) -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Days since symptom onset` = labs -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- OR_dsfs <- mdrws$OR -->
+<!-- rownames(OR_dsfs) <- labs2 -->
+<!-- dsfsdat <- fas_itt_dat %>%  -->
+<!--   group_by(dsfsgt7, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "DSFS", -->
+<!--     Variable = as.character(factor(as.numeric(dsfsgt7), levels = 0:1, labels = labs2)), -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment)), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-dsfsgt7, -AAssignment) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- y_ppc <- mdrws$y_ppc -->
+<!-- ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
+<!-- p <- plot_ppc(grp_ppc(sym("dsfsgt7"), sgroup_labs_shrt$DSFS), "Days since first symptoms")  -->
+<!-- ggsave( -->
+<!--   file.path( -->
+<!--     "outputs", "figures", "outcomes", "primary", "subgroup",  -->
+<!--     "fas-itt-subgroup-dsfs-hte-ppc.pdf"), -->
+<!--   grid.arrange(p), height = 2, width = 6, device = cairo_pdf -->
+<!-- ) -->
+<!-- grid.arrange(p) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- p <- plot_subgroup_or(ordat, sym("Days since symptom onset")) -->
+<!-- ggsave( -->
+<!--   file.path( -->
+<!--     "outputs", "figures", "outcomes", "primary", "subgroup", -->
+<!--     "fas-itt-subgroup-dsfs-hte.pdf"), -->
+<!--   p, height = 2.5, width = 6, device = cairo_pdf) -->
+<!-- p -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(ordat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-dsfs-odds-ratios") -->
+<!-- make_subgroup_summary_table(ordat) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(compdat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-dsfs-odds-ratios-compare") -->
+<!-- make_subgroup_summary_table(compdat) -->
+<!-- ``` -->
+
+<!-- ### On Room Air and Oxygen Saturation -->
+
+<!-- ```{r} -->
+<!-- make_subgroup_oxy_table <- function(format = "html") { -->
+<!--   t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, supp_oxy2, format = format)  %>% -->
+<!--     pack_rows("Did not required supplemental oxygen", 1, 5) %>% -->
+<!--     pack_rows("Required supplemental oxygen", 6, 10) -->
+<!--   t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, supp_oxy2, format = format)  %>% -->
+<!--     pack_rows("Did not required supplemental oxygen", 1, 3) %>% -->
+<!--     pack_rows("Required supplemental oxygen", 4, 6) -->
+<!--   return(list(t1, t2)) -->
+<!-- } -->
+<!-- tab <- make_subgroup_oxy_table("latex") -->
+<!-- save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-oxygen-descriptive-anticoagulation") -->
+<!-- save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-oxygen-descriptive-antiviral") -->
+<!-- tab <- make_subgroup_oxy_table() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-oxygen-anticoagulation -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by oxygen requirement. -->
+<!-- tab[[1]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-oxygen-antiviral -->
+<!-- #| tbl-cap: Primary outcome by anti-viral intervention by oxygen requirement. -->
+<!-- tab[[2]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- X <- make_X_design( -->
+<!--   fas_itt_nona_dat,  -->
+<!--   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry"),  -->
+<!--   ctr = contr.equalprior) -->
+<!-- Xint <- cbind( -->
+<!--   X,  -->
+<!--   "randA:supp_oxy2" = X[, 2] * X[, "supp_oxy2"], -->
+<!--   "randA1:supp_oxy2" = X[, 3] * X[, "supp_oxy2"]) -->
+<!-- attr(Xint, "contrasts") <- attr(X, "contrasts") -->
+
+<!-- epoch <- fas_itt_nona_dat[["epoch"]] -->
+<!-- M_epoch <- max(epoch) -->
+<!-- region <- fas_itt_nona_dat[["ctry_num"]] -->
+<!-- M_region <- max(region) -->
+<!-- site <- fas_itt_nona_dat[["site_num"]] -->
+<!-- M_site <- max(site) -->
+<!-- region_by_site <- region_by_site <- fas_itt_nona_dat |> -->
+<!--   dplyr::count(ctry_num, site_num) |> -->
+<!--   pull(ctry_num) -->
+
+<!-- y_raw <- fas_itt_nona_dat[["PO"]] -->
+<!-- if(diff(range(y_raw)) == 1) { -->
+<!--   y_mod <- y_raw -->
+<!-- } else { -->
+<!--   y_raw <- ordered(y_raw) -->
+<!--   y_mod <- as.integer(ordered(y_raw)) -->
+<!-- } -->
+
+<!-- N <- dim(Xint)[1] -->
+<!-- K <- dim(Xint)[2] -->
+<!-- beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 1, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw, -->
+<!--   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)), -->
+<!--   M_region = M_region, region = region, -->
+<!--   M_site = M_site, site = site, -->
+<!--   M_epoch = M_epoch, epoch = epoch, -->
+<!--   region_by_site = region_by_site, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_site_epoch[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 77821, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+
+<!-- if(any(grepl("site", keep))) { -->
+<!--   site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)   -->
+<!--   names(mdrws$gamma_site) <- site_map$site -->
+<!-- } -->
+<!-- if(any(grepl("epoch", keep))) { -->
+<!--   epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)   -->
+<!--   names(mdrws$gamma_epoch) <- epoch_map$epoch_lab -->
+<!-- } -->
+<!-- # Transformed samples -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+<!-- Cc <- attr(mdat$X, "contrasts")$randC -->
+
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:supp_oxy2"]) -->
+<!-- ) -->
+<!-- labs <- c("Did not require supplemental oxygen", "Required supplemental oxygen") -->
+<!-- labs2 <- c("Room air and SpO2 ≥ 94%", "Not room air or SpO2 < 94% on RA") -->
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- labs -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+
+<!-- OR_list[["Supplemental oxygen"]] <- mdrws$OR %>%  -->
+<!--   as_tibble(rownames = "Levels") %>%  -->
+<!--   pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>% -->
+<!--   mutate(Subgroup = "Supplemental oxygen", .before = 1) -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Supplemental oxygen` = labs, -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- # Summarise comparison of effects (reference is India) -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Supplemental oxygen` = labs -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- OR_oxy <- mdrws$OR -->
+<!-- rownames(OR_oxy) <- labs2 -->
+<!-- oxydat <- fas_itt_dat %>%  -->
+<!--   group_by(supp_oxy2, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "Oxygen", -->
+<!--     Variable = as.character(factor(as.numeric(supp_oxy2), levels = 0:1, labels = labs2)), -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment)), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-supp_oxy2, -AAssignment) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- y_ppc <- mdrws$y_ppc -->
+<!-- ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
+<!-- p <- plot_ppc(grp_ppc(sym("supp_oxy2"), sgroup_labs_shrt$Oxygen), "Supplemental oxygen")  -->
+<!-- ggsave( -->
+<!--   file.path( -->
+<!--     "outputs", "figures", "outcomes", "primary", "subgroup",  -->
+<!--     "fas-itt-subgroup-oxygen-hte-ppc.pdf"), -->
+<!--   grid.arrange(p), height = 2, width = 6, device = cairo_pdf -->
+<!-- ) -->
+<!-- grid.arrange(p) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- p <- plot_subgroup_or(ordat, sym("Supplemental oxygen")) -->
+<!-- ggsave( -->
+<!--   file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-oxygen-hte.pdf"), -->
+<!--   p, height = 3, width = 6, device = cairo_pdf) -->
+<!-- p -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(ordat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-oxygen-odds-ratios") -->
+<!-- make_subgroup_summary_table(ordat) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(compdat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-oxygen-odds-ratios-compare") -->
+<!-- make_subgroup_summary_table(compdat) -->
+<!-- ``` -->
+
+<!-- ### Received corticosteroids -->
+
+<!-- It is noted that receipt of corticosteroids is a post-randomisation event, and therefore may be affected by both the assigned treatment and the patients progression making interpretation difficult. -->
+
+<!-- ```{r} -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention bysteroids. -->
+<!-- make_subgroup_steroids_table <- function(format = "html") { -->
+<!--   t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, rec_steroids, format = format)  %>% -->
+<!--     pack_rows("Did not receive corticosteroids", 1, 5) %>% -->
+<!--     pack_rows("Received corticosteroids", 6, 10) -->
+<!--   t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, rec_steroids, format = format)  %>% -->
+<!--     pack_rows("Did not receive corticosteroids", 1, 3) %>% -->
+<!--     pack_rows("Received corticosteroids", 4, 6) -->
+<!--   return(list(t1, t2)) -->
+<!-- } -->
+<!-- tab <- make_subgroup_steroids_table("latex") -->
+<!-- save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-steroids-descriptive-anticoagulation") -->
+<!-- save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-steroids-descriptive-antiviral") -->
+<!-- tab <- make_subgroup_steroids_table() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-steroids-anticoagulation -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by steroids. -->
+<!-- tab[[1]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-steroids-antiviral -->
+<!-- #| tbl-cap: Primary outcome by anti-viral intervention by steroids. -->
+<!-- tab[[2]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- X <- make_X_design( -->
+<!--   fas_itt_nona_dat,  -->
+<!--   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "rec_steroids"),  -->
+<!--   ctr = contr.equalprior) -->
+<!-- Xint <- cbind( -->
+<!--   X,  -->
+<!--   "randA:rec_steroids" = X[, 2] * X[, "rec_steroids"], -->
+<!--   "randA1:rec_steroids" = X[, 3] * X[, "rec_steroids"]) -->
+<!-- attr(Xint, "contrasts") <- attr(X, "contrasts") -->
+
+<!-- epoch <- fas_itt_nona_dat[["epoch"]] -->
+<!-- M_epoch <- max(epoch) -->
+<!-- region <- fas_itt_nona_dat[["ctry_num"]] -->
+<!-- M_region <- max(region) -->
+<!-- site <- fas_itt_nona_dat[["site_num"]] -->
+<!-- M_site <- max(site) -->
+<!-- region_by_site <- region_by_site <- fas_itt_nona_dat |> -->
+<!--   dplyr::count(ctry_num, site_num) |> -->
+<!--   pull(ctry_num) -->
+
+<!-- y_raw <- fas_itt_nona_dat[["PO"]] -->
+<!-- if(diff(range(y_raw)) == 1) { -->
+<!--   y_mod <- y_raw -->
+<!-- } else { -->
+<!--   y_raw <- ordered(y_raw) -->
+<!--   y_mod <- as.integer(ordered(y_raw)) -->
+<!-- } -->
+
+<!-- N <- dim(Xint)[1] -->
+<!-- K <- dim(Xint)[2] -->
+<!-- beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw, -->
+<!--   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)), -->
+<!--   M_region = M_region, region = region, -->
+<!--   M_site = M_site, site = site, -->
+<!--   M_epoch = M_epoch, epoch = epoch, -->
+<!--   region_by_site = region_by_site, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_site_epoch[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 77821, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+
+<!-- if(any(grepl("site", keep))) { -->
+<!--   site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)   -->
+<!--   names(mdrws$gamma_site) <- site_map$site -->
+<!-- } -->
+<!-- if(any(grepl("epoch", keep))) { -->
+<!--   epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)   -->
+<!--   names(mdrws$gamma_epoch) <- epoch_map$epoch_lab -->
+<!-- } -->
+<!-- # Transformed samples -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+<!-- Cc <- attr(mdat$X, "contrasts")$randC -->
+
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:rec_steroids"]) -->
+<!-- ) -->
+<!-- labs <- c("Did not receive corticosteroids", "Received corticosteroids") -->
+<!-- labs2 <- c("Did not receive", "Received") -->
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- labs -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+
+<!-- OR_list[["Received corticosteroids"]] <- mdrws$OR %>%  -->
+<!--   as_tibble(rownames = "Levels") %>%  -->
+<!--   pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>% -->
+<!--   mutate(Subgroup = "Received\ncorticosteroids", .before = 1) -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Received corticosteroids` = labs, -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- # Summarise comparison of effects (reference is India) -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Received corticosteroids` = labs -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- OR_steroids <- mdrws$OR -->
+<!-- steroidsdat <- fas_itt_dat %>%  -->
+<!--   group_by(rec_steroids, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "Steroids", -->
+<!--     Variable = as.character(factor(as.numeric(rec_steroids), levels = 0:1, labels = labs)), -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment)), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-rec_steroids, -AAssignment) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- y_ppc <- mdrws$y_ppc -->
+<!-- ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
+<!-- p <- plot_ppc(grp_ppc(sym("rec_steroids"), labs2), "Corticosteroids")  -->
+<!-- ggsave( -->
+<!--   file.path( -->
+<!--     "outputs", "figures", "outcomes", "primary", "subgroup",  -->
+<!--     "fas-itt-subgroup-steroids-hte-ppc.pdf"), -->
+<!--   grid.arrange(p), height = 2, width = 6, device = cairo_pdf -->
+<!-- ) -->
+<!-- grid.arrange(p) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- p <- plot_subgroup_or(ordat, sym("Received corticosteroids")) -->
+<!-- ggsave( -->
+<!--   file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-steroids-hte.pdf"), -->
+<!--   p, height = 3, width = 6, device = cairo_pdf) -->
+<!-- p -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(ordat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-steroids-odds-ratios") -->
+<!-- make_subgroup_summary_table(ordat) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(compdat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-steroids-odds-ratios-compare") -->
+<!-- make_subgroup_summary_table(compdat) -->
+<!-- ``` -->
+
+<!-- ### Received remdesivir -->
+
+<!-- It is noted that receipt of remdesivir is a post-randomisation event, and therefore may be affected by both the assigned treatment and the patients progression making interpretation difficult. -->
+
+<!-- ```{r} -->
+<!-- make_subgroup_remdesivir_table <- function(format = "html") { -->
+<!--   t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, rec_remdesivir, format = format)  %>% -->
+<!--     pack_rows("Did not receive remdesivir", 1, 5) %>% -->
+<!--     pack_rows("Received remdesivir", 6, 10) -->
+<!--   t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, rec_remdesivir, format = format)  %>% -->
+<!--     pack_rows("Did not receive remdesivir", 1, 3) %>% -->
+<!--     pack_rows("Received remdesivir", 4, 6) -->
+<!--   return(list(t1, t2)) -->
+<!-- } -->
+<!-- tab <- make_subgroup_remdesivir_table("latex") -->
+<!-- save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-remdesivir-descriptive-anticoagulation") -->
+<!-- save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-remdesivir-descriptive-antiviral") -->
+<!-- tab <- make_subgroup_remdesivir_table() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-remdesivir-anticoagulation -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by remdesivir. -->
+<!-- tab[[1]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-remdesivir-antiviral -->
+<!-- #| tbl-cap: Primary outcome by anti-viral intervention by remdesivir. -->
+<!-- tab[[2]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- X <- make_X_design( -->
+<!--   fas_itt_nona_dat,  -->
+<!--   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "rec_remdesivir"),  -->
+<!--   ctr = contr.equalprior) -->
+<!-- Xint <- cbind( -->
+<!--   X,  -->
+<!--   "randA:rec_remdesivir" = X[, 2] * X[, "rec_remdesivir"], -->
+<!--   "randA1:rec_remdesivir" = X[, 3] * X[, "rec_remdesivir"]) -->
+<!-- attr(Xint, "contrasts") <- attr(X, "contrasts") -->
+
+<!-- epoch <- fas_itt_nona_dat[["epoch"]] -->
+<!-- M_epoch <- max(epoch) -->
+<!-- region <- fas_itt_nona_dat[["ctry_num"]] -->
+<!-- M_region <- max(region) -->
+<!-- site <- fas_itt_nona_dat[["site_num"]] -->
+<!-- M_site <- max(site) -->
+<!-- region_by_site <- region_by_site <- fas_itt_nona_dat |> -->
+<!--   dplyr::count(ctry_num, site_num) |> -->
+<!--   pull(ctry_num) -->
+
+<!-- y_raw <- fas_itt_nona_dat[["PO"]] -->
+<!-- if(diff(range(y_raw)) == 1) { -->
+<!--   y_mod <- y_raw -->
+<!-- } else { -->
+<!--   y_raw <- ordered(y_raw) -->
+<!--   y_mod <- as.integer(ordered(y_raw)) -->
+<!-- } -->
+
+<!-- N <- dim(Xint)[1] -->
+<!-- K <- dim(Xint)[2] -->
+<!-- beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw, -->
+<!--   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)), -->
+<!--   M_region = M_region, region = region, -->
+<!--   M_site = M_site, site = site, -->
+<!--   M_epoch = M_epoch, epoch = epoch, -->
+<!--   region_by_site = region_by_site, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_site_epoch[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 77821, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+
+<!-- if(any(grepl("site", keep))) { -->
+<!--   site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)   -->
+<!--   names(mdrws$gamma_site) <- site_map$site -->
+<!-- } -->
+<!-- if(any(grepl("epoch", keep))) { -->
+<!--   epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)   -->
+<!--   names(mdrws$gamma_epoch) <- epoch_map$epoch_lab -->
+<!-- } -->
+<!-- # Transformed samples -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+<!-- Cc <- attr(mdat$X, "contrasts")$randC -->
+
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:rec_remdesivir"]) -->
+<!-- ) -->
+<!-- labs <- c("Did not receive remdesivir", "Received remdesivir") -->
+<!-- labs2 <- c("Did not receive", "Received") -->
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- labs -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+
+<!-- OR_list[["Received remdesivir"]] <- mdrws$OR %>%  -->
+<!--   as_tibble(rownames = "Levels") %>%  -->
+<!--   pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>% -->
+<!--   mutate(Subgroup = "Received\nremdesivir", .before = 1) -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Received remdesivir` = labs, -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- # Summarise comparison of effects (reference is India) -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Received remdesivir` = labs -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- OR_rem <- mdrws$OR -->
+<!-- remdat <- fas_itt_dat %>%  -->
+<!--   group_by(rec_remdesivir, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "Remdesivir", -->
+<!--     Variable = as.character(factor(as.numeric(rec_remdesivir), levels = 0:1, labels = labs)), -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment)), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-rec_remdesivir, -AAssignment) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- y_ppc <- mdrws$y_ppc -->
+<!-- ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
+<!-- p <- plot_ppc(grp_ppc(sym("rec_remdesivir"), labs2), "Remdesivir")  -->
+<!-- ggsave( -->
+<!--   file.path( -->
+<!--     "outputs", "figures", "outcomes", "primary", "subgroup",  -->
+<!--     "fas-itt-subgroup-remdesivir-hte-ppc.pdf"), -->
+<!--   grid.arrange(p), height = 2, width = 6, device = cairo_pdf -->
+<!-- ) -->
+<!-- grid.arrange(p) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- p <- plot_subgroup_or(ordat, sym("Received remdesivir")) -->
+<!-- ggsave( -->
+<!--   file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-remdesivir-hte.pdf"), -->
+<!--   p, height = 3, width = 6, device = cairo_pdf) -->
+<!-- p -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(ordat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-remdesivir-odds-ratios") -->
+<!-- make_subgroup_summary_table(ordat) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(compdat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-remdesivir-odds-ratios-compare") -->
+<!-- make_subgroup_summary_table(compdat) -->
+<!-- ``` -->
+
+<!-- ### Receipt of other agent intended to be an antiviral agent against SARS-CoV-2 -->
+
+<!-- ```{r} -->
+<!-- make_subgroup_antiviral_table <- function(format = "html") { -->
+<!--   t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, rec_antiviral, format = format)  %>% -->
+<!--     pack_rows("Did not receive other antiviral", 1, 5) %>% -->
+<!--     pack_rows("Received other antiviral", 6, 10) -->
+<!--   t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, rec_antiviral, format = format)  %>% -->
+<!--     pack_rows("Did not receive other antiviral", 1, 3) %>% -->
+<!--     pack_rows("Received other antiviral", 4, 6) -->
+<!--   return(list(t1, t2)) -->
+<!-- } -->
+<!-- tab <- make_subgroup_antiviral_table("latex") -->
+<!-- save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-antiviral-descriptive-anticoagulation") -->
+<!-- save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-antiviral-descriptive-antiviral") -->
+<!-- tab <- make_subgroup_antiviral_table() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-other-antiviral-anticoagulation -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by other antiviral -->
+<!-- tab[[1]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-other-antiviral-antiviral -->
+<!-- #| tbl-cap: Primary outcome by anti-viral intervention by other antiviral. -->
+<!-- tab[[2]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- X <- make_X_design( -->
+<!--   fas_itt_nona_dat,  -->
+<!--   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "rec_antiviral"),  -->
+<!--   ctr = contr.equalprior) -->
+<!-- Xint <- cbind( -->
+<!--   X,  -->
+<!--   "randA:rec_antiviral" = X[, 2] * X[, "rec_antiviral"], -->
+<!--   "randA1:rec_antiviral" = X[, 3] * X[, "rec_antiviral"]) -->
+<!-- attr(Xint, "contrasts") <- attr(X, "contrasts") -->
+
+<!-- epoch <- fas_itt_nona_dat[["epoch"]] -->
+<!-- M_epoch <- max(epoch) -->
+<!-- region <- fas_itt_nona_dat[["ctry_num"]] -->
+<!-- M_region <- max(region) -->
+<!-- site <- fas_itt_nona_dat[["site_num"]] -->
+<!-- M_site <- max(site) -->
+<!-- region_by_site <- region_by_site <- fas_itt_nona_dat |> -->
+<!--   dplyr::count(ctry_num, site_num) |> -->
+<!--   pull(ctry_num) -->
+
+<!-- y_raw <- fas_itt_nona_dat[["PO"]] -->
+<!-- if(diff(range(y_raw)) == 1) { -->
+<!--   y_mod <- y_raw -->
+<!-- } else { -->
+<!--   y_raw <- ordered(y_raw) -->
+<!--   y_mod <- as.integer(ordered(y_raw)) -->
+<!-- } -->
+
+<!-- N <- dim(Xint)[1] -->
+<!-- K <- dim(Xint)[2] -->
+<!-- beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw, -->
+<!--   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)), -->
+<!--   M_region = M_region, region = region, -->
+<!--   M_site = M_site, site = site, -->
+<!--   M_epoch = M_epoch, epoch = epoch, -->
+<!--   region_by_site = region_by_site, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_site_epoch[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 77821, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+
+<!-- if(any(grepl("site", keep))) { -->
+<!--   site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)   -->
+<!--   names(mdrws$gamma_site) <- site_map$site -->
+<!-- } -->
+<!-- if(any(grepl("epoch", keep))) { -->
+<!--   epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)   -->
+<!--   names(mdrws$gamma_epoch) <- epoch_map$epoch_lab -->
+<!-- } -->
+<!-- # Transformed samples -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+<!-- Cc <- attr(mdat$X, "contrasts")$randC -->
+
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:rec_antiviral"]) -->
+<!-- ) -->
+<!-- labs <- c("Did not receive other antivirals", "Received other antivirals") -->
+<!-- labs2 <- c("Did not receive", "Received") -->
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- labs -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+
+<!-- OR_list[["Received other antiviral"]] <- mdrws$OR %>%  -->
+<!--   as_tibble(rownames = "Levels") %>%  -->
+<!--   pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>% -->
+<!--   mutate(Subgroup = "Received\nother antiviral", .before = 1) -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Received other antiviral` = labs, -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- # Summarise comparison of effects (reference is India) -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Received other antiviral` = labs -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- OR_antiviral <- mdrws$OR -->
+<!-- antiviraldat <- fas_itt_dat %>%  -->
+<!--   group_by(rec_antiviral, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "Other antiviral", -->
+<!--     Variable = as.character(factor(as.numeric(rec_antiviral), levels = 0:1, labels = labs)), -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment)), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-rec_antiviral, -AAssignment) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- y_ppc <- mdrws$y_ppc -->
+<!-- ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
+<!-- p <- plot_ppc(grp_ppc(sym("rec_antiviral"), labs2), "Other antiviral")  -->
+<!-- ggsave( -->
+<!--   file.path( -->
+<!--     "outputs", "figures", "outcomes", "primary", "subgroup",  -->
+<!--     "fas-itt-subgroup-antiviral-hte-ppc.pdf"), -->
+<!--   grid.arrange(p), height = 2, width = 6, device = cairo_pdf -->
+<!-- ) -->
+<!-- grid.arrange(p) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- library(scales) -->
+<!-- p <- plot_subgroup_or(ordat, sym("Received other antiviral")) +  -->
+<!--   scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x),  -->
+<!--                 labels = trans_format("log10", scales::math_format(10^.x))) -->
+<!-- ggsave( -->
+<!--   file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-antiviral-hte.pdf"), -->
+<!--   p, height = 3, width = 6, device = cairo_pdf) -->
+<!-- p -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(ordat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-antiviral-odds-ratios") -->
+<!-- make_subgroup_summary_table(ordat) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(compdat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-antiviral-odds-ratios-compare") -->
+<!-- make_subgroup_summary_table(compdat) -->
+<!-- ``` -->
+
+<!-- ### Vaccination Status -->
+
+<!-- ```{r} -->
+<!-- make_subgroup_vax_table <- function(format = "html") { -->
+<!--   t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, vax, format = format)  %>% -->
+<!--     pack_rows("Not vaccinated", 1, 5) %>% -->
+<!--     pack_rows("Vaccinated", 6, 10) %>% -->
+<!--     pack_rows("Unknown", 11, 15) -->
+<!--   t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, vax, format = format)  %>% -->
+<!--     pack_rows("Not vaccinated", 1, 3) %>% -->
+<!--     pack_rows("Vaccinated", 4, 6) %>% -->
+<!--     pack_rows("Unknown", 7, 9) -->
+<!--   return(list(t1, t2)) -->
+<!-- } -->
+<!-- tab <- make_subgroup_vax_table("latex") -->
+<!-- save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-vax-descriptive-anticoagulation") -->
+<!-- save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-vax-descriptive-antiviral") -->
+<!-- tab <- make_subgroup_vax_table() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-vax-anticoagulation -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by vaccination. -->
+<!-- tab[[1]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-vax-antiviral -->
+<!-- #| tbl-cap: Primary outcome by anti-viral intervention by vaccination. -->
+<!-- tab[[2]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- X <- make_X_design( -->
+<!--   fas_itt_nona_dat,  -->
+<!--   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "vaxfac"),  -->
+<!--   ctr = contr.equalprior) -->
+<!-- Xint <- cbind( -->
+<!--   X,  -->
+<!--   "randA:vaxfacYes" = X[, 2] * X[, "vaxfacYes"], -->
+<!--   "randA1:vaxfacYes" = X[, 3] * X[, "vaxfacYes"]) -->
+<!-- attr(Xint, "contrasts") <- attr(X, "contrasts") -->
+
+<!-- epoch <- fas_itt_nona_dat[["epoch"]] -->
+<!-- M_epoch <- max(epoch) -->
+<!-- region <- fas_itt_nona_dat[["ctry_num"]] -->
+<!-- M_region <- max(region) -->
+<!-- site <- fas_itt_nona_dat[["site_num"]] -->
+<!-- M_site <- max(site) -->
+<!-- region_by_site <- region_by_site <- fas_itt_nona_dat |> -->
+<!--   dplyr::count(ctry_num, site_num) |> -->
+<!--   pull(ctry_num) -->
+
+<!-- y_raw <- fas_itt_nona_dat[["PO"]] -->
+<!-- if(diff(range(y_raw)) == 1) { -->
+<!--   y_mod <- y_raw -->
+<!-- } else { -->
+<!--   y_raw <- ordered(y_raw) -->
+<!--   y_mod <- as.integer(ordered(y_raw)) -->
+<!-- } -->
+
+<!-- N <- dim(Xint)[1] -->
+<!-- K <- dim(Xint)[2] -->
+<!-- beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 2.5, 1, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw, -->
+<!--   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)), -->
+<!--   M_region = M_region, region = region, -->
+<!--   M_site = M_site, site = site, -->
+<!--   M_epoch = M_epoch, epoch = epoch, -->
+<!--   region_by_site = region_by_site, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_site_epoch[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 77821, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+
+<!-- if(any(grepl("site", keep))) { -->
+<!--   site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)   -->
+<!--   names(mdrws$gamma_site) <- site_map$site -->
+<!-- } -->
+<!-- if(any(grepl("epoch", keep))) { -->
+<!--   epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)   -->
+<!--   names(mdrws$gamma_epoch) <- epoch_map$epoch_lab -->
+<!-- } -->
+<!-- # Transformed samples -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+<!-- Cc <- attr(mdat$X, "contrasts")$randC -->
+
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:vaxfacYes"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]) -->
+<!-- ) -->
+<!-- labs <- c("Not vaccinated", "Vaccinated", "Unknown") -->
+<!-- labs2 <- c("Not vaccinated", "Vaccinated", "Unknown status") -->
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- labs -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+
+<!-- OR_list[["Vaccination status"]] <- mdrws$OR %>%  -->
+<!--   as_tibble(rownames = "Levels") %>%  -->
+<!--   pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>% -->
+<!--   mutate(Subgroup = "Vaccination\nstatus", .before = 1) -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Vaccination status` = fct_inorder(labs), -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- # Summarise comparison of effects (reference is India) -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Vaccination status` = fct_inorder(labs) -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- OR_vax <- mdrws$OR -->
+<!-- rownames(OR_vax) <- labs2 -->
+<!-- vaxdat <- fas_itt_dat %>%  -->
+<!--   group_by(vaxfac, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "Vaccination", -->
+<!--     Variable = as.character(factor(as.numeric(vaxfac), levels = 1:3, labels = labs2)), -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment)), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-vaxfac, -AAssignment) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- y_ppc <- mdrws$y_ppc -->
+<!-- ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
+<!-- p <- plot_ppc(grp_ppc(sym("vaxfac"), labs2), "Vaccination status")  -->
+<!-- ggsave( -->
+<!--   file.path( -->
+<!--     "outputs", "figures", "outcomes", "primary", "subgroup",  -->
+<!--     "fas-itt-subgroup-vax-hte-ppc.pdf"), -->
+<!--   grid.arrange(p), height = 2, width = 6, device = cairo_pdf -->
+<!-- ) -->
+<!-- grid.arrange(p) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- p <- plot_subgroup_or(ordat, sym("Vaccination status")) -->
+<!-- ggsave( -->
+<!--   file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-vax-hte.pdf"), -->
+<!--   p, height = 3, width = 6, device = cairo_pdf) -->
+<!-- p -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(ordat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-vax-odds-ratios") -->
+<!-- make_subgroup_summary_table(ordat) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(compdat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-vax-odds-ratios-compare") -->
+<!-- make_subgroup_summary_table(compdat) -->
+<!-- ``` -->
+
+<!-- ### Iatrogenic immunosuppression -->
+
+<!-- Due to small numbers, no modelling was run. -->
+
+<!-- ```{r} -->
+<!-- make_subgroup_iatrogenic_table <- function(format = "html") { -->
+<!--   t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, iatrogenic, format = format)  %>% -->
+<!--     pack_rows("No iatrogenic immunosuppression", 1, 5) %>% -->
+<!--     pack_rows("Iatrogenic immunosuppression", 6, 10) -->
+<!--   t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, iatrogenic, format = format)  %>% -->
+<!--     pack_rows("No iatrogenic immunosuppression", 1, 3) %>% -->
+<!--     pack_rows("Iatrogenic immunosuppression", 4, 6) -->
+<!--   return(list(t1, t2)) -->
+<!-- } -->
+<!-- tab <- make_subgroup_iatrogenic_table("latex") -->
+<!-- save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-iatrogenic-descriptive-anticoagulation") -->
+<!-- save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-iatrogenic-descriptive-antiviral") -->
+<!-- tab <- make_subgroup_iatrogenic_table() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-iatrogenic-anticoagulation -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by  immunosuppression status. -->
+<!-- tab[[1]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-iatrogenic-antiviral -->
+<!-- #| tbl-cap: Primary outcome by anti-viral intervention by  immunosuppression status. -->
+<!-- tab[[2]] -->
+<!-- ``` -->
+
+<!-- ### D-dimer -->
+
+<!-- ```{r} -->
+<!-- make_subgroup_ddimer_table <- function(format = "html") { -->
+<!--   t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, ddimer_oor, format = format)  %>% -->
+<!--     pack_rows("D-dimer below upper limit of normal", 1, 5) %>% -->
+<!--     pack_rows("D-dimer above upper limit of normal", 6, 10) %>% -->
+<!--     pack_rows("Unknown", 11, 15) -->
+<!--   t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, ddimer_oor, format = format)  %>% -->
+<!--     pack_rows("D-dimer below upper limit of normal", 1, 3) %>% -->
+<!--     pack_rows("D-dimer above upper limit of normal", 4, 6) %>% -->
+<!--     pack_rows("Unknown", 7, 9) -->
+<!--   return(list(t1, t2)) -->
+<!-- } -->
+<!-- tab <- make_subgroup_ddimer_table("latex") -->
+<!-- save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-ddimer-descriptive-anticoagulation") -->
+<!-- save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-ddimer-descriptive-antiviral") -->
+<!-- tab <- make_subgroup_ddimer_table() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-ddimer-anticoagulation -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by D-dimer -->
+<!-- tab[[1]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-ddimer-antiviral -->
+<!-- #| tbl-cap: Primary outcome by anti-viral intervention by D-dimer -->
+<!-- tab[[2]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- X <- make_X_design( -->
+<!--   fas_itt_nona_dat,  -->
+<!--   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "ddimer_oor"),  -->
+<!--   ctr = contr.equalprior) -->
+<!-- Xint <- cbind( -->
+<!--   X,  -->
+<!--   "randA:ddimer_oorYes" = X[, 2] * X[, "ddimer_oorYes"], -->
+<!--   "randA1:ddimer_oorYes" = X[, 3] * X[, "ddimer_oorYes"],  -->
+<!--   "randA:ddimer_oorUnknown" = X[, 2] * X[, "ddimer_oorUnknown"], -->
+<!--   "randA1:ddimer_oorUnknown" = X[, 3] * X[, "ddimer_oorUnknown"]) -->
+<!-- attr(Xint, "contrasts") <- attr(X, "contrasts") -->
+
+<!-- epoch <- fas_itt_nona_dat[["epoch"]] -->
+<!-- M_epoch <- max(epoch) -->
+<!-- region <- fas_itt_nona_dat[["ctry_num"]] -->
+<!-- M_region <- max(region) -->
+<!-- site <- fas_itt_nona_dat[["site_num"]] -->
+<!-- M_site <- max(site) -->
+<!-- region_by_site <- region_by_site <- fas_itt_nona_dat |> -->
+<!--   dplyr::count(ctry_num, site_num) |> -->
+<!--   pull(ctry_num) -->
+
+<!-- y_raw <- fas_itt_nona_dat[["PO"]] -->
+<!-- if(diff(range(y_raw)) == 1) { -->
+<!--   y_mod <- y_raw -->
+<!-- } else { -->
+<!--   y_raw <- ordered(y_raw) -->
+<!--   y_mod <- as.integer(ordered(y_raw)) -->
+<!-- } -->
+
+<!-- N <- dim(Xint)[1] -->
+<!-- K <- dim(Xint)[2] -->
+<!-- beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 2.5, 1, 1, 1, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw, -->
+<!--   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)), -->
+<!--   M_region = M_region, region = region, -->
+<!--   M_site = M_site, site = site, -->
+<!--   M_epoch = M_epoch, epoch = epoch, -->
+<!--   region_by_site = region_by_site, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_site_epoch[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 77821, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+
+<!-- if(any(grepl("site", keep))) { -->
+<!--   site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)   -->
+<!--   names(mdrws$gamma_site) <- site_map$site -->
+<!-- } -->
+<!-- if(any(grepl("epoch", keep))) { -->
+<!--   epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)   -->
+<!--   names(mdrws$gamma_epoch) <- epoch_map$epoch_lab -->
+<!-- } -->
+<!-- # Transformed samples -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+<!-- Cc <- attr(mdat$X, "contrasts")$randC -->
+
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:ddimer_oorYes"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:ddimer_oorUnknown"]) -->
+<!-- ) -->
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- sgroup_labs$`D-dimer out of range` -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+
+<!-- OR_list[["D-dimer out of range"]] <- mdrws$OR %>%  -->
+<!--   as_tibble(rownames = "Levels") %>%  -->
+<!--   pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>% -->
+<!--   mutate(Subgroup = "D-dimer\nout of range", .before = 1) -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `D-dimer out of range` = fct_inorder(sgroup_labs$`D-dimer out of range`), -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- # Summarise comparison of effects (reference is India) -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `D-dimer out of range` = fct_inorder(sgroup_labs$`D-dimer out of range`) -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- OR_ddimer <- mdrws$OR -->
+<!-- rownames(OR_ddimer) <- sgroup_labs_shrt$`D-dimer out of range` -->
+<!-- ddimerdat <- fas_itt_dat %>%  -->
+<!--   group_by(ddimer_oor, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "D-dimer", -->
+<!--     Variable = as.character(factor(as.numeric(ddimer_oor), levels = 1:3, labels = sgroup_labs_shrt$`D-dimer out of range`)), -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment)), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-ddimer_oor, -AAssignment) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- y_ppc <- mdrws$y_ppc -->
+<!-- ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
+<!-- p <- plot_ppc(grp_ppc(sym("ddimer_oor"), sgroup_labs_shrt$`D-dimer out of range`), "D-dimer out of range")  -->
+<!-- ggsave( -->
+<!--   file.path( -->
+<!--     "outputs", "figures", "outcomes", "primary", "subgroup",  -->
+<!--     "fas-itt-subgroup-ddimer-hte-ppc.pdf"), -->
+<!--   grid.arrange(p), height = 2, width = 6, device = cairo_pdf -->
+<!-- ) -->
+<!-- grid.arrange(p) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- p <- plot_subgroup_or(ordat, sym("D-dimer out of range")) -->
+<!-- ggsave( -->
+<!--   file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-ddimer-hte.pdf"), -->
+<!--   p, height = 3, width = 6, device = cairo_pdf) -->
+<!-- p -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(ordat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-ddimer-odds-ratios") -->
+<!-- make_subgroup_summary_table(ordat) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(compdat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-ddimer-odds-ratios-compare") -->
+<!-- make_subgroup_summary_table(compdat) -->
+<!-- ``` -->
+
+<!-- ### Calendar Time (Exploratory) -->
+
+<!-- ```{r} -->
+<!-- make_subgroup_cal_table <- function(format = "html") { -->
+<!--   t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, calgrp, format = format)  %>% -->
+<!--     pack_rows("Randomisation < 2021-12-20", 1, 5) %>% -->
+<!--     pack_rows("Randomisation \u2265 2021-12-20", 6, 10) -->
+<!--   t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, calgrp, format = format)  %>% -->
+<!--     pack_rows("Randomisation < 2021-12-20", 1, 3) %>% -->
+<!--     pack_rows("Randomisation \u2265 2021-12-20", 4, 6) -->
+<!--   return(list(t1, t2)) -->
+<!-- } -->
+<!-- tab <- make_subgroup_cal_table("latex") -->
+<!-- save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-cal-descriptive-anticoagulation") -->
+<!-- save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-cal-descriptive-antiviral") -->
+<!-- tab <- make_subgroup_cal_table() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-calendar-anticoagulation -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by calendar time. -->
+<!-- tab[[1]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-calendar-antiviral -->
+<!-- #| tbl-cap: Primary outcome by anti-viral intervention by calendar time. -->
+<!-- tab[[2]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- X <- make_X_design( -->
+<!--   fas_itt_nona_dat,  -->
+<!--   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry", "calgrp"),  -->
+<!--   ctr = contr.equalprior) -->
+<!-- Xint <- cbind( -->
+<!--   X,  -->
+<!--   "randA:calgrp≥ 2021-12-20" = X[, 2] * X[, "calgrp≥ 2021-12-20"], -->
+<!--   "randA1:calgrp≥ 2021-12-20" = X[, 3] * X[, "calgrp≥ 2021-12-20"]) -->
+<!-- attr(Xint, "contrasts") <- attr(X, "contrasts") -->
+
+<!-- epoch <- fas_itt_nona_dat[["epoch"]] -->
+<!-- M_epoch <- max(epoch) -->
+<!-- region <- fas_itt_nona_dat[["ctry_num"]] -->
+<!-- M_region <- max(region) -->
+<!-- site <- fas_itt_nona_dat[["site_num"]] -->
+<!-- M_site <- max(site) -->
+<!-- region_by_site <- region_by_site <- fas_itt_nona_dat |> -->
+<!--   dplyr::count(ctry_num, site_num) |> -->
+<!--   pull(ctry_num) -->
+
+<!-- y_raw <- fas_itt_nona_dat[["PO"]] -->
+<!-- if(diff(range(y_raw)) == 1) { -->
+<!--   y_mod <- y_raw -->
+<!-- } else { -->
+<!--   y_raw <- ordered(y_raw) -->
+<!--   y_mod <- as.integer(ordered(y_raw)) -->
+<!-- } -->
+
+<!-- N <- dim(Xint)[1] -->
+<!-- K <- dim(Xint)[2] -->
+<!-- beta_sd <- c(2.5, rep(1, 6), 10, 2.5, 2.5, 2.5, 1, 1, 2.5, 1, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw, -->
+<!--   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)), -->
+<!--   M_region = M_region, region = region, -->
+<!--   M_site = M_site, site = site, -->
+<!--   M_epoch = M_epoch, epoch = epoch, -->
+<!--   region_by_site = region_by_site, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_site_epoch[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 77821, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+
+<!-- if(any(grepl("site", keep))) { -->
+<!--   site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)   -->
+<!--   names(mdrws$gamma_site) <- site_map$site -->
+<!-- } -->
+<!-- if(any(grepl("epoch", keep))) { -->
+<!--   epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)   -->
+<!--   names(mdrws$gamma_epoch) <- epoch_map$epoch_lab -->
+<!-- } -->
+<!-- # Transformed samples -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+<!-- Cc <- attr(mdat$X, "contrasts")$randC -->
+
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:calgrp≥ 2021-12-20"]) -->
+<!-- ) -->
+<!-- labs <- c("Randomisation < 2021-12-20", "Randomisation \u2265 2021-12-20") -->
+<!-- labs2 <- c("< 2021-12-20", "\u2265 2021-12-20") -->
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- labs -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+
+<!-- OR_list[["Date"]] <- mdrws$OR %>%  -->
+<!--   as_tibble(rownames = "Levels") %>%  -->
+<!--   pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>% -->
+<!--   mutate(Subgroup = "Randomisation date", .before = 1) -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Randomisation date` = labs, -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   `Randomisation date` = labs -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- OR_date <- mdrws$OR -->
+<!-- rownames(OR_date) <- labs2 -->
+<!-- datedat <- fas_itt_dat %>%  -->
+<!--   group_by(calgrp, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "Randomisation date", -->
+<!--     Variable = calgrp, -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment)), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-calgrp, -AAssignment) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- y_ppc <- mdrws$y_ppc -->
+<!-- ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
+<!-- p <- plot_ppc(grp_ppc(sym("calgrp"), sgroup_labs_shrt$`Randomisation date`), "Randomisation")  -->
+<!-- ggsave( -->
+<!--   file.path( -->
+<!--     "outputs", "figures", "outcomes", "primary", "subgroup", -->
+<!--     "fas-itt-subgroup-date-hte-ppc.pdf"), -->
+<!--   grid.arrange(p), height = 2.5, width = 6, device = cairo_pdf -->
+<!-- ) -->
+<!-- grid.arrange(p) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- p <- plot_subgroup_or(ordat, sym("Randomisation date")) +  -->
+<!--   scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x), -->
+<!--                 labels = trans_format("log10", math_format(10^.x))) -->
+<!-- ggsave( -->
+<!--   file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-date-hte.pdf"), -->
+<!--   p, height = 2.5, width = 6, device = cairo_pdf) -->
+<!-- p -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(ordat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-date-odds-ratios") -->
+<!-- make_subgroup_summary_table(ordat) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(compdat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/fas-itt-date-odds-ratios-compare") -->
+<!-- make_subgroup_summary_table(compdat) -->
+<!-- ``` -->
+
+<!-- ### Country (Exploratory) -->
+
+<!-- ```{r} -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by country. -->
+<!-- make_subgroup_country_table <- function(format = "html") { -->
+<!--   t1 <- make_base_subgroup_table_anticoagulation(fas_itt_dat, ctry2, format = format) %>% -->
+<!--     pack_rows("India", 1, 5) %>% -->
+<!--     pack_rows("Australia", 6, 10) %>% -->
+<!--     pack_rows("Nepal", 11, 15) %>%  -->
+<!--     pack_rows("New Zealand", 16, 20) -->
+<!--   t2 <- make_base_subgroup_table_antiviral(fas_itt_dat, ctry2, format = format) %>% -->
+<!--     pack_rows("India", 1, 3) %>% -->
+<!--     pack_rows("Australia", 4, 6) %>% -->
+<!--     pack_rows("Nepal", 7, 9) %>% -->
+<!--     pack_rows("New Zealand", 10, 12) -->
+
+<!--   return(list(t1, t2)) -->
+<!-- } -->
+<!-- tab <- make_subgroup_country_table("latex") -->
+<!-- save_tex_table(tab[[1]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-country2-descriptive-anticoagulation") -->
+<!-- save_tex_table(tab[[2]], "outcomes/primary/subgroup/descriptive-fas-itt-subgroup-country2-descriptive-antiviral") -->
+<!-- tab <- make_subgroup_country_table() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-country-anticoagulation -->
+<!-- #| tbl-cap: Primary outcome by anti-coagulation intervention by country. -->
+<!-- tab[[1]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-fas-itt-subgroup-country-antiviral -->
+<!-- #| tbl-cap: Primary outcome by anti-viral intervention by country. -->
+<!-- tab[[2]] -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- X <- make_X_design( -->
+<!--   fas_itt_nona_dat,  -->
+<!--   vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry2"),  -->
+<!--   ctr = contr.equalprior) -->
+<!-- Xint <- cbind( -->
+<!--   X,  -->
+<!--   "randA:ctryAU" = X[, 2] * X[, "ctry2AU"], -->
+<!--   "randA:ctryNP" = X[, 2] * X[, "ctry2NP"], -->
+<!--   "randA:ctryNZ" = X[, 2] * X[, "ctry2NZ"], -->
+<!--   "randA1:ctryAU" = X[, 3] * X[, "ctry2AU"], -->
+<!--   "randA1:ctryNP" = X[, 3] * X[, "ctry2NP"], -->
+<!--   "randA1:ctryNZ" = X[, 3] * X[, "ctry2NZ"] -->
+<!--   ) -->
+<!-- Xint <- Xint[, -(2:3)] -->
+<!-- attr(Xint, "contrasts") <- attr(X, "contrasts") -->
+
+<!-- epoch <- fas_itt_nona_dat[["epoch"]] -->
+<!-- M_epoch <- max(epoch) -->
+<!-- region <- fas_itt_nona_dat[["ctry2_num"]] -->
+<!-- M_region <- max(region) -->
+<!-- site <- fas_itt_nona_dat[["site2_num"]] -->
+<!-- M_site <- max(site) -->
+<!-- region_by_site <- region_by_site <- fas_itt_nona_dat |> -->
+<!--   dplyr::count(ctry2_num, site2_num) |> -->
+<!--   pull(ctry2_num) -->
+
+<!-- y_raw <- fas_itt_nona_dat[["PO"]] -->
+<!-- if(diff(range(y_raw)) == 1) { -->
+<!--   y_mod <- y_raw -->
+<!-- } else { -->
+<!--   y_raw <- ordered(y_raw) -->
+<!--   y_mod <- as.integer(ordered(y_raw)) -->
+<!-- } -->
+
+<!-- N <- dim(Xint)[1] -->
+<!-- K <- dim(Xint)[2] -->
+<!-- beta_sd <- c(2.5, c(rep(1, 4)), 10, 2.5, 2.5, 2.5, 1, 1, 1, 1, 1, 1, 1, 1, 1) -->
+<!-- mdat <- list( -->
+<!--   N = N, K = K, X = Xint, y = y_mod, y_raw = y_raw, -->
+<!--   J = max(y_mod), p_par = rep(2 / max(y_mod), max(y_mod)), -->
+<!--   M_region = M_region, region = region, -->
+<!--   M_site = M_site, site = site, -->
+<!--   M_epoch = M_epoch, epoch = epoch, -->
+<!--   region_by_site = region_by_site, -->
+<!--   beta_sd = beta_sd -->
+<!-- ) -->
+
+<!-- snk <- capture.output( -->
+<!--   mfit <- logistic_site_epoch[["sample"]]( -->
+<!--     data = mdat, -->
+<!--     seed = 123, -->
+<!--     adapt_delta = 0.99, -->
+<!--     refresh = 0, -->
+<!--     iter_warmup = 500, -->
+<!--     iter_sampling = 2500, -->
+<!--     chains = 4, -->
+<!--     parallel_chains = min(4, parallel::detectCores()) -->
+<!--   ) -->
+<!-- ) -->
+
+<!-- mpars <- mfit$metadata()$model_params -->
+<!-- keep <- mpars[!grepl("(_raw|epsilon_)", mpars)] -->
+<!-- mdrws <- as_draws_rvars(mfit$draws(keep)) -->
+<!-- names(mdrws$beta) <- colnames(mdat$X) -->
+
+<!-- if(any(grepl("site", keep))) { -->
+<!--   site_map <- fas_itt_nona_dat %>% dplyr::count(site2_num, site)   -->
+<!--   names(mdrws$gamma_site) <- site_map$site -->
+<!-- } -->
+<!-- if(any(grepl("epoch", keep))) { -->
+<!--   epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)   -->
+<!--   names(mdrws$gamma_epoch) <- epoch_map$epoch_lab -->
+<!-- } -->
+<!-- # Transformed samples -->
+<!-- Ca <- attr(mdat$X, "contrasts")$randA -->
+<!-- Cc <- attr(mdat$X, "contrasts")$randC -->
+
+<!-- seff <- rbind( -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1:ctryAU"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1:ctryNP"]), -->
+<!--   diff(Ca) %**% (mdrws$beta["randA1:ctryNZ"]) -->
+<!-- ) -->
+<!-- labs <- c("Australia", "Nepal", "New Zealand") -->
+<!-- labs2 <- c("AU", "NP", "NZ") -->
+<!-- mdrws$OR <- exp(seff) -->
+<!-- rownames(mdrws$OR) <- labs -->
+<!-- colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)] -->
+<!-- mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/") -->
+
+<!-- OR_list[["Country"]] <- mdrws$OR %>%  -->
+<!--   as_tibble(rownames = "Levels") %>%  -->
+<!--   pivot_longer(-Levels, names_to = "Intervention", values_to = "Posterior") %>% -->
+<!--   mutate(Subgroup = "Country", .before = 1) -->
+
+<!-- # Summarise subgroup effects -->
+<!-- ordat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   Country = labs, -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$OR)) %>% -->
+<!--   summarise_posterior() -->
+<!-- compdat <- expand_grid( -->
+<!--   Contrast = intervention_labels_short()$AAssignment[-(1:2)], -->
+<!--   Country = labs -->
+<!-- ) %>% -->
+<!--   mutate(Posterior = c(mdrws$compare)) %>% -->
+<!--   summarise_posterior() %>% -->
+<!--   select(-`Pr(OR > 1/1.1)`) -->
+
+<!-- OR_country <- mdrws$OR -->
+<!-- rownames(OR_country) <- labs -->
+<!-- countrydat <- fas_itt_dat %>%  -->
+<!--   group_by(ctry2, AAssignment) %>%  -->
+<!--   summarise("events/patients" = sprintf( -->
+<!--     "%i/%i (%.2f)",  -->
+<!--     sum(PO, na.rm = TRUE),  -->
+<!--     sum(!is.na(PO)),  -->
+<!--     mean(PO, na.rm = T)) -->
+<!--   ) %>% -->
+<!--   ungroup() %>% -->
+<!--   mutate( -->
+<!--     Subgroup = "Country", -->
+<!--     Variable = factor(ctry2, levels = c("AU", "NP", "NZ"), labels = c("Australia", "Nepal", "New Zealand")), -->
+<!--     Intervention = as.character(factor( -->
+<!--       AAssignment,  -->
+<!--       labels = intervention_labels_short()$AAssignment)), -->
+<!--     .before = 1 -->
+<!--   ) %>% -->
+<!--   select(-ctry2, -AAssignment) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- y_ppc <- mdrws$y_ppc -->
+<!-- ppc_dat <- bind_cols(fas_itt_nona_dat, tibble(y_ppc = y_ppc)) -->
+<!-- p <- plot_ppc(grp_ppc(sym("ctry2"), c("IN", "AU", "NP", "NZ")), "Country") -->
+<!-- ggsave( -->
+<!--   file.path( -->
+<!--     "outputs", "figures", "outcomes", "primary", "subgroup", -->
+<!--     "fas-itt-subgroup-country2-hte-ppc.pdf"), -->
+<!--   grid.arrange(p), height = 2.5, width = 6, device = cairo_pdf -->
+<!-- ) -->
+<!-- grid.arrange(p) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- p <- plot_subgroup_or(ordat, sym("Country")) -->
+<!-- ggsave( -->
+<!--   file.path("outputs", "figures", "outcomes", "primary", "subgroup", "fas-itt-subgroup-country2-hte.pdf"), -->
+<!--   p, height = 3, width = 6, device = cairo_pdf) -->
+<!-- p -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(ordat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/country2-odds-ratios") -->
+<!-- make_subgroup_summary_table(ordat) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- tab <- make_subgroup_summary_table(compdat, "latex") -->
+<!-- save_tex_table(tab, "outcomes/primary/subgroup/country2-odds-ratios-compare") -->
+<!-- make_subgroup_summary_table(compdat) -->
+<!-- ``` -->
+
+<!-- ### Forest Plot -->
+
+<!-- ```{r} -->
+<!-- pad_width <- 0 -->
+<!-- cnt_dat <- bind_rows(agedat, dsfsdat, oxydat, steroidsdat, remdat,  -->
+<!--                      antiviraldat, vaxdat[1:6, ], ddimerdat, datedat, -->
+<!--                      countrydat) %>% -->
+<!--   mutate( -->
+<!--     `events/patients` = str_pad(`events/patients`, width = pad_width, side = "left") -->
+<!--   ) -->
+
+<!-- ORdat <- rbind( -->
+<!--   OR_age, OR_dsfs, OR_oxy, OR_steroids, OR_rem, -->
+<!--   OR_antiviral, OR_vax[1:2, ], OR_ddimer, OR_date, OR_country)  -->
+<!-- ORdat <- as_tibble(ORdat) %>% -->
+<!--   mutate(Variable = rownames(ORdat), .before = 1) -->
+<!-- ORdat <- ORdat %>% -->
+<!--   pivot_longer(2, names_to = "Intervention", values_to = "Posterior") %>% -->
+<!--   mutate( -->
+<!--     est = median(Posterior), -->
+<!--     lower = quantile(Posterior, probs = 0.025)[1, ], -->
+<!--     upper = quantile(Posterior, probs = 0.975)[1, ], -->
+<!--     ` ` = paste(rep(" ", 30), collapse = " "), -->
+<!--     `Odds ratio\n(95% CrI)` = sprintf("%.2f (%.2f, %.2f)", est, lower, upper) -->
+<!--   ) %>% -->
+<!--   left_join(cnt_dat, by = c("Variable", "Intervention")) %>% -->
+<!--   mutate(Variable = paste0("   ", Variable)) -->
+
+<!-- ORdatmod <- ORdat %>%  -->
+<!--   add_row(tibble(Variable = "Age"), .before = 1) %>% -->
+<!--   add_row(tibble(Variable = "Days since first symptoms"), .before = 4) %>% -->
+<!--   add_row(tibble(Variable = "Supplemental oxygen"), .before = 7) %>% -->
+<!--   add_row(tibble(Variable = "Corticosteroids"), .before = 10) %>% -->
+<!--   add_row(tibble(Variable = "Remdesivir"), .before = 13) %>% -->
+<!--   add_row(tibble(Variable = "Other antiviral"), .before = 16) %>% -->
+<!--   add_row(tibble(Variable = "Vaccination"), .before = 19) %>% -->
+<!--   add_row(tibble(Variable = "D-dimer"), .before = 22) %>% -->
+<!--   add_row(tibble(Variable = "Randomisation date"), .before = 26) %>% -->
+<!--   add_row(tibble(Variable = "Country"), .before = 29) %>% -->
+<!--   replace_na(replace = list(Variable = " ", Intervention = " ", ` ` = " ", `Odds ratio\n(95% CrI)` = " ", `events/patients` = " ")) -->
+
+<!-- naf_ORdat <- ORdatmod %>% -->
+<!--   rename(Nafamostat = `events/patients`) %>% -->
+<!--   left_join(cnt_dat %>% filter(Intervention == "SoC") %>%  -->
+<!--               mutate(Variable = paste0("   ", Variable)) %>% select(c(2, 4)), by = "Variable") %>% -->
+<!--   rename(SoC = `events/patients`) %>% -->
+<!--   replace_na(replace = list(SoC = paste(rep(" ", pad_width), collapse = ""), Nafamostat = paste(rep(" ", pad_width), collapse = ""))) -->
+
+<!-- thm <- forestploter::forest_theme( -->
+<!--     ci_pch = 19, -->
+<!--     base_size = 8,  -->
+<!--     ci_lwd = 1.5, -->
+<!--     base_family = "Palatino", -->
+<!--     title_just = "left") -->
+
+<!-- naf_pdat <-  naf_ORdat[, c(1, 11, 10, 7, 8)] -->
+<!-- colnames(naf_pdat)[4] <- "Odds ratio (median, 95% CrI)" -->
+<!-- colnames(naf_pdat)[5] <- " " -->
+<!-- naf_plot <- forestploter::forest( -->
+<!--   naf_pdat, -->
+<!--   est = ORdatmod$est, -->
+<!--   lower = ORdatmod$lower, -->
+<!--   upper = ORdatmod$upper, -->
+<!--   ci_column = 4, -->
+<!--   ref_line = 1, -->
+<!--   arrow_lab = c("Nafamostat better", "SoC better"), -->
+<!--   x_trans = "log", -->
+<!--   xlim = c(0.05, 20), -->
+<!--   ticks_at = c(0.1, 0.25, 0.5, 1, 2, 4, 10), -->
+<!--   theme = thm -->
+<!-- ) -->
+<!-- naf_plot <- forestploter::insert_text( -->
+<!--   naf_plot, -->
+<!--   text = "events/patients (proportion)", -->
+<!--   col = 2:3, -->
+<!--   part = "header", -->
+<!--   before = FALSE, -->
+<!--   gp = gpar(fontface = "bold", fontfamily = "Palatino", fontsize = 8)) -->
+
+<!-- ggsave( -->
+<!--   file.path("outputs", "figures", "outcomes", "subgroups", "subgroup-joint-fas-itt.pdf"), -->
+<!--   naf_plot, -->
+<!--   device = cairo_pdf, -->
+<!--   width = 7, -->
+<!--   height = 8, -->
+<!--   dpi = 444 -->
+<!-- ) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: fig-subgroup-plot -->
+<!-- #| fig-cap: Subgroup summary plot. -->
+<!-- naf_plot -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- pad_width <- 0 -->
+<!-- cnt_dat <- bind_rows(agedat, dsfsdat, oxydat, steroidsdat, remdat,  -->
+<!--                      antiviraldat, vaxdat[1:6, ], ddimerdat, datedat, -->
+<!--                      countrydat) %>% -->
+<!--   mutate( -->
+<!--     `events/patients` = str_pad(`events/patients`, width = pad_width, side = "left") -->
+<!--   ) -->
+
+<!-- ORdat <- rbind( -->
+<!--   OR_age, OR_dsfs, OR_oxy, OR_steroids, OR_rem, -->
+<!--   OR_vax[1:2, ], OR_ddimer, OR_date, OR_country)  -->
+<!-- ORdat <- as_tibble(ORdat) %>% -->
+<!--   mutate(Variable = rownames(ORdat), .before = 1) -->
+<!-- ORdat <- ORdat %>% -->
+<!--   pivot_longer(2, names_to = "Intervention", values_to = "Posterior") %>% -->
+<!--   mutate( -->
+<!--     est = median(Posterior), -->
+<!--     lower = quantile(Posterior, probs = 0.025)[1, ], -->
+<!--     upper = quantile(Posterior, probs = 0.975)[1, ], -->
+<!--     ` ` = paste(rep(" ", 30), collapse = " "), -->
+<!--     `Odds ratio\n(95% CrI)` = sprintf("%.2f (%.2f, %.2f)", est, lower, upper) -->
+<!--   ) %>% -->
+<!--   left_join(cnt_dat, by = c("Variable", "Intervention")) %>% -->
+<!--   mutate(Variable = paste0("   ", Variable)) -->
+
+<!-- ORdatmod <- ORdat %>%  -->
+<!--   add_row(tibble(Variable = "Age"), .before = 1) %>% -->
+<!--   add_row(tibble(Variable = "Days since first symptoms"), .before = 4) %>% -->
+<!--   add_row(tibble(Variable = "Supplemental oxygen"), .before = 7) %>% -->
+<!--   add_row(tibble(Variable = "Corticosteroids"), .before = 10) %>% -->
+<!--   add_row(tibble(Variable = "Remdesivir"), .before = 13) %>% -->
+<!--   add_row(tibble(Variable = "Vaccination"), .before = 16) %>% -->
+<!--   add_row(tibble(Variable = "D-dimer"), .before = 19) %>% -->
+<!--   add_row(tibble(Variable = "Randomisation date"), .before = 23) %>% -->
+<!--   add_row(tibble(Variable = "Country"), .before = 26) %>% -->
+<!--   replace_na(replace = list(Variable = " ", Intervention = " ", ` ` = " ", `Odds ratio\n(95% CrI)` = " ", `events/patients` = " ")) -->
+
+<!-- naf_ORdat <- ORdatmod %>% -->
+<!--   rename(Nafamostat = `events/patients`) %>% -->
+<!--   left_join(cnt_dat %>% filter(Intervention == "SoC") %>%  -->
+<!--               mutate(Variable = paste0("   ", Variable)) %>% select(c(2, 4)), by = "Variable") %>% -->
+<!--   rename(SoC = `events/patients`) %>% -->
+<!--   replace_na(replace = list(SoC = paste(rep(" ", pad_width), collapse = ""), Nafamostat = paste(rep(" ", pad_width), collapse = ""))) -->
+
+<!-- thm <- forestploter::forest_theme( -->
+<!--     ci_pch = 19, -->
+<!--     base_size = 8,  -->
+<!--     ci_lwd = 1.5, -->
+<!--     base_family = "Palatino", -->
+<!--     title_just = "left") -->
+
+<!-- naf_pdat <-  naf_ORdat[, c(1, 11, 10, 7, 8)] -->
+<!-- colnames(naf_pdat)[4] <- "Odds ratio (median, 95% CrI)" -->
+<!-- colnames(naf_pdat)[5] <- " " -->
+<!-- naf_plot <- forestploter::forest( -->
+<!--   naf_pdat, -->
+<!--   est = ORdatmod$est, -->
+<!--   lower = ORdatmod$lower, -->
+<!--   upper = ORdatmod$upper, -->
+<!--   ci_column = 4, -->
+<!--   ref_line = 1, -->
+<!--   arrow_lab = c("Nafamostat better", "SoC better"), -->
+<!--   x_trans = "log", -->
+<!--   xlim = c(0.05, 20), -->
+<!--   ticks_at = c(0.1, 0.25, 0.5, 1, 2, 4, 10), -->
+<!--   theme = thm -->
+<!-- ) -->
+<!-- naf_plot <- forestploter::insert_text( -->
+<!--   naf_plot, -->
+<!--   text = "events/patients (proportion)", -->
+<!--   col = 2:3, -->
+<!--   part = "header", -->
+<!--   before = FALSE, -->
+<!--   gp = gpar(fontface = "bold", fontfamily = "Palatino", fontsize = 8)) -->
+
+<!-- ggsave( -->
+<!--   file.path("outputs", "figures", "outcomes", "subgroups", "subgroup-joint-fas-itt-2.pdf"), -->
+<!--   naf_plot, -->
+<!--   device = cairo_pdf, -->
+<!--   width = 7, -->
+<!--   height = 8, -->
+<!--   dpi = 444 -->
+<!-- ) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| label: fig-subgroup-plot-2 -->
+<!-- #| fig-cap: Subgroup summary plot. -->
+<!-- naf_plot -->
+<!-- ``` -->
 
 
 ## AVS-ITT
@@ -3978,9 +3978,9 @@ naf_ORdat <- ORdatmod %>%
   rename(Nafamostat = `events/patients`) %>%
   left_join(cnt_dat %>% filter(Intervention == "SoC") %>% 
               mutate(Variable = paste0("   ", Variable)) %>% select(c(2, 4)), by = "Variable") %>%
-  rename(SoC = `events/patients`) %>%
+  rename(`Usual care` = `events/patients`) %>%
   replace_na(replace = list(
-    SoC = paste(rep(" ", pad_width), collapse = ""), 
+    `Usual care` = paste(rep(" ", pad_width), collapse = ""), 
     Nafamostat = paste(rep(" ", pad_width), collapse = ""),
     `Pr(OR < 1)` = paste(rep(" ", pad_width), collapse = "")))
 
@@ -4001,7 +4001,7 @@ naf_plot <- forestploter::forest(
   upper = ORdatmod$upper,
   ci_column = 4,
   ref_line = 1,
-  arrow_lab = c("Nafamostat better", "SoC better"),
+  arrow_lab = c("Nafamostat better", "Usual care better"),
   x_trans = "log",
   xlim = c(0.05, 20),
   ticks_at = c(0.1, 0.25, 0.5, 1, 2, 4, 10),

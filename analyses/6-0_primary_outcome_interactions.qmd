@@ -515,13 +515,13 @@ make_subgroup_summary_table(compdat)
 ```{r}
 Xbase <- make_X_design(fas_itt_nona_dat, vars = "ctry", ctr = contr.treatment)
 Xint <- cbind(
-  "randA:randC2" = Xbase[, "randA"] * Xbase[, "randC2"],
-  "randA:randC3" = Xbase[, "randA"] * Xbase[, "randC3"],
-  "randA:randC4" = Xbase[, "randA"] * Xbase[, "randC4"],
-  "randA2:randC" = Xbase[, "randA2"] * Xbase[, "randC"],
-  "randA2:randC2" = Xbase[, "randA2"] * Xbase[, "randC2"],
-  "randA2:randC3" = Xbase[, "randA2"] * Xbase[, "randC3"],
-  "randA2:randC4" = Xbase[, "randA2"] * Xbase[, "randC4"]
+  "randA:randC2" = Xbase[, "randA"] * Xbase[, "randCC2"],
+  "randA:randC3" = Xbase[, "randA"] * Xbase[, "randCC3"],
+  "randA:randC4" = Xbase[, "randA"] * Xbase[, "randCC4"],
+  "randA2:randC" = Xbase[, "randAA2"] * Xbase[, "randC"],
+  "randA2:randC2" = Xbase[, "randAA2"] * Xbase[, "randCC2"],
+  "randA2:randC3" = Xbase[, "randAA2"] * Xbase[, "randCC3"],
+  "randA2:randC4" = Xbase[, "randAA2"] * Xbase[, "randCC4"]
 )
 Xdes <- cbind(Xbase, Xint)
 epoch <- fas_itt_nona_dat[["epoch"]]
@@ -531,8 +531,8 @@ M_region <- max(region)
 site <- fas_itt_nona_dat[["site_num"]]
 M_site <- max(site)
 region_by_site <- fas_itt_nona_dat |>
-    count(.data[["ctry_num"]], .data[["site_num"]]) |>
-    pull(.data[["ctry_num"]])
+    dplyr::count(ctry_num, site_num) |>
+    pull(ctry_num)
 y <- fas_itt_nona_dat[["PO"]]
 beta_sd <- c(2.5, rep(sqrt(2), ncol(Xdes) - 1))
 N <- dim(Xdes)[1]
@@ -569,10 +569,10 @@ rownames(Cint) <- c("A1C1", "A1C2", "A1C3", "A1C4", "A2C1", "A2C2", "A2C3", "A2C
 rrs <- c("randA2:randC2", "randA2:randC3", "randA2:randC4")
 
 seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[5, ] - Cint[1, ]) %**% mdrws$beta[rrs],
-  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[6, ] - Cint[2, ]) %**% mdrws$beta[rrs],
-  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[7, ] - Cint[3, ]) %**% mdrws$beta[rrs],
-  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[8, ] - Cint[4, ]) %**% mdrws$beta[rrs]
+  diff(Ca) %**% (mdrws$beta["randAA2"]) + (Cint[5, ] - Cint[1, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randAA2"]) + (Cint[6, ] - Cint[2, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randAA2"]) + (Cint[7, ] - Cint[3, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randAA2"]) + (Cint[8, ] - Cint[4, ]) %**% mdrws$beta[rrs]
 )
 reff <- seff[-1, ] - seff[1, ]
 ```
@@ -591,13 +591,13 @@ grid.arrange(p)
 ```{r}
 Xbase <- make_X_design(fas_itt_nona_dat, vars = "ctry", ctr = contr.treatment)
 Xint <- cbind(
-  "randA:randC2" = Xbase[, "randA"] * Xbase[, "randC2"],
-  "randA:randC3" = Xbase[, "randA"] * Xbase[, "randC3"],
-  "randA:randC4" = Xbase[, "randA"] * Xbase[, "randC4"],
-  "randA2:randC" = Xbase[, "randA2"] * Xbase[, "randC"],
-  "randA2:randC2" = Xbase[, "randA2"] * Xbase[, "randC2"],
-  "randA2:randC3" = Xbase[, "randA2"] * Xbase[, "randC3"],
-  "randA2:randC4" = Xbase[, "randA2"] * Xbase[, "randC4"]
+  "randA:randC2" = Xbase[, "randA"] * Xbase[, "randCC2"],
+  "randA:randC3" = Xbase[, "randA"] * Xbase[, "randCC3"],
+  "randA:randC4" = Xbase[, "randA"] * Xbase[, "randCC4"],
+  "randA2:randC" = Xbase[, "randAA2"] * Xbase[, "randC"],
+  "randA2:randC2" = Xbase[, "randAA2"] * Xbase[, "randCC2"],
+  "randA2:randC3" = Xbase[, "randAA2"] * Xbase[, "randCC3"],
+  "randA2:randC4" = Xbase[, "randAA2"] * Xbase[, "randCC4"]
 )
 Xdes <- cbind(Xbase, Xint)
 epoch <- fas_itt_nona_dat[["epoch"]]
@@ -607,7 +607,7 @@ M_region <- max(region)
 site <- fas_itt_nona_dat[["site_num"]]
 M_site <- max(site)
 region_by_site <- fas_itt_nona_dat |>
-    count(.data[["ctry_num"]], .data[["site_num"]]) |>
+    dplyr::count(.data[["ctry_num"]], .data[["site_num"]]) |>
     pull(.data[["ctry_num"]])
 y <- fas_itt_nona_dat[["PO"]]
 beta_sd <- c(2.5, rep(10, ncol(Xdes) - 1))
@@ -645,10 +645,10 @@ rownames(Cint) <- c("A1C1", "A1C2", "A1C3", "A1C4", "A2C1", "A2C2", "A2C3", "A2C
 rrs <- c("randA2:randC2", "randA2:randC3", "randA2:randC4")
 
 seff <- rbind(
-  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[5, ] - Cint[1, ]) %**% mdrws$beta[rrs],
-  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[6, ] - Cint[2, ]) %**% mdrws$beta[rrs],
-  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[7, ] - Cint[3, ]) %**% mdrws$beta[rrs],
-  diff(Ca) %**% (mdrws$beta["randA2"]) + (Cint[8, ] - Cint[4, ]) %**% mdrws$beta[rrs]
+  diff(Ca) %**% (mdrws$beta["randAA2"]) + (Cint[5, ] - Cint[1, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randAA2"]) + (Cint[6, ] - Cint[2, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randAA2"]) + (Cint[7, ] - Cint[3, ]) %**% mdrws$beta[rrs],
+  diff(Ca) %**% (mdrws$beta["randAA2"]) + (Cint[8, ] - Cint[4, ]) %**% mdrws$beta[rrs]
 )
 reff <- seff[-1, ] - seff[1, ]
 ```

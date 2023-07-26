@@ -2289,10 +2289,11 @@ ggsave(pth, p, width = 6, height = 4.5)
 p
 ```
 
-<!-- 
+
 ### Treatment coding
 
 ```{r}
+#| eval: false
 res <- fit_primary_model(
   avs_itt_nona_dat,
   logistic_mod,
@@ -2310,9 +2311,9 @@ names(res$drws$OR)[-1] <- c(
 ```{r}
 #| label: odds-ratio-summary-table-primary-model-avs-itt-trt
 #| tbl-cap: Posterior summaries for model parameters, AVS-ITT, prior on treatment coding.
+#| eval: false
 odds_ratio_summary_table(c(res$drws$AOR, res$drws$OR[-1]))
 ```
- -->
 
 ### Diffuse prior
 
@@ -2590,10 +2591,10 @@ ggsave(pth, p, width = 6, height = 2.5)
 p
 ```
 
-<!-- 
 ### Treatment coding
 
 ```{r}
+#| eval: false
 res <- fit_primary_model(
   avs_pp_nona_dat |> mutate(ctry = droplevels(ctry)),
   logistic_site,
@@ -2611,9 +2612,9 @@ names(res$drws$OR)[-1] <- c(
 ```{r}
 #| label: odds-ratio-summary-table-primary-model-avs-pp-trt-ctr
 #| tbl-cap: Posterior summaries for model parameters, AVS-PP, prior on treatment coding.
+#| eval: false
 odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
 ```
- -->
 
 ### Sceptical
 
@@ -2661,6 +2662,7 @@ p
 ```{r}
 #| label: tbl-acs-itt-c4-summary-table
 #| tbl-cap: Primary outcome summary for participants randomised under protocol 5.0 (ACS-ITT-therapeutic).
+#| eval: false
 make_po_table_C(acs_itt_concurc4_dat)
 make_D28_death_table_C(acs_itt_concurc4_dat)
 ```

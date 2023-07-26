@@ -13,6 +13,7 @@ if (!dir.exists("outputs")) {
   dir.create(file.path("outputs", "figures", "baseline"), recursive = TRUE)
   dir.create(file.path("outputs", "figures", "followup"), recursive = TRUE)
   dir.create(file.path("outputs", "figures", "outcomes", "primary"), recursive = TRUE)
+  dir.create(file.path("outputs", "figures", "outcomes", "primary", "subgroup"), recursive = TRUE)
   dir.create(file.path("outputs", "figures", "outcomes", "secondary"), recursive = TRUE)
   dir.create(file.path("outputs", "figures", "outcomes", "domain"), recursive = TRUE)
   dir.create(file.path("outputs", "models", "primary"), recursive = TRUE)

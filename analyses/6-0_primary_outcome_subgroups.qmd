@@ -4015,7 +4015,7 @@ naf_plot <- forestploter::insert_text(
   before = FALSE,
   gp = gpar(fontface = "bold", fontfamily = "Palatino", fontsize = 8))
 
-fpth <- file.path("outputs", "figures", "outcomes", "subgroups", "subgroup-joint-avs-itt.pdf")
+fpth <- file.path("outputs", "figures", "outcomes", "primary", "subgroup", "subgroup-joint-avs-itt.pdf")
 ggsave(
   fpth,
   naf_plot,

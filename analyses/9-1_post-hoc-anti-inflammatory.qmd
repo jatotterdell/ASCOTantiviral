@@ -1,5 +1,5 @@
 ---
-title: 9 - Analysis of primary outcome by receipt of anti-inflammatory medication
+title: 9.1 - Analysis of primary outcome by receipt of anti-inflammatory medication
 date: today
 execute: 
   echo: false
@@ -25,6 +25,9 @@ library(broom.mixed)
 library(bayestestR)
 library(ggh4x)
 library(gt)
+library(grid)
+library(gridExtra)
+library(gtable)
 
 theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
   theme(panel.grid = element_blank(),
@@ -36,6 +39,152 @@ bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palat
 
 color_scheme_set("red")
 options(digits = 4)
+
+grp_ppc <- function(grp, labs) {
+  ppc_dat %>%
+    group_by(
+      Antiviral = factor(AAssignment, levels = c("A0", "A1", "A2"), labels = intervention_labels_short()$AAssignment), 
+      grp = !!grp,
+      .drop = FALSE
+    ) %>%
+    summarise(
+      n = n(),
+      y = sum(PO),
+      `y/n` = mean(PO),
+      rvar_mean_y_ppc = rvar_mean(y_ppc)
+    ) |>
+    mutate(grp = factor(grp, labels = labs))
+}
+
+grp_ppc2 <- function(grp, labs) {
+  ppc_dat %>%
+    group_by(
+      Antiviral = factor(AAssignment, levels = c("A1", "A2"), labels = intervention_labels_short()$AAssignment[-1]), 
+      grp = !!grp,
+      .drop = FALSE
+    ) %>%
+    summarise(
+      n = n(),
+      y = sum(PO),
+      `y/n` = mean(PO),
+      rvar_mean_y_ppc = rvar_mean(y_ppc)
+    ) |>
+    mutate(grp = factor(grp, labels = labs))
+}
+
+add_facet_labs <- function(p, labelT = "", labelR = "") {
+   g <- ggplotGrob(p)
+  # Get the positions of the strips in the gtable: t = top, l = left, ...
+  posR <- subset(g$layout, grepl("strip-r", name), select = t:r)
+  posT <- subset(g$layout, grepl("strip-t", name), select = t:r)
+  # Add a new column to the right of current right strips, 
+  # and a new row on top of current top strips
+  if(nrow(posR) > 0)
+    width <- g$widths[max(posR$r)]    # width of current right strips
+  if(nrow(posT) > 0)
+    height <- g$heights[min(posT$t)]  # height of current top strips
+  if(nrow(posR) > 0)
+    g <- gtable_add_cols(g, width, max(posR$r))  
+  if(nrow(posT) > 0)
+    g <- gtable_add_rows(g, height, min(posT$t)-1)
+  
+  # Construct the new strip grobs
+  if(nrow(posR) > 0) {
+    stripR <- gTree(name = "Strip_right", children = gList(
+     rectGrob(gp = gpar(col = "grey90", fill = "grey90")),
+     textGrob(labelR, rot = -90, gp = gpar(fontsize = 8.8, fontface = 'bold', col = "grey10"))))
+  }
+  if(nrow(posT) > 0) {
+    stripT <- gTree(name = "Strip_top", children = gList(
+     rectGrob(gp = gpar(col = "grey90", fill = "grey90")),
+     textGrob(labelT, gp = gpar(fontsize = 8.8, fontface = 'bold', col = "grey10"))))
+  }
+  
+  # Position the grobs in the gtable
+  if(nrow(posR) > 0) {
+    g <- gtable_add_grob(g, stripR, t = min(posR$t)+1, 
+                       l = max(posR$r) + 1, b = max(posR$b)+1, name = "strip-right")
+  }
+  if(nrow(posT) > 0) {
+    g <- gtable_add_grob(g, stripT, t = min(posT$t), 
+                       l = min(posT$l), r = max(posT$r), name = "strip-top")
+  }
+  
+  # Add small gaps between strips
+  if(nrow(posR) > 0)
+    g <- gtable_add_cols(g, unit(1/5, "line"), max(posR$r))
+  if(nrow(posT) > 0)
+    g <- gtable_add_rows(g, unit(1/5, "line"), min(posT$t))
+  return(g) 
+}
+
+plot_ppc <- function(dat, labs = " ") {
+  p <- dat %>%
+    ggplot(aes(y = Antiviral, xdist = rvar_mean_y_ppc)) +
+    facet_grid(. ~ grp) +
+    stat_interval(size = 2) +
+    geom_point(aes(x = `y/n`), colour = "red", shape = 23, size = 2) +
+    geom_point(aes(x = median(rvar_mean_y_ppc)), colour = "black", shape = 20) +
+    labs(x = "Posterior predictive\nproportion", y = "Antiviral", colour = "Probability") +
+    coord_flip() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  add_facet_labs(p, labs)
+}
+
+plot_ppc2 <- function(dat, labs = " ") {
+  p <- dat %>%
+    ggplot(aes(y = Antiviral, xdist = rvar_mean_y_ppc)) +
+    facet_grid(grp ~ .) +
+    stat_interval(size = 2) +
+    geom_point(aes(x = `y/n`), colour = "red", shape = 23, size = 2) +
+    geom_point(aes(x = median(rvar_mean_y_ppc)), colour = "black", shape = 20) +
+    labs(x = "Posterior predictive\nproportion", y = "Antiviral", colour = "Probability")
+  add_facet_labs(p, labelR = labs)
+}
+
+plot_subgroup_or <- function(dat, grp) {
+  ggplot(ordat, aes(xdist = Posterior, y = !!grp)) +
+    facet_grid( ~ Contrast, scales = "free_x") +
+    stat_slabinterval(
+      aes(fill = 
+            after_stat(
+              cut_cdf_qi(cdf, .width = c(0.5, 0.8, 0.95, 0.99), labels = scales::percent_format()))),
+      adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95, 0.99),
+      fatten_point = 1
+      ) + 
+    scale_fill_brewer(
+      palette = "Reds",
+      direction = -1, 
+      na.translate = FALSE) + 
+    labs(
+      x = "Odds ratio contrast",
+      fill = "Interval"
+    ) +
+    geom_vline(xintercept = 1, linetype = 2) +
+    scale_x_log10("Odds ratio (log scale)") +
+    scale_colour_manual("", values = c("red", "black")) +
+    guides(colour = "none") +
+    theme(panel.border = element_rect(fill = NA),
+          legend.position = "top")
+}
+
+make_subgroup_summary_table <- function(dat, format = "html") {
+  L <- nrow(dat)
+  row_st <- seq(1, L, by = L / 3)
+  row_ed <- seq(L/3, L, by = L / 3)
+  kable(
+    dat[, -1] %>% select(-Posterior),
+    format = format,
+    booktabs = TRUE,
+    align = "lrrrrr",
+      escape = FALSE
+  ) %>%
+    kable_styling(
+      latex_options = "HOLD_position",
+      font_size = 9
+    ) %>%
+    group_rows("Nafamostat", 1, nrow(ordat))
+}
 ```
 
 ```{r}
@@ -102,6 +251,16 @@ acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>%
   filter(!is.na(PO))
 ```
 
+```{r}
+#| label: stan-models
+#| code-summary: Load models
+logistic_mod <- compile_cmdstanr_mod(
+  file.path("binary", "logistic"), dir = "stan")
+logistic_site_epoch <- compile_cmdstanr_mod(
+  file.path("binary", "logistic_site_epoch"), dir = "stan")
+```
+
+
 ## Definition
 
 The relevant anti-inflammatory medications were:
@@ -121,7 +280,12 @@ There were 130 participants out of 155 who received anti-inflammatory medication
 avs_itt_dat <- avs_itt_dat |>
   mutate(
     receipt_antiinflam = 
-      DIS_ImmunoCorticosteroids == "Yes" | DIS_ImmunoTocilizumab == "Yes" | DIS_ImmunoBaricitinib == "Yes"
+      as.numeric(DIS_ImmunoCorticosteroids == "Yes" | DIS_ImmunoTocilizumab == "Yes" | DIS_ImmunoBaricitinib == "Yes")
+  )
+avs_itt_nona_dat <- avs_itt_nona_dat |>
+  mutate(
+    receipt_antiinflam = 
+      as.numeric(DIS_ImmunoCorticosteroids == "Yes" | DIS_ImmunoTocilizumab == "Yes" | DIS_ImmunoBaricitinib == "Yes")
   )
 avs_itt_dat |> 
   count(receipt_antiinflam) |>
@@ -161,3 +325,120 @@ tdat <- avs_itt_dat |>
   pivot_wider(names_from = randA, values_from = n:y, names_vary = "slowest")
 gt(tdat)
 ```
+
+### Subgroup Analysis
+
+```{r}
+X <- make_X_design(
+  avs_itt_nona_dat, 
+  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "crp_tertile", "ctry2", "receipt_antiinflam"), 
+  ctr = contr.equalprior)
+Xint <- cbind(
+  X, 
+  "randA1:receipt_antiinflam" = X[, 2] * X[, "receipt_antiinflam"])
+attr(Xint, "contrasts") <- attr(X, "contrasts")
+
+N <- dim(Xint)[1]
+K <- dim(Xint)[2]
+y <- avs_itt_nona_dat[["PO"]]
+beta_sd <- c(2.5, 1, 1, 1, 1, 1, 10, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 1, 1, 2.5, 1)
+mdat <- list(
+  N = N, K = K,
+  X = Xint, y = y,
+  beta_sd = beta_sd
+)
+snk <- capture.output(
+  mfit <- logistic_mod[["sample"]](
+    data = mdat,
+    seed = 751357,
+    adapt_delta = 0.99,
+    refresh = 0,
+    iter_warmup = 500,
+    iter_sampling = 2500,
+    chains = 4,
+    parallel_chains = min(4, parallel::detectCores())
+  )
+)
+
+mpars <- mfit$metadata()$model_params
+keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
+mdrws <- as_draws_rvars(mfit$draws(keep))
+names(mdrws$beta) <- colnames(mdat$X)
+
+# Transformed samples
+Ca <- attr(mdat$X, "contrasts")$randA
+Cc <- attr(mdat$X, "contrasts")$randC
+
+seff <- rbind(
+  diff(Ca) %**% (mdrws$beta["randA1"]),
+  diff(Ca) %**% (mdrws$beta["randA1"] + mdrws$beta["randA1:receipt_antiinflam"])
+)
+labs <- c("Did not receive anti-inflammatory", "Received anti-inflammatory")
+labs2 <- c("Did not receive", "Received")
+mdrws$OR <- exp(seff)
+rownames(mdrws$OR) <- labs
+colnames(mdrws$OR) <- intervention_labels_short()$AAssignment[-(1:2)]
+mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
+
+# Summarise subgroup effects
+ordat <- expand_grid(
+  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
+  `Received anti-inflammatory` = labs,
+) %>%
+  mutate(Posterior = c(mdrws$OR)) %>%
+  summarise_posterior()
+# Summarise comparison of effects (reference is India)
+compdat <- expand_grid(
+  Contrast = intervention_labels_short()$AAssignment[-(1:2)],
+  `Received anti-inflammatory` = labs
+) %>%
+  mutate(Posterior = c(mdrws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
+
+OR_inflam <- mdrws$OR
+inflamdat <- avs_itt_dat %>% 
+  group_by(receipt_antiinflam, AAssignment) %>% 
+  summarise("events/patients" = sprintf(
+    "%i/%i (%.2f)", 
+    sum(PO, na.rm = TRUE), 
+    sum(!is.na(PO)), 
+    mean(PO, na.rm = T))
+  ) %>%
+  ungroup() %>%
+  mutate(
+    Subgroup = "Anti-inflammatory",
+    Variable = as.character(factor(as.numeric(receipt_antiinflam), levels = 0:1, labels = labs)),
+    Intervention = as.character(factor(
+      AAssignment, 
+      labels = intervention_labels_short()$AAssignment[-1])),
+    .before = 1
+  ) %>%
+  select(-receipt_antiinflam, -AAssignment)
+```
+
+```{r}
+inflamdat |>
+  gt(rowname_col = "Variable", groupname_col = "Subgroup")
+```
+
+```{r}
+y_ppc <- mdrws$y_ppc
+ppc_dat <- bind_cols(avs_itt_nona_dat, tibble(y_ppc = y_ppc))
+p <- plot_ppc(grp_ppc2(sym("receipt_antiinflam"), labs2), "Anti-inflammatory") 
+grid.arrange(p)
+```
+
+```{r}
+p <- plot_subgroup_or(ordat, sym("Received anti-inflammatory"))
+p
+```
+
+```{r}
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+make_subgroup_summary_table(compdat)
+```
+

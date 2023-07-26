@@ -53,6 +53,7 @@ format:
     fontsize: 1em
     max-width: "2000px"
     self-contained: true
+    embed-resources: true
     standalone: true
     code-tools: true
     code-fold: true

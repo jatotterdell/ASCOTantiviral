@@ -7,7 +7,7 @@ Analysis scripts for the close-out of the ASCOT antiviral domain.
 The project assumes that a `.Renviron` file exists in the project directory and defines a variable `ASCOT_DATA` which provides the top level directory of the RDS location. On my system this is:
 
 ```r
-ASCOT_DATA = "/media/rds/PRJ-ascotsims/data"
+ASCOT_DATA = "/mnt/share/PRJ-ascotsims/data/antiviral"
 ```
 
 The `.Rprofile` file then defines a few additional global constants.

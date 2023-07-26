@@ -1099,7 +1099,7 @@ p
 ```
 
 ```{r}
-#| label: fig-country-po
+#| label: fig-country-po-avs
 #| code-summary: Relationship country to outcome
 #| fig-cap: Primary outcome by country.
 #| fig-height: 2
@@ -1190,7 +1190,7 @@ p
 ```
 
 ```{r}
-#| label: fig-site-po
+#| label: fig-site-po-avs
 #| code-summary: Relationship site to outcome
 #| fig-cap: Primary outcome by site within country.
 #| fig-height: 6
@@ -1663,25 +1663,67 @@ p
 The primary model is re-fit assuming a prior specified on the treatment indicator variables rather than on the orthonormal terms. Note that the prior scales need to be adjusted. The prior $\text{Normal}(0,1)$ on the orthonormal terms imply $\text{Normal}(0,2)$ on the pair-wise differences. Therefore, for the treatment coding we specify a prior standard deviation of $\sqrt{2}$ instead of 1.
 
 ```{r}
-res <- fit_primary_model(fas_itt_nona_dat, logistic_site_epoch, ctr = contr.treatment, beta_sd_trt = sqrt(2))
-names(res$drws$AOR) <- "Nafamostat"
-names(res$drws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
-names(res$drws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
+# res <- fit_primary_model(fas_itt_nona_dat, logistic_site_epoch, ctr = contr.treatment, beta_sd_trt = sqrt(2))
+mdat <- make_primary_model_data(
+  fas_itt_nona_dat, 
+  ctr = contr.treatment, 
+  vars = c("inelgc3", "agegte60", "sexF", "supp_oxy2", "ctry"), 
+  beta_sd_var = c(10, 2.5, 2.5, 2.5, 1, 1),
+  beta_sd_trt = sqrt(2))
+snk <- capture.output(mfit <- logistic_site_epoch[["sample"]](data = mdat, 
+      seed = 32915, adapt_delta = 0.99, refresh = 0, 
+      iter_warmup = 1000, iter_sampling = 2500, chains = 8, 
+      parallel_chains = min(8, parallel::detectCores())))
+mpars <- mfit$metadata()$model_params
+keep <- mpars[!grepl("(_raw|epsilon_)", mpars)]
+mdrws <- as_draws_rvars(mfit$draws(keep))
+names(mdrws$beta) <- colnames(mdat$X)
+site_var <- "site_num"
+if (any(grepl("site", keep))) {
+        if (site_var == "site2_num") {
+            site_map <- fas_itt_nona_dat %>% dplyr::count(.data[[site_var]], 
+                site2)
+            names(mdrws$gamma_site) <- site_map$site2
+        }
+        else {
+            site_map <- fas_itt_nona_dat %>% dplyr::count(.data[[site_var]], 
+                site)
+            names(mdrws$gamma_site) <- site_map$site
+        }
+    }
+if (any(grepl("epoch", keep))) {
+      epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+      names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+  }
+Ca <- mdat$ctrA
+mdrws$Acon <- as.vector(Ca %**% mdrws$beta[grepl("randAA[0-9]", names(mdrws$beta))])
+names(mdrws$Acon) <- rownames(Ca)
+mdrws$Atrt <- mdrws$Acon[-1] - mdrws$Acon[1]
+mdrws$AOR <- exp(mdrws$Atrt)
+Cc <- mdat$ctrC
+mdrws$Ccon <- as.vector(Cc %**% mdrws$beta[grepl("randCC[0-9]", names(mdrws$beta))])
+names(mdrws$Ccon) <- rownames(Cc)
+mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$COR <- exp(mdrws$Ctrt)
+mdrws$OR <- exp(mdrws$beta[!grepl("(Intercept|rand)", names(mdrws$beta))])
+names(mdrws$AOR) <- "Nafamostat"
+names(mdrws$COR) <- intervention_labels2()$CAssignment[-(1:2)]
+names(mdrws$OR)[-1] <- c("Ineligible aspirin", "Age \u2265 60", "Female", "Oxygen requirement", "Australia/New Zealand", "Nepal")
 ```
 
 ```{r}
 #| label: odds-ratio-summary-table-primary-model-fas-itt-trt
 #| tbl-cap: Posterior summaries for model parameters.
-odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
+odds_ratio_summary_table(c(mdrws$AOR, mdrws$COR, mdrws$OR[-1]))
 ```
 
 ```{r}
 #| label: odds-ratio-summary-primary-model-fas-itt-epoch-site-terms-trt
 p <- plot_epoch_site_terms(
-  res$drws$gamma_epoch, 
-  res$drws$gamma_site,
+  mdrws$gamma_epoch, 
+  mdrws$gamma_site,
   factor(
-    res$dat$region_by_site, 
+    mdat$region_by_site, 
     labels = c("India", "Australia\nNew Zealand", "Nepal"))
 )
 p
@@ -2009,9 +2051,11 @@ ggsave(pth, p, width = 6, height = 4.5)
 p
 ```
 
+<!-- 
 ### Treatment coding prior
 
 ```{r}
+#| eval: false
 res <- fit_primary_model(
   acs_itt_nona_dat, 
   logistic_site_epoch, 
@@ -2039,7 +2083,8 @@ p <- plot_epoch_site_terms(
     labels = c("India", "Australia\nNew Zealand", "Nepal"))
 )
 p
-```
+``` 
+-->
 
 ### Diffuse
 
@@ -2244,6 +2289,7 @@ ggsave(pth, p, width = 6, height = 4.5)
 p
 ```
 
+<!-- 
 ### Treatment coding
 
 ```{r}
@@ -2266,6 +2312,7 @@ names(res$drws$OR)[-1] <- c(
 #| tbl-cap: Posterior summaries for model parameters, AVS-ITT, prior on treatment coding.
 odds_ratio_summary_table(c(res$drws$AOR, res$drws$OR[-1]))
 ```
+ -->
 
 ### Diffuse prior
 
@@ -2543,6 +2590,7 @@ ggsave(pth, p, width = 6, height = 2.5)
 p
 ```
 
+<!-- 
 ### Treatment coding
 
 ```{r}
@@ -2565,6 +2613,7 @@ names(res$drws$OR)[-1] <- c(
 #| tbl-cap: Posterior summaries for model parameters, AVS-PP, prior on treatment coding.
 odds_ratio_summary_table(c(res$drws$AOR, res$drws$COR, res$drws$OR[-1]))
 ```
+ -->
 
 ### Sceptical
 
@@ -2606,8 +2655,6 @@ p <- plot_or_densities(c(res$drws$AOR)) +
   labs(x = "Odds ratio (log scale)", y = "Comparison")
 p
 ```
-
-
 
 ## Concurrent
 

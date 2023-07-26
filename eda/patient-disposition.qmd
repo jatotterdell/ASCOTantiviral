@@ -332,6 +332,7 @@ el_doma |>
 
 
 ```{r}
+#| eval: false
 el_doma |> 
   filter(EL_Country != "India") |>
   count(EL_Screened >= date_doma)
@@ -446,7 +447,7 @@ all_data |>
 
 
 ```{r}
-#| label: tbl-antiviral-eligibility
+#| label: tbl-antiviral-eligibility2
 #| tbl-cap: Antiviral eligibility variables.
 all_data |>
     filter(
@@ -463,31 +464,6 @@ all_data |>
         EL_PregnancyBreastfeedingStatus = sum(EL_PregnancyBreastfeedingStatus == "Yes", na.rm = TRUE),
         EL_ReceivedNafamostat = sum(EL_ReceivedNafamostat == "Yes"),
         EL_HeartRenalDialysis = sum(EL_HeartRenalDialysis == "Yes")
-    ) |>
-    gather(Criteria, Count, -ENR_rec) |>
-  arrange(ENR_rec, Count) |>
-  kable("html") |>
-  kable_styling("striped", font_size = 12)
-```
-
-```{r}
-#| label: tbl-antiviral-eligibility
-#| tbl-cap: Antiviral eligibility variables.
-all_data |>
-    filter(
-        is.na(EL_HyperNafamostat)
-    ) |>
-    group_by(ENR_rec) |>
-    summarise(
-        EL_DecompensatedLiver = sum(EL_DecompensatedLiver == "Yes", na.rm = TRUE),
-        EL_OralTherapeuticAnticoagAgents = sum(EL_OralTherapeuticAnticoagAgents == "Yes", na.rm = TRUE),
-        EL_TherapeuticAnticoagBleeding = sum(EL_TherapeuticAnticoagBleeding == "Yes", na.rm = TRUE),
-        EL_SerumSodium = sum(EL_SerumSodium < 5.5, na.rm = TRUE, na.rm = TRUE),
-        EL_SerumPotassium = sum(EL_SerumPotassium >= 120, na.rm = TRUE, na.rm = TRUE),
-        EL_HyperNafamostat = sum(EL_HyperNafamostat == "Yes", na.rm = TRUE),
-        EL_PregnancyBreastfeedingStatus = sum(EL_PregnancyBreastfeedingStatus == "Yes", na.rm = TRUE),
-        EL_ReceivedNafamostat = sum(EL_ReceivedNafamostat == "Yes", na.rm = TRUE),
-        EL_HeartRenalDialysis = sum(EL_HeartRenalDialysis == "Yes", na.rm = TRUE)
     ) |>
     gather(Criteria, Count, -ENR_rec) |>
   arrange(ENR_rec, Count) |>

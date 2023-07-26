@@ -1,0 +1,163 @@
+---
+title: 9 - Analysis of primary outcome by receipt of anti-inflammatory medication
+date: today
+execute: 
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(ASCOTr)
+library(tidyverse)
+library(lubridate)
+library(kableExtra)
+library(patchwork)
+library(cmdstanr)
+library(posterior)
+library(bayesplot)
+library(ggdist)
+library(lme4)
+library(broom)
+library(broom.mixed)
+library(bayestestR)
+library(ggh4x)
+library(gt)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+
+color_scheme_set("red")
+options(digits = 4)
+```
+
+```{r}
+#| label: analysis-sets
+#| code-summary: Prepare datasets
+all_data <- readRDS(file.path(ASCOT_DATA, "all_data.rds"))
+all_daily_data <- readRDS(file.path(ASCOT_DATA, "all_daily_data.rds"))
+pd <- readRDS(file.path(ASCOT_DATA, "pd.rds"))
+
+# FAS-ITT
+fas_itt_dat <- ASCOTr:::make_fas_itt_set(all_data)
+fas_itt_nona_dat <- fas_itt_dat |>
+  filter(!is.na(PO))
+
+# ACS-ITT
+acs_itt_dat <- ASCOTr:::make_acs_itt_set(all_data)
+acs_itt_nona_dat <- acs_itt_dat |>
+  filter(!is.na(PO))
+
+# AVS-ITT
+avs_itt_dat <- ASCOTr:::make_avs_itt_set(all_data)
+avs_itt_nona_dat <- avs_itt_dat |>
+  filter(!is.na(PO))
+
+# FAS-ITT Best Case/Worst case
+fas_itt_bc_dat <- fas_itt_dat |>
+  mutate(PO = if_else(is.na(PO), 0, PO))
+fas_itt_wc_dat <- fas_itt_dat |>
+  mutate(PO = if_else(is.na(PO), 1, PO))
+
+# FAS AU/NZ
+fas_itt_aunz_dat <- fas_itt_dat |> filter(Country %in% c("AU", "NZ"))
+fas_itt_aunz_nona_dat <- fas_itt_aunz_dat |> 
+  filter(!is.na(PO)) |>
+  select(-ctry, -ctry_num, -site, -site_num) |>
+  ASCOTr:::add_region_site_groups()
+
+# FAS-PP
+fas_pp_dat <- fas_itt_dat |>
+  left_join(pd, by = "StudyPatientID") |>
+  filter(is.na(pd_A) | pd_A == 0, is.na(pd_C) | pd_C == 0)
+fas_pp_nona_dat <- fas_pp_dat |>
+  filter(!is.na(PO))
+
+# ACS-PP
+acs_pp_dat <- acs_itt_dat |>
+  left_join(pd, by = "StudyPatientID") |>
+  filter(is.na(pd_C) | pd_C == 0)
+acs_pp_nona_dat <- acs_pp_dat |>
+  filter(!is.na(PO))
+
+# AVS-PP
+avs_pp_dat <- avs_itt_dat |>
+  left_join(pd, by = "StudyPatientID") |>
+  filter(is.na(pd_A) | pd_A == 0)
+avs_pp_nona_dat <- avs_pp_dat |>
+  filter(!is.na(PO))
+
+
+# Concurrent enrolments for C4
+acs_itt_concurc4_dat <- acs_itt_dat %>%
+  filter(EL_ProtocolVersion == "5.0")
+acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>% 
+  filter(!is.na(PO))
+```
+
+## Definition
+
+The relevant anti-inflammatory medications were:
+
+- corticosteroids
+- tocilizumab
+- baricitinib
+
+Technically, receipt of anti-inflammatory medications is a post-randomisation event. Therefore, without strong assumptions, the interpretation of a within group effect is challening, particularly given the trial was open-label.
+
+## Results
+
+There were 130 participants out of 155 who received anti-inflammatory medication during their hospital stay. There were 60 who received corticosteroids only, 57 who received corticosteroids with baricitinib, 8 who received corticosteroids with tocilizumab, and 5 who received baricitinib only. There remaining 25 participants received no anti-inflammatory medication.
+
+```{r}
+#| label: lst-data-deriv
+avs_itt_dat <- avs_itt_dat |>
+  mutate(
+    receipt_antiinflam = 
+      DIS_ImmunoCorticosteroids == "Yes" | DIS_ImmunoTocilizumab == "Yes" | DIS_ImmunoBaricitinib == "Yes"
+  )
+avs_itt_dat |> 
+  count(receipt_antiinflam) |>
+  gt()
+```
+
+```{r}
+avs_itt_dat |> 
+  count(receipt_antiinflam, DIS_ImmunoCorticosteroids, DIS_ImmunoTocilizumab, DIS_ImmunoBaricitinib) |>
+  gt()
+```
+
+No participant who did not receive anti-inflammatory medication met the primary outcome. Of the 130 participants who did receive anti-inflammatory medication, 12 (9%) met the primary outcome.
+
+```{r}
+#| label: po-by-antiinflam
+avs_itt_dat |>
+  summarise(
+    n = n(), 
+    na = sum(is.na(PO)),
+    y = sum(PO, na.rm = TRUE), 
+    .by = receipt_antiinflam
+  ) |>
+  gt()
+```
+
+Amongst the 73 participants assigned to standard of care, 58 (79%) received anti-inflammatory medications and 8 (14%) of these met the primary outcome. Amongst the 82 participants assigned to nafamostat, 72 (88%) received anti-inflammatory medications and 4 (6%) met the primary outcome.
+
+```{r}
+#| label: po-by-antiinflam-rand
+tdat <- avs_itt_dat |>
+  summarise(
+    n = n(),
+    y = sum(PO, na.rm = TRUE), 
+    .by = c(randA, receipt_antiinflam)
+  ) |>
+  pivot_wider(names_from = randA, values_from = n:y, names_vary = "slowest")
+gt(tdat)
+```

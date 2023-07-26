@@ -37,6 +37,7 @@ website:
           - "analyses/7-7_breathlessness.qmd"
           - "analyses/7-8_eq_5d_5l.qmd"
           - "analyses/8_antiviral_specific.qmd"
+          - "analyses/9-1_post-hoc-anti-inflammatory.qmd"
 
 format:
   html:
